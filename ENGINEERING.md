@@ -377,6 +377,18 @@ This has **never been run against a live DB.** First tasks (from the README):
 
 ---
 
+### 6.4 UX polish backlog (founder feedback 2026-08-19)
+
+Captured from live testing; prioritise after DNS cutover. Not yet built unless ticked.
+
+- ✅ **Open building to everyone** — anonymous can create/play/export/import-file; only publish + world require login. (done, session f)
+- ✅ **Stale share hash** — returning home / to a preset kept `/#/p/<hash>`; now cleared on local navigation. (done, session f)
+- ⬜ **Maquette naming** — name/rename a maquette *before* saving/publishing (currently always "Untitled"). Ties into §8.1 (Maquette drafts).
+- ⬜ **Login flow feedback** — clearer signed-in/out states and prompts.
+- ⬜ **Browsing feedback** — loading/empty/error states in the Browse overlay.
+- ⬜ **Publishing feedback** — richer success/failure surfacing (currently a single toast).
+- ⬜ **Back affordance** — a subtle, clickable back arrow (not just Esc) to return home from play/build/world.
+
 ## 7. Infrastructure & deployment architecture
 
 ### 7.1 Chosen topology (opinionated, best-practice)
@@ -564,6 +576,12 @@ This is the single largest long-term architectural bet, and it collides head-on 
 ## 9. Session Log
 
 > Append one entry per development session. Keep newest first. If you changed architecture, the data model, the maths, or infra, update the relevant section above *and* log it here.
+
+### 2026-08-19 (f) — Gating model opened up + share-hash fix
+- **Gating model changed (founder):** building is client-side & local, so **anyone** can now create / play / export / import-file. Login gates **only** publish + world (server-persisting). `gates.canBuild=true` always; Build + Import buttons shown to all; Publish/Browse/World/Map still login-only.
+- **Fix:** share-link hash `#/p/<hash>` no longer goes stale — cleared via `history.replaceState` when returning home, loading a preset, starting a build, or importing a file (`clearShareHash()` in sandbox.js).
+- Client builds clean; captured remaining UX feedback as §6.4 backlog (maquette naming, login/browse/publish feedback, back-arrow affordance).
+- **Next:** redeploy → DNS cutover to klarbase.dev (founder on Cloudflare now).
 
 ### 2026-08-19 (e) — Auth fixed, sign-in works, public share-play shipped
 - **Bug:** OAuth callback → `internal_server_error`. Cause: `better-auth ^1.1.0` resolved to **1.7.1**, whose adapter queries `Account.issuer` (a 1.7 field) absent from the committed schema. **Fix:** exact-pin `better-auth@1.4.22` in both workspaces (matches schema; no migration). Sign-in verified working live; founder published the first maquette.

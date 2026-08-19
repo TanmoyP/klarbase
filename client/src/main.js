@@ -21,7 +21,7 @@ let session = null;
 /* ---------------- auth chip + gating ---------------- */
 async function refreshAuth(){
   session = await getSession();
-  gates.canBuild = !!session;
+  gates.canBuild = true;   // building/playing/export/import-file are local & client-side — open to all; only publish + world persist to the server and require login
   const chip = $('#authchip');
   if(session){
     chip.innerHTML = '';
@@ -40,9 +40,9 @@ async function refreshAuth(){
     const gg = document.createElement('button'); gg.textContent = 'sign in · Google';
     gg.onclick = () => signIn('google');
     chip.append(gh, gg);
-    // anonymous: presets only
-    $('#btnBuild').style.display = 'none';
-    $('#btnImport').style.display = 'none';
+    // anonymous can build/play/export/import-file locally; publish + world need login
+    $('#btnBuild').style.display = '';
+    $('#btnImport').style.display = '';
   }
 }
 

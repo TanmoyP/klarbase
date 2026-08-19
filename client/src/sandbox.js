@@ -726,6 +726,7 @@ function loadPreset(i){
   hideStart(); setTitle(p.name, p.sub);
   startPlay();
   showHint(p.hint);
+  clearShareHash();
 }
 
 /* ==================== MODULE: UI — bar, toasts, start screen =============== */
@@ -802,8 +803,11 @@ function showHint(msg){
   clearTimeout(hintT); hintT = setTimeout(()=>hintEl.classList.remove('on'), 7000);
 }
 function hideStart(){ startEl.style.opacity=0; setTimeout(()=>startEl.style.display='none',450); }
+// Clear a stale share-link hash (#/p/…) when moving to local content, so the URL
+// reflects what's on screen (fix: returning home / to a preset kept the old /#/p/<hash>).
+function clearShareHash(){ if(location.hash) history.replaceState(null,'',location.pathname+location.search); }
 function showStart(){ startEl.style.display='flex'; requestAnimationFrame(()=>startEl.style.opacity=1);
-  bar.classList.remove('on'); titleEl.classList.remove('on'); }
+  bar.classList.remove('on'); titleEl.classList.remove('on'); clearShareHash(); }
 
 document.querySelectorAll('[data-preset]').forEach(b=>{
   b.onclick = ()=>{ audio(); loadPreset(+b.dataset.preset); };
@@ -817,6 +821,7 @@ document.getElementById('btnBuild').onclick = ()=>{
   recompute(); MODE='build'; cur=null; syncUI(); updateGhost();
   camTarget.set(6,1,5);
   showHint('Place blocks with space. Press tab to walk what you made.');
+  clearShareHash();
 };
 document.getElementById('btnImport').onclick = ()=>document.getElementById('fileIn').click();
 document.getElementById('btnExport').onclick = ()=>{
@@ -825,7 +830,7 @@ document.getElementById('btnExport').onclick = ()=>{
 };
 document.getElementById('fileIn').onchange = e=>{
   const f = e.target.files[0]; if(!f) return;
-  const r = new FileReader(); r.onload = ()=>importJSON(r.result); r.readAsText(f);
+  const r = new FileReader(); r.onload = ()=>{ importJSON(r.result); clearShareHash(); }; r.readAsText(f);
 };
 
 /* ------------------------------------------------------------------ input */
