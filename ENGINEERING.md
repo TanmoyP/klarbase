@@ -353,7 +353,7 @@ This has **never been run against a live DB.** First tasks (from the README):
 | Phase | Scope | State | Gate to start next |
 |---|---|---|---|
 | **P1 — Sandbox** | camera, grid, 6 components, illusion seam, avatar, editor doctrine, 3 presets | ✅ done (POC) | "whoa not bug" — answered |
-| **Content — Curated Playset (8)** | 8 anon-playable maquettes, rising complexity, seeded grass; 8-button Playset | ✅ **built & verified** (all valid+solvable; 5 seam puzzles load-bearing) | — |
+| **Content — Curated Playset (16)** | 16 anon-playable maquettes (single source `@klar/core` CURATED), a Play picker, canonical JSON artifacts + DB seed | ✅ **built & verified** (all 16 valid+solvable; every seam load-bearing) | — |
 | **P2 — Platform** | repo, auth, publish gate, share links, browse | 🟡→✅ **deployed live** (Railway+Neon); infra half of the loop proven, browser OAuth half pending | **milestone loop green live** |
 | **P2.5 — Maquette drafts & versions** 🔴 | mutable working saves, 5 slots/maquette, upload JSON | 🔴 proposed (§8.1) | P2 loop green |
 | **P3 — Shared world** | lattice claim/place, free-roam streaming, map | 🟡 scaffolded | P2 loop green + world design review |
@@ -638,6 +638,14 @@ Consolidated from the first deploy day. These cost real time; don't relearn them
 ## 9. Session Log
 
 > Append one entry per development session. Keep newest first. If you changed architecture, the data model, the maths, or infra, update the relevant section above *and* log it here.
+
+### 2026-08-19 (k) — Playset → 16, single-sourced, artifacts + seed, Play picker
+- **Finished KIMI's mid-stream work.** KIMI added maquettes 9–16 to `core/src/curated.js` (`CURATED` = single source of truth) but 6 failed verification (overlaps + a few solvability breaks from support-fill loops). Fixed all 6 (added a Set-based `solids()` dedup builder + clean stair/seam math): **The Gardens, The Steps (grand stairway), The Switchback (L-fold), The Overlook (seam to isolated tower), The Bridge, The Citadel (3 terraces, 2 seams).** **All 16 now pass** (valid + solvable; every seam load-bearing).
+- **Single source:** `client/src/sandbox.js` now imports `CURATED` (`const PRESETS = CURATED`) — the duplicate inline presets are gone. `tools/author.mjs` + the game + the JSON artifacts all derive from one array.
+- **Artifacts:** `content/maquettes/01..16-*.json` — canonical v4 docs (meta-stripped, deterministic) + `manifest.json` (name/sub/hint/yaw/grass/**content hash**/ports). Written by `node tools/author.mjs`.
+- **Seed:** `node --env-file=.env tools/author.mjs --seed` publishes the 16 into the DB as immutable `Puzzle` rows owned by a fixed system user "Klarbase" (idempotent upsert). Verified against local DB (16 rows). Run against prod deliberately to put the curated set in the live Browse catalog.
+- **UX:** maquettes moved off the home screen into a **"▶ Play a maquette"** picker overlay (16 cards) — home screen stays clean (Play · Build · Import · Export), all anon-accessible.
+- **Next:** deploy + live verify; optionally seed prod.
 
 ### 2026-08-19 (j) — Harness committed + learnings consolidated
 - Committed **`tools/author.mjs`** (portable, CI exit code) — the maquette authoring/verification harness; **wired into CI** so the Playset can't silently break (validate + solve + seam load-bearing on every push).

@@ -101,6 +101,33 @@ if(!fail){
   console.log(`\n${CURATED.length} maquettes verified — JSONs written to ${OUT_DIR}/`);
 } else {
   console.log(`\n${fail} FAILED`);
+  process.exit(1);
 }
 
-process.exit(fail ? 1 : 0);
+// --seed: publish the verified maquettes into the DB as curated content (immutable,
+// owned by a fixed system user). Writes to whatever DATABASE_URL points at — run it
+// against local for testing; against prod only deliberately. Immutable: never overwrites.
+if(process.argv.includes('--seed')){
+  const { PrismaClient } = await import('@prisma/client');
+  const prisma = new PrismaClient();
+  const SYS = { id:'klarbase-curated', name:'Klarbase', email:'curated@klarbase.dev' };
+  try {
+    await prisma.user.upsert({ where:{ id:SYS.id }, update:{}, create:{ ...SYS, emailVerified:true } });
+    let n = 0;
+    for(const m of manifest.maquettes){
+      const json = fs.readFileSync(path.join(OUT_DIR, m.file), 'utf8').trim();  // canonical v4 doc
+      await prisma.puzzle.upsert({
+        where:{ hash:m.hash },
+        update:{},   // content-addressed + immutable — never overwrite an existing row
+        create:{ hash:m.hash, title:m.name, json, portsJson:JSON.stringify(m.ports), authorId:SYS.id, status:'live' },
+      });
+      n++;
+      console.log(`  seeded ${m.name} (${m.hash.slice(0,12)}…)`);
+    }
+    console.log(`\nseeded ${n} maquettes into the DB as '${SYS.name}'`);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+process.exit(0);

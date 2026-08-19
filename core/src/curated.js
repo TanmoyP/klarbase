@@ -7,6 +7,21 @@
 const B = (x,y,z)=>({t:'block',p:[x,y,z]});
 const build = list => list.map((c,i)=>({ i:i+1, t:c.t, p:c.p, r:c.r||0, v:c.v }));
 
+// Set-based solid builder: support fills dedup by construction, so overlapping
+// footprints never produce E_OVERLAP. fn receives {add, fill, col, del}; returns
+// the deduped block list (stairs/columns/spawn/goal are added by the caller).
+function solids(fn){
+  const s = new Set(), key = (x,y,z)=>x+','+y+','+z;
+  const api = {
+    add:(x,y,z)=>{ s.add(key(x,y,z)); return api; },
+    fill:(x1,x2,y,z1,z2)=>{ for(let x=x1;x<=x2;x++) for(let z=z1;z<=z2;z++) s.add(key(x,y,z)); return api; },
+    col:(x,z,y0,y1)=>{ for(let y=y0;y<=y1;y++) s.add(key(x,y,z)); return api; },
+    del:(x,y,z)=>{ s.delete(key(x,y,z)); return api; },
+  };
+  fn(api);
+  return [...s].map(k=>{ const [x,y,z]=k.split(',').map(Number); return B(x,y,z); });
+}
+
 /* ---- 1. First Steps ---- */
 function m1(){
   const out=[];
@@ -110,6 +125,7 @@ function m9(){
   // 12x12 garden floor with winding ponds (holes)
   for(let x=2;x<=13;x++) for(let z=2;z<=13;z++){
     if((x>=5&&x<=7 && z>=5&&z<=7) || (x>=9&&x<=11 && z>=9&&z<=11) || (x>=4&&x<=6 && z>=10&&z<=12)) continue;
+    if(x===3&&z===3) continue;   // spawn cell
     out.push(B(x,0,z));
   }
   // corner columns outside the garden floor
@@ -122,26 +138,17 @@ function m9(){
 }
 
 /* ---- 10. The Steps ---- */
+// A grand 3-wide stairway of 6 chained flights climbing +z; landings at even z,
+// stair supports at odd z — a solid stepped ramp with lots of steps to the top.
 function m10(){
-  const out=[];
-  // base pad and side walls
-  for(let x=3;x<=7;x++) for(let z=0;z<=2;z++) out.push(B(x,0,z));
-  // chained stair flights along the centre, each gaining one solid level
-  const landings = [[5,1,4],[5,2,6],[5,3,8],[5,4,10],[5,5,12],[5,6,14]];
-  const stairs = [[5,1,3],[5,2,5],[5,3,7],[5,4,9],[5,5,11],[5,6,13]];
-  for(const [x,y,z] of landings) out.push(B(x,y,z));
-  for(const [x,y,z] of stairs) out.push({t:'stairs',p:[x,y,z],r:2});
-  // support columns beneath landings and stairs
-  for(const [x,y,z] of landings){
-    for(let yy=0;yy<y;yy++) out.push(B(x,yy,z));
-    // connect landings to the base pad and each other
-    for(let zz=Math.max(0,z-2);zz<=z;zz++) out.push(B(x,0,zz));
-  }
-  for(const [x,y,z] of stairs){
-    for(let yy=0;yy<y;yy++) out.push(B(x,yy,z));
-  }
-  out.push({t:'spawn',p:[5,0,1]},{t:'goal',p:[5,6,15]});
-  return build(out);
+  const stairs=[];
+  const blocks = solids(({col,del})=>{
+    for(let k=0;k<=6;k++) for(let x=4;x<=6;x++) col(x,2*k,0,k);        // landings + support
+    for(let y=1;y<=6;y++) for(let x=4;x<=6;x++) col(x,2*y-1,0,y-1);   // support beneath each stair
+    del(5,0,0);   // spawn cell
+  });
+  for(let y=1;y<=6;y++) stairs.push({t:'stairs',p:[5,y,2*y-1],r:2});
+  return build([...blocks, ...stairs, {t:'spawn',p:[5,0,0]}, {t:'goal',p:[5,6,13]}]);
 }
 
 /* ---- 11. The Columns ---- */
@@ -173,56 +180,41 @@ function m11(){
 }
 
 /* ---- 12. The Switchback ---- */
+// An L-shaped stairwell: Run A climbs +z three levels, then Run B turns and
+// climbs +x three more to the rooftop goal — a real switchback, fully supported.
 function m12(){
-  const out=[];
-  // solid stepped ramp with stair cells carved out
-  const box = (x1,x2,z1,z2,y,skip=new Set())=>{
-    for(let x=x1;x<=x2;x++) for(let z=z1;z<=z2;z++){
-      if(skip.has(x+','+z+','+y)) continue;
-      out.push(B(x,y,z));
-    }
-  };
-  const stairCells = new Set([
-    '7,3,1','8,7,1','7,10,1','8,13,1',
-  ]);
-  // each level's box covers the ramp; stair cells are carved out and replaced by stairs
-  box(6,9,0,4,0);
-  box(6,9,0,7,1,stairCells);
-  box(6,9,0,10,2,stairCells);
-  box(6,9,0,13,3,stairCells);
-  box(6,9,0,15,4,stairCells);
-  // switchback stairs (carved cells)
-  out.push({t:'stairs',p:[7,1,3],r:2});  // y0 -> y1
-  out.push({t:'stairs',p:[8,2,7],r:0});  // y1 -> y2
-  out.push({t:'stairs',p:[7,3,10],r:2}); // y2 -> y3
-  out.push({t:'stairs',p:[8,4,13],r:0}); // y3 -> y4
-  out.push({t:'spawn',p:[7,0,1]},{t:'goal',p:[8,4,14]});
-  return build(out);
+  const stairs=[];
+  const blocks = solids(({col,del})=>{
+    // Run A: climb +z along x=1..3, levels 0..3
+    for(let k=0;k<=3;k++) for(let x=1;x<=3;x++) col(x,2*k,0,k);
+    for(let y=1;y<=3;y++) for(let x=1;x<=3;x++) col(x,2*y-1,0,y-1);
+    // Run B: climb +x along z=6, levels 4..6 (landings x=5,7,9; stairs at x=4,6,8)
+    for(let k=4;k<=6;k++) col(2*k-3,6,0,k);
+    for(let y=4;y<=6;y++) col(2*y-4,6,0,y-1);
+    del(1,0,0);   // spawn cell
+  });
+  for(let y=1;y<=3;y++) stairs.push({t:'stairs',p:[2,y,2*y-1],r:2});   // Run A (+z)
+  for(let y=4;y<=6;y++) stairs.push({t:'stairs',p:[2*y-4,y,6],r:1});   // Run B (+x)
+  return build([...blocks, ...stairs, {t:'spawn',p:[1,0,0]}, {t:'goal',p:[10,6,6]}]);
 }
 
 /* ---- 13. The Overlook ---- */
+// A plaza and a dead-end deck; the goal tower stands alone across the void, and
+// only an authored seam (deck node 7,2,7 -> tower node 10,5,10) reaches it.
 function m13(){
-  const out=[];
-  // lower plaza y=0 x=0..7 z=0..7
-  for(let x=0;x<=7;x++) for(let z=0;z<=7;z++) out.push(B(x,0,z));
-  // raised deck y=2 x=4..7 z=4..7 (supported by plaza below at y=0,1)
-  for(let x=4;x<=7;x++) for(let z=4;z<=7;z++){
-    out.push(B(x,2,z));
-    out.push(B(x,1,z));
-  }
-  // stairs to deck
-  out.push({t:'stairs',p:[3,1,4],r:1}); // ground (2,0,4) -> deck (4,1,4)
-  out.push({t:'stairs',p:[4,2,5],r:2}); // deck y1 -> deck y2
-  // tall platform with goal
-  out.push({t:'column',p:[10,0,10],v:{h:5}});
-  out.push(B(10,5,10),B(10,5,11));
-  // goal cell
-  out.push({t:'goal',p:[11,5,10]});
-  // spawn
-  out.push({t:'spawn',p:[1,0,1]});
-  return build(out);
+  const blocks = solids(({fill,del})=>{
+    fill(0,7,0,0,7);        // plaza y=0
+    fill(4,7,1,4,7);        // dead-end deck y=1 (top nodes at (x,2,z))
+    del(1,0,1);            // spawn cell
+  });
+  return build([
+    ...blocks,
+    {t:'stairs',p:[3,1,4],r:1},                     // plaza -> deck
+    {t:'column',p:[10,0,10],v:{h:4}}, B(10,4,10),   // isolated tower, top at level 4
+    {t:'spawn',p:[1,0,1]}, {t:'goal',p:[11,4,10]},
+  ]);
 }
-const m13allow=[{a:'7,3,7', b:'10,6,10', yaw:0}];
+const m13allow=[{a:'7,2,7', b:'10,5,10', yaw:0}];
 
 /* ---- 14. The Bridge ---- */
 function m14(){
@@ -239,12 +231,11 @@ function m14(){
   }
   // stairs to lower platform
   out.push({t:'stairs',p:[2,1,1],r:2});
-  // higher platform y=4 x=8..12 z=8..12, supported
+  // higher platform y=4 x=8..12 z=8..12, supported (goal cell carved from the top)
   for(let x=8;x<=12;x++) for(let z=8;z<=12;z++){
-    out.push(B(x,4,z));
+    if(!(x===12&&z===12)) out.push(B(x,4,z));   // goal sits here on the support stack
     for(let y=0;y<=3;y++) out.push(B(x,y,z));
   }
-  // goal on higher platform (skip the cell in platform loop by carving after)
   out.push({t:'spawn',p:[3,0,0]},{t:'goal',p:[12,4,12]});
   return build(out);
 }
@@ -274,33 +265,23 @@ function m15(){
 const m15allow=[{a:'4,1,4', b:'7,4,7', yaw:0}, {a:'8,4,8', b:'11,1,11', yaw:2}];
 
 /* ---- 16. The Citadel ---- */
+// Three rising terraces linked by two seams. A stair reaches Terrace A (y=1);
+// seam A->B lifts you to Terrace B (y=3); seam B->C lifts you to Terrace C (y=5)
+// and the goal. Each terrace is an isolated tower — the seams are the only way up.
 function m16(){
-  const out=[];
-  // ground floor with central courtyard open and platform footprints open
-  for(let x=0;x<=15;x++) for(let z=0;z<=15;z++){
-    if(x>=5&&x<=10 && z>=5&&z<=10) continue; // courtyard
-    if(x>=0&&x<=4 && z>=0&&z<=4) continue;   // platform A footprint
-    if(x>=5&&x<=9 && z>=5&&z<=9) continue;   // platform B footprint
-    if(x>=10&&x<=14 && z>=10&&z<=14) continue; // platform C footprint
-    out.push(B(x,0,z));
-  }
-  // Platform A y=1 x=0..4 z=0..4
-  for(let x=0;x<=4;x++) for(let z=0;z<=4;z++) out.push(B(x,1,z));
-  // Platform B y=3 x=5..9 z=5..9, supported
-  for(let x=5;x<=9;x++) for(let z=5;z<=9;z++){
-    out.push(B(x,3,z));
-    out.push(B(x,0,z),B(x,1,z),B(x,2,z));
-  }
-  // Platform C y=5 x=10..14 z=10..14, supported (goal cell carved out later)
-  for(let x=10;x<=14;x++) for(let z=10;z<=14;z++){
-    if(x===13 && z===13) continue; // goal cell
-    out.push(B(x,5,z));
-    out.push(B(x,0,z),B(x,1,z),B(x,2,z),B(x,3,z),B(x,4,z));
-  }
-  // stairs to Platform A
-  out.push({t:'stairs',p:[3,1,4],r:1});
-  out.push({t:'spawn',p:[1,0,1]},{t:'goal',p:[13,5,13]});
-  return build(out);
+  const blocks = solids(({fill,del})=>{
+    fill(0,4,0,0,4);                             // ground pad (spawn + stair base)
+    fill(2,5,0,2,5); fill(2,5,1,2,5);            // Terrace A, top y=1
+    for(let y=0;y<=3;y++) fill(6,9,y,6,9);       // Terrace B, top y=3, full support
+    for(let y=0;y<=5;y++) fill(10,13,y,10,13);   // Terrace C, top y=5, full support
+    del(12,5,12);                                // goal cell on C
+    del(0,0,2);                                  // spawn cell
+  });
+  return build([
+    ...blocks,
+    {t:'stairs',p:[1,1,2],r:1},                  // ground -> Terrace A
+    {t:'spawn',p:[0,0,2]}, {t:'goal',p:[12,5,12]},
+  ]);
 }
 const m16allow=[{a:'4,2,4', b:'6,4,6', yaw:0}, {a:'9,4,9', b:'11,6,11', yaw:0}];
 

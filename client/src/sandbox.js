@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import {
   PAL, DIRS, TYPES, TYPE_ORDER, ROLE_ORDER, PLOT,
   ck, nk, buildOccupancy, validate, ERR_TEXT,
-  rot, screenKey, seamKey, buildGraph,
+  rot, screenKey, seamKey, buildGraph, CURATED,
 } from '@klar/core';
 
 // Feature gates — main.js sets these from the session. Anonymous visitors may
@@ -659,121 +659,9 @@ function build(list){
 // per-maquette greenery density seeded client-side on load (never serialized).
 // Seam node keys are "x,y,z"; each authored pair is +(d,d,d) apart — the
 // (1,1,1) null vector that makes two walk nodes share one screen pixel at yaw 0.
-const PRESETS = [
-  { // ---- 1. First Steps : flat walking, camera turning, lush grass
-    name:'First Steps', sub:'arrows to walk · Q / E to turn the world', yaw:0, grass:0.9,
-    hint:'Walk to the glowing marker. Step up onto the low dais on the way.',
-    make(){
-      const out = [];
-      for(let x=2;x<=8;x++) for(let z=2;z<=8;z++) out.push(B(x,0,z));
-      out.push({t:'column',p:[1,0,1],v:{h:4}},{t:'column',p:[9,0,1],v:{h:2}},
-               {t:'column',p:[1,0,9],v:{h:2}},{t:'column',p:[9,0,9],v:{h:4}});
-      out.push({t:'slab',p:[6,1,5]},{t:'slab',p:[7,1,5]},{t:'slab',p:[6,1,6]},{t:'slab',p:[7,1,6]});
-      const keep = out.filter(c=>!(c.p[0]===2&&c.p[2]===2)&&!(c.p[0]===8&&c.p[2]===8));
-      keep.push({t:'spawn',p:[2,0,2]},{t:'goal',p:[8,0,8]});
-      return build(keep);
-    }
-  },
-  { // ---- 2. The Climb : stairs, the only vertical verb
-    name:'The Climb', sub:'stairs are the only way up', yaw:0, grass:0.7,
-    hint:'Stairs join end to end: in at the low side, out at the high side.',
-    make(){
-      const out = [];
-      for(let x=0;x<=7;x++) for(let z=0;z<=3;z++) out.push(B(x,0,z));
-      out.push({t:'stairs',p:[3,1,1],r:1}); out.push(B(4,1,1)); out.push(B(5,1,1));
-      out.push({t:'stairs',p:[5,2,1],r:1}); out.push(B(6,1,1)); out.push({t:'goal',p:[6,2,1]});
-      out.push({t:'column',p:[0,1,3],v:{h:3}},{t:'column',p:[7,1,0],v:{h:2}});
-      const keep = out.filter(c=>!(c.p[0]===0&&c.p[1]===0&&c.p[2]===1));
-      keep.push({t:'spawn',p:[0,0,1]});
-      return build(keep);
-    }
-  },
-  { // ---- 3. Split Level : climb a stair onto a raised deck
-    name:'Split Level', sub:'climb to the upper deck', yaw:0, grass:0.6,
-    hint:'Take the stair up; the goal sits on the far edge of the deck.',
-    make(){
-      const out = [];
-      for(let x=0;x<=7;x++) for(let z=0;z<=4;z++){
-        if((x===0&&z===2)||(x===1&&z===0)||(x===7&&z===4)) continue;   // spawn / columns
-        out.push(B(x,0,z));
-      }
-      out.push({t:'spawn',p:[0,0,2]});
-      out.push({t:'stairs',p:[3,1,2],r:1});
-      out.push(B(4,1,2),B(5,1,2));
-      out.push({t:'column',p:[1,0,0],v:{h:3}},{t:'column',p:[7,0,4],v:{h:2}});
-      out.push({t:'goal',p:[6,1,2]});
-      return build(out);
-    }
-  },
-  { // ---- 4. The Seam : the first illusion, aligned so it teaches
-    name:'The Seam', sub:'the camera is lying · the geometry is honest', yaw:0, grass:0.5,
-    allow:[{a:'2,1,0', b:'5,4,3', yaw:0}],
-    hint:'The path ends in the air. Look again — two walkways meet at one point.',
-    make(){
-      return build([
-        {t:'spawn',p:[0,0,0]}, B(1,0,0), B(2,0,0),
-        {t:'column',p:[5,0,3],v:{h:3}}, B(5,3,3), B(6,3,3), B(7,3,3),
-        {t:'goal',p:[8,3,3]},
-      ]);
-    }
-  },
-  { // ---- 5. Turnabout : the seam only exists from one angle
-    name:'Turnabout', sub:'turn the world until it lines up', yaw:1, grass:0.45,
-    allow:[{a:'2,1,2', b:'5,4,5', yaw:0}],
-    hint:'The seam lives at one camera angle. Q / E until the gap closes.',
-    make(){
-      return build([
-        {t:'spawn',p:[0,0,2]}, B(1,0,2), B(2,0,2),
-        {t:'column',p:[7,0,5],v:{h:3}}, B(5,3,5), B(6,3,5), B(7,3,5),
-        {t:'goal',p:[8,3,5]},
-      ]);
-    }
-  },
-  { // ---- 6. Twofold : two seams chained through a middle deck
-    name:'Twofold', sub:'two lies, one path', yaw:0, grass:0.4,
-    allow:[{a:'2,1,0', b:'5,4,3', yaw:0}, {a:'6,4,3', b:'9,7,6', yaw:0}],
-    hint:'Cross one seam to the middle deck, then find the second.',
-    make(){
-      return build([
-        {t:'spawn',p:[0,0,0]}, B(1,0,0), B(2,0,0),
-        {t:'column',p:[5,0,3],v:{h:3}}, B(5,3,3), B(6,3,3),
-        {t:'column',p:[9,0,6],v:{h:4}}, {t:'column',p:[9,4,6],v:{h:2}}, B(9,6,6),
-        B(10,6,6), {t:'goal',p:[11,6,6]},
-      ]);
-    }
-  },
-  { // ---- 7. The Gap : the obvious deck dead-ends; a hidden seam crosses
-    name:'The Gap', sub:'the deck ends — cross anyway', yaw:2, grass:0.5,
-    allow:[{a:'4,2,4', b:'7,5,7', yaw:0}],
-    hint:'The stair leads to a dead end. Turn until the far deck touches yours.',
-    make(){
-      const out = [];
-      for(let x=0;x<=8;x++) for(let z=2;z<=6;z++){
-        if(x===0&&z===4) continue;   // spawn
-        out.push(B(x,0,z));
-      }
-      out.push({t:'spawn',p:[0,0,4]});
-      out.push({t:'stairs',p:[2,1,4],r:1}); out.push(B(3,1,4),B(4,1,4));
-      out.push({t:'column',p:[7,0,7],v:{h:4}}, B(7,4,7), B(8,4,7));
-      out.push({t:'goal',p:[9,4,7]});
-      return build(out);
-    }
-  },
-  { // ---- 8. The Ascent : three stacked impossible seams into the sky
-    name:'The Ascent', sub:'three impossible steps into the sky', yaw:0, grass:0.35,
-    allow:[{a:'2,1,0',b:'5,4,3',yaw:0},{a:'6,4,3',b:'9,7,6',yaw:0},{a:'10,7,6',b:'13,10,9',yaw:0}],
-    hint:'Each seam lifts you higher than the last. Climb the lie.',
-    make(){
-      return build([
-        {t:'spawn',p:[0,0,0]}, B(1,0,0), B(2,0,0),
-        {t:'column',p:[5,0,3],v:{h:3}}, B(5,3,3), B(6,3,3),
-        {t:'column',p:[9,0,6],v:{h:4}}, {t:'column',p:[9,4,6],v:{h:2}}, B(9,6,6), B(10,6,6),
-        {t:'column',p:[13,0,9],v:{h:4}}, {t:'column',p:[13,4,9],v:{h:4}}, {t:'column',p:[13,8,9],v:{h:1}}, B(13,9,9),
-        {t:'goal',p:[14,9,9]},
-      ]);
-    }
-  },
-];
+// The Playset is the single source of truth in @klar/core (also drives
+// tools/author.mjs + the generated content/maquettes/*.json). Never fork it.
+const PRESETS = CURATED;
 
 function loadPreset(i){
   const p = PRESETS[i];
@@ -875,9 +763,20 @@ function clearShareHash(){ if(location.hash) history.replaceState(null,'',locati
 function showStart(){ startEl.style.display='flex'; requestAnimationFrame(()=>startEl.style.opacity=1);
   bar.classList.remove('on'); titleEl.classList.remove('on'); clearShareHash(); }
 
-document.querySelectorAll('[data-preset]').forEach(b=>{
-  b.onclick = ()=>{ audio(); loadPreset(+b.dataset.preset); };
+// Playset picker — one card per curated maquette, opened from the "Play" button.
+// Anonymous-playable (presets need no login). Kept out of the home screen so it
+// doesn't grow into a wall of buttons as the Playset expands.
+const playsetList = document.getElementById('playsetList');
+PRESETS.forEach((p,i)=>{
+  const card = document.createElement('button');
+  card.className = 'pcard';
+  card.innerHTML = '<b></b><small></small>';
+  card.querySelector('b').textContent = (i+1)+' · '+p.name;
+  card.querySelector('small').textContent = p.sub;
+  card.onclick = ()=>{ audio(); document.getElementById('playset').classList.remove('open'); loadPreset(i); };
+  playsetList.appendChild(card);
 });
+document.getElementById('btnPlay').onclick = ()=>{ audio(); document.getElementById('playset').classList.add('open'); };
 document.getElementById('btnBuild').onclick = ()=>{
   audio();
   W = { name:'Untitled', yaw:0, allow:[],
