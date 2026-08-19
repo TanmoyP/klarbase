@@ -143,8 +143,7 @@ window.addEventListener('keydown', e => {
 async function route(){
   const h = location.hash;
   if(h.startsWith('#/p/')){
-    if(!session) return;                        // server would 401 anyway
-    await playShared(h.slice(4));
+    await playShared(h.slice(4));               // public: shared maquettes play without login
   } else if(h === '#/world' && session){
     await enterWorld();
   } else if(h === '#/map' && session){

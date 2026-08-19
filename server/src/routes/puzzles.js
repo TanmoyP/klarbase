@@ -13,11 +13,22 @@ import { requireAuth } from '../auth.js';
 import { publishLimiter, reportLimiter } from '../middleware.js';
 
 export const puzzles = Router();
-puzzles.use(requireAuth);   // gating rule: user puzzles exist only behind login
 
 const REPORT_AUTOHIDE = 3;  // moderation hook: N distinct reports hides a puzzle
 const pub = p => ({ hash:p.hash, title:p.title, status:p.status, createdAt:p.createdAt,
                     author:{ id:p.author.id, name:p.author.name } });
+
+/* ---- public: play a shared maquette (no login required) ---------------- */
+// phase2-kickoff §4.7: "no account required to play a shared puzzle". A live
+// maquette is public; a hidden one 404s to strangers. Everything AFTER the
+// requireAuth line below — publish, browse, delete, report — stays gated.
+puzzles.get('/:hash', async (req, res) => {
+  const p = await prisma.puzzle.findUnique({ where:{ hash:req.params.hash }, include:{ author:true } });
+  if(!p || p.status === 'hidden') return res.status(404).json({ error:'not found' });
+  res.json({ ...pub(p), puzzle: JSON.parse(p.json) });
+});
+
+puzzles.use(requireAuth);   // ------- everything below requires login -------
 
 /* ---- publish ---------------------------------------------------------- */
 // POST /api/puzzles  { title, puzzle }  ->  { hash, deduped? }  |  422 { errors }
@@ -85,14 +96,6 @@ puzzles.get('/', async (req, res) => {
     puzzles: page.map(p => ({ ...pub(p), mine: p.authorId === req.user.id })),
     nextCursor: rows.length > limit ? page[page.length-1].hash : null,
   });
-});
-
-/* ---- fetch one (the playable document) --------------------------------- */
-puzzles.get('/:hash', async (req, res) => {
-  const p = await prisma.puzzle.findUnique({ where:{ hash:req.params.hash }, include:{ author:true } });
-  if(!p || (p.status === 'hidden' && p.authorId !== req.user.id))
-    return res.status(404).json({ error:'not found' });
-  res.json({ ...pub(p), mine: p.authorId === req.user.id, puzzle: JSON.parse(p.json) });
 });
 
 /* ---- delete own --------------------------------------------------------- */

@@ -286,7 +286,7 @@ GET    /api/health                        {ok:true}
 *      /api/auth/*                         better-auth (OAuth, session)
 POST   /api/puzzles                        publish — validate + solve gate (THE boundary)
 GET    /api/puzzles?cursor&limit&author=me browse, cursor-paginated
-GET    /api/puzzles/:hash                  playable document
+GET    /api/puzzles/:hash                  playable document — PUBLIC (no login; live only), share-play
 DELETE /api/puzzles/:hash                  own only; 409 if placed in world
 POST   /api/puzzles/:hash/report           one/user; ≥3 auto-hides
 POST   /api/world/claims                   claim free adjacent cell (genesis 0,0)
@@ -564,6 +564,12 @@ This is the single largest long-term architectural bet, and it collides head-on 
 ## 9. Session Log
 
 > Append one entry per development session. Keep newest first. If you changed architecture, the data model, the maths, or infra, update the relevant section above *and* log it here.
+
+### 2026-08-19 (e) — Auth fixed, sign-in works, public share-play shipped
+- **Bug:** OAuth callback → `internal_server_error`. Cause: `better-auth ^1.1.0` resolved to **1.7.1**, whose adapter queries `Account.issuer` (a 1.7 field) absent from the committed schema. **Fix:** exact-pin `better-auth@1.4.22` in both workspaces (matches schema; no migration). Sign-in verified working live; founder published the first maquette.
+- **Product decision (founder):** shared maquette links are now **publicly playable** (no login), resolving the README-vs-kickoff conflict toward the kickoff's DoD ("no account required to play a shared puzzle") — essential for share virality. `GET /api/puzzles/:hash` moved ahead of `requireAuth` (live only; hidden 404s to strangers); client `route()` plays `#/p/:hash` without a session. Build/publish/browse/world stay gated; anonymous truly can't build (`gates.canBuild=!!session`, verified). Logged-in users (any account) keep import→build/remix→publish.
+- Verified locally: anon share-fetch → 404, browse/publish → 401, health → 200.
+- **Next:** redeploy → founder's incognito share-play test → then DNS cutover to klarbase.dev.
 
 ### 2026-08-19 (d) — FIRST LIVE DEPLOY on Railway 🚀
 - Railway project + service **klarbase** created (workspace `tanmoyp's Projects`); test domain `https://klarbase-production.up.railway.app`.
