@@ -51,6 +51,10 @@ function theSeam(){
   ]);
 }
 
+/* ---------------- canonical constants (Revision 4.6) ---------------- */
+t('PLOT.size is the canonical 16x12x16 cell',
+  PLOT.size[0]===16 && PLOT.size[1]===12 && PLOT.size[2]===16);
+
 /* ---------------- schema: hashing & canonical form ---------------- */
 t('sha256 test vector',
   sha256hex('abc') === 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');

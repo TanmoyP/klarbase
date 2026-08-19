@@ -12,6 +12,8 @@ Supersedes the v3 draft. Changes: water as a static flow system, a synthesized a
 
 **Revision 4.2** — two corrections found by building Phase 1, both marked inline: convention B had an internally inconsistent projection, and `illusionDenylist` had the wrong polarity and is now `illusionAllowlist`. The second is a schema change, but pre-launch and pre-content, so `schemaVersion` stays at 4.
 
+**Revision 4.6** — cell-size reconciliation, from the Phase 2 repo import. Revisions 3–4.5 wrote the lattice cell as `24 × 24` footprint × `16` high (`[24, 16, 24]`), but the verified Phase 1 build and `@klar/core` ship `PLOT.size = [16, 12, 16]` (16 × 16 footprint, 12 high). The code is the reality that was playtested, so **the canonical cell is now `[16, 12, 16]`** and the spec is aligned to it below. Pre-launch and pre-content this is free; after launch a cell-size change is a migration event (it moves E_BOUNDS limits and which nodes become boundary ports, though it never enters the content hash — positions are plot-local). Enlarging the cell later remains open. No `schemaVersion` change (per the 4.2/4.4 precedent). A guard test in `core/test/run.mjs` now locks the value so it cannot drift silently.
+
 **Status: Phase 0 is closed.** Changes from here require a version bump and a stated reason.
 
 ---
@@ -49,7 +51,7 @@ Two nodes coincide on screen iff both integers match. No epsilon anywhere, at an
     "tags": ["penrose", "water", "tutorial"]
   },
   "plot": {
-    "size": [24, 16, 24],
+    "size": [16, 12, 16],
     "ports": [
       { "id": "N0", "face": "N", "u": 4, "y": 0, "type": "walk" },
       { "id": "E1", "face": "E", "u": 7, "y": 1, "type": "stair-top" },
@@ -87,7 +89,7 @@ Two nodes coincide on screen iff both integers match. No epsilon anywhere, at an
 
 **No `hash` field. FIXED FROM v3.** A hash cannot live inside the document it hashes. The content address is computed over the canonical serialization and stored *outside* the document — in the lattice claim, the CDN key, the database row. Canonicalization is part of the spec, not an implementation detail: UTF-8, keys sorted lexicographically, no insignificant whitespace, integers only (no floats anywhere in the schema — this is one more reason the grid is integer), arrays in authored order. Two independent clients must produce byte-identical output or the entire immutability story silently fails.
 
-**`plot.size` — explicit, capped at the lattice cell (24 × 16 × 24).** The author owns a bounding box larger than their geometry, because illusion design needs negative space and the lattice claim needs a fixed envelope. Origin is the min corner; all component positions are plot-local. Plots smaller than the cell sit on a world-owned plinth.
+**`plot.size` — explicit, capped at the lattice cell (16 × 12 × 16; see Revision 4.6).** The author owns a bounding box larger than their geometry, because illusion design needs negative space and the lattice claim needs a fixed envelope. Origin is the min corner; all component positions are plot-local. Plots smaller than the cell sit on a world-owned plinth.
 
 **`plot.ports` — promoted sockets, not free declarations.** Validation requires a real component socket at that boundary cell, facing outward, of the declared type. The redundancy is deliberate: it is what catches corrupted or hand-edited files. Stable string ids let a new version prove signature identity to its neighbours (§4, I4).
 
@@ -221,7 +223,7 @@ Yaw changes are quantized, animated smoothly between discrete states, and permit
 
 ## 4. The World Lattice
 
-**Structure.** A single-layer 2D lattice of cells, each **24 × 24 footprint, 16 high**. Verticality lives inside plots; the world is flat. A 3D lattice was considered and rejected: it doubles every boundary case (ports on six faces, support across owners, culling complexity) for a payoff that reads worse under a fixed-angle orthographic camera anyway.
+**Structure.** A single-layer 2D lattice of cells, each **16 × 16 footprint, 12 high** (Revision 4.6). Verticality lives inside plots; the world is flat. A 3D lattice was considered and rejected: it doubles every boundary case (ports on six faces, support across owners, culling complexity) for a payoff that reads worse under a fixed-angle orthographic camera anyway.
 
 **Placement.** A claim is `(cellX, cellZ, contentHash, yaw)`. Claims are first-come and permanent, pointing at immutable content. Neighbouring plots load as independent sandboxes. **No component-level interaction ever crosses a cell boundary** — no physics, no support, no shared state. Only two things cross: the avatar, and water, both through declared ports.
 

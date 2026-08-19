@@ -311,7 +311,7 @@ This has **never been run against a live DB.** First tasks (from the README):
 | # | Spec (design truth) | Code (implemented) | Disposition |
 |---|---|---|---|
 | D1 | 16 component types (water, rotors, bridge, arch, parapet, deco, panel…) | **6 types**: block, slab, stairs, column, spawn, goal | Intended Phase 1 subset. The rest are 🔵 designed, not built. Water/rotors are a *parallel client track*. |
-| D2 | Lattice cell `24 × 24 × 16` | `PLOT.size = [16, 12, 16]` (`components.js`) | ⚠️ **Real mismatch.** Decide the canonical cell size before any content is published (it bakes into every port and hash). Recommend aligning code→spec (24×16×24) *or* amending the spec, and adding a test. **Do not defer past first publish.** |
+| D2 | Lattice cell `24 × 24 × 16` | `PLOT.size = [16, 12, 16]` (`components.js`) | ✅ **RESOLVED 2026-08-19.** Canonical cell locked to **`[16, 12, 16]`**; spec aligned (Revision 4.6) + guard test added (`run.mjs`, 57/57). Enlarging later stays open (pre-launch free; post-launch = migration). A vertical build-height scrubber (+/− / scroll) is an editor-UX backlog item — separate from cell geometry. |
 | D3 | Typed edge ports (9 socket types, `flow-in/out`, `stair-top`…) | Ports derived from **boundary walk nodes only** `{off, lvl}` | Simplification: walk-only ports. Sufficient for Phase 3 MVP; the richer socket-typed port model is 🔵 designed. |
 | D4 | `plot.ports` promoted/declared in the document | Ports **computed** at publish (`computePorts`) and stored in `portsJson` | Fine — computed is stricter than declared. Note the schema in the spec still shows declared ports. |
 
