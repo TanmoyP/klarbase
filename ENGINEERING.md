@@ -577,6 +577,11 @@ This is the single largest long-term architectural bet, and it collides head-on 
 
 > Append one entry per development session. Keep newest first. If you changed architecture, the data model, the maths, or infra, update the relevant section above *and* log it here.
 
+### 2026-08-19 (g) — LIVE on klarbase.dev 🌐
+- **DNS cutover complete.** Namecheap nameservers → Cloudflare; `klarbase.dev` proxied (Cloudflare anycast), TLS issued, http→https 301. `BETTER_AUTH_URL` + `CLIENT_ORIGIN` flipped to `https://klarbase.dev` (founder). Verified live on the real domain: client 200, health 200, auth session 200, public share-play 200.
+- **Production URL is now `https://klarbase.dev`.** The `*.up.railway.app` domain still serves but OAuth is bound to klarbase.dev now — test auth on klarbase.dev only.
+- **Remaining:** browser OAuth login on klarbase.dev (klarbase.dev callbacks already registered) → closes the full milestone loop on the production domain.
+
 ### 2026-08-19 (f) — Gating model opened up + share-hash fix
 - **Gating model changed (founder):** building is client-side & local, so **anyone** can now create / play / export / import-file. Login gates **only** publish + world (server-persisting). `gates.canBuild=true` always; Build + Import buttons shown to all; Publish/Browse/World/Map still login-only.
 - **Fix:** share-link hash `#/p/<hash>` no longer goes stale — cleared via `history.replaceState` when returning home, loading a preset, starting a build, or importing a file (`clearShareHash()` in sandbox.js).
