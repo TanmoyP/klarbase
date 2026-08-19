@@ -1,0 +1,23 @@
+{
+  "name": "@klar/server",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "check": "node --check src/index.js"
+  },
+  "dependencies": {
+    "@klar/core": "*",
+    "@prisma/client": "^6.2.0",
+    "better-auth": "^1.1.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.4.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.2.0"
+  }
+}

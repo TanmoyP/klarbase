@@ -1,0 +1,35 @@
+# Local dev: `docker compose up db` then run server/client with npm.
+# The optional `api` profile runs the full stack the way production does.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: klar
+      POSTGRES_PASSWORD: klar
+      POSTGRES_DB: klarbase
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U klar -d klarbase"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://klar:klar@db:5432/klarbase
+      DIRECT_URL: postgresql://klar:klar@db:5432/klarbase   # local: no pooler, same as DATABASE_URL
+      BETTER_AUTH_URL: http://localhost:3000
+      CLIENT_ORIGIN: http://localhost:3000
+      PORT: 3000
+    env_file: [.env]          # secrets (BETTER_AUTH_SECRET, OAuth ids) come from here
+    depends_on:
+      db: { condition: service_healthy }
+    ports: ["3000:3000"]
+
+volumes:
+  pgdata:

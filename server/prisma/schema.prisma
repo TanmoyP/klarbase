@@ -1,0 +1,114 @@
+// Klarbase — Prisma schema
+// user / account / session / verification are the shape better-auth's Prisma
+// adapter expects. Puzzle / Report / Plot are the app. If you regenerate the
+// auth tables with the better-auth CLI, keep the app models untouched.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // POOLED (PgBouncer) — runtime
+  directUrl = env("DIRECT_URL")     // DIRECT — migrations only (see DEPLOYMENT.md §2)
+}
+
+// ---------------- auth (better-auth managed) ----------------
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+  puzzles  Puzzle[]
+  reports  Report[]
+  plots    Plot[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ---------------- app ----------------
+
+model Puzzle {
+  hash      String   @id                 // v4 content hash — immutable address, free dedup
+  title     String
+  json      String                       // canonical v4 document (stableStringify output)
+  portsJson String                       // computePorts() at publish time — placement reads this
+  status    String   @default("live")    // pending | live | hidden  (moderation hook)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reports   Report[]
+  plots     Plot[]
+  createdAt DateTime @default(now())
+
+  @@index([authorId])
+  @@index([status, createdAt])
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  puzzleHash String
+  puzzle     Puzzle   @relation(fields: [puzzleHash], references: [hash], onDelete: Cascade)
+  reporterId String
+  reporter   User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  reason     String
+  createdAt  DateTime @default(now())
+
+  @@unique([puzzleHash, reporterId])     // one report per user per puzzle
+}
+
+model Plot {
+  x          Int
+  y          Int
+  ownerId    String
+  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  puzzleHash String?                     // null = claimed, empty. Once set: immutable.
+  puzzle     Puzzle?  @relation(fields: [puzzleHash], references: [hash])
+  portsJson  String?                     // ports snapshot at placement time
+  createdAt  DateTime @default(now())
+
+  @@id([x, y])
+  @@index([ownerId])
+}

@@ -1,0 +1,4 @@
+# Normalise line endings — this repo builds and runs on Linux (Docker).
+* text=auto eol=lf
+*.png binary
+*.jpg binary

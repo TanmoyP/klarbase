@@ -1,0 +1,25 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      # core has zero dependencies — no install needed to test the truth
+      - run: node core/test/run.mjs
+  sanity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: |
+          node --check server/src/index.js
+          node --check server/src/routes/puzzles.js
+          node --check server/src/routes/world.js
+          node --check client/src/main.js
+          node --check client/src/sandbox.js
+          node --check client/src/world/roam.js
+          node --check client/src/world/mapview.js

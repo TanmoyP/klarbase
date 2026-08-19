@@ -1,0 +1,13 @@
+{
+  "name": "@klar/core",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Single source of truth: schema, validator, traversal graph, solver, ports, lattice",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "test": "node test/run.mjs"
+  }
+}
