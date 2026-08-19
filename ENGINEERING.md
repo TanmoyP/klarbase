@@ -49,6 +49,20 @@ Klarbase is a browser game where **Monument Valley's impossible geometry meets L
 - **The author owns pigment; the world owns light.** Surface hue is authorship; sky, fog, light, water material, regional hue bias are world-owned. This is the largest lever on world coherence.
 - **One source of truth, three call sites.** `@klar/core` is imported by the client editor (pre-commit validation), the client player (traversal), and the server publish gate (validation + solvability). If the server's verdict can differ from the client's, publishing is broken.
 
+### Canonical vocabulary (product-facing)
+
+Naming does semantic work — use these consistently in UI copy, docs, and new code.
+
+| Term | Means | Notes |
+|---|---|---|
+| **Maquette** | A build unit — the set of components, connections, and avatar spawn/goal state. An architect's scale model of a building, which is exactly what each build is. | Lifecycle is a **status** on the one noun: *draft → published → placed*. "Build a maquette", "walk this maquette". |
+| **Plot** | A cell in the world lattice where a published maquette is placed. | Reserved for the world grid. |
+| **Seam** | An authored illusion edge (screen-space coincidence made walkable). | Already themed — keep it. |
+| Component / piece | Block, Slab, Stairs, Column, Spawn, Goal. | **Literal names, kept as-is** — clarity for builders (risk #2). No cute renames. |
+| socket / node / edge / port / lattice | Technical terms in `@klar/core`. | Shared vocabulary with the spec — never renamed in code. |
+
+> ⚠️ **Code vs product term:** the immutable published record is still the `Puzzle` table / `/api/puzzles` in code. Renaming code `Puzzle → Maquette` is a **deferred** task — do it in a dedicated PR *after* the milestone loop is green, so a rename bug can't be confused with untested-wiring bugs. Until then, "Maquette" is the product/UI term; "Puzzle" is the internal name for a *published* maquette.
+
 ---
 
 ## 2. CodeGraph
@@ -340,7 +354,7 @@ This has **never been run against a live DB.** First tasks (from the README):
 |---|---|---|---|
 | **P1 — Sandbox** | camera, grid, 6 components, illusion seam, avatar, editor doctrine, 3 presets | ✅ done (POC) | "whoa not bug" — answered |
 | **P2 — Platform** | repo, auth, publish gate, share links, browse | 🟡 scaffolded | **milestone loop green live** |
-| **P2.5 — Draft & version persistence** 🔴 | mutable working saves, 5 slots/model, upload JSON | 🔴 proposed (§8.1) | P2 loop green |
+| **P2.5 — Maquette drafts & versions** 🔴 | mutable working saves, 5 slots/maquette, upload JSON | 🔴 proposed (§8.1) | P2 loop green |
 | **P3 — Shared world** | lattice claim/place, free-roam streaming, map | 🟡 scaffolded | P2 loop green + world design review |
 | **P-water** | water/rotors/flow (parallel client track) | 🔵 designed | independent; needs its own build sprint |
 | **P4 — Component builder + marketplace** 🔴 | user-authored components, contracts, marketplace | 🔴 proposed (§8.2) | socket model frozen as versioned contract |
@@ -356,7 +370,7 @@ This has **never been run against a live DB.** First tasks (from the README):
 ### 6.3 Open questions for the leadership table
 
 1. **Canonical cell size (D2)** — 16³ or 24×16×24? Blocks any content commitment.
-2. **What is a "model" for draft slots** (§8.1) — a puzzle project? Confirm the quota unit.
+2. ✅ **Resolved** — the build unit is a **Maquette**; draft slots are per-maquette (§8.1). Code term `Puzzle` → `Maquette` rename deferred until after the milestone loop is green.
 3. **Marketplace intent** — cosmetic-only components, or mechanics? Mechanics touch the solver and the "constitution" (risk #5). This decides §8.2's boundary.
 4. **Moderation posture** at world scale — auto-gate only, or human review queue? Affects P3 go-live.
 5. **Anonymous play** — presets only (current) vs. a broader free tier for growth.
@@ -432,65 +446,63 @@ Deploy steps: **[`DEPLOYMENT.md`](DEPLOYMENT.md)**.
 
 ## 8. Proposed subsystems (🔴 need sign-off before build)
 
-### 8.1 Draft & version persistence — "5 slots per model"
+### 8.1 Maquettes — draft & version persistence ("5 slots per maquette")
 
-**Requirement (founder):** persist changes users make by uploading JSON; each explicit save is a **timestamped version**; each user gets **max 5 version slots per model**.
+**Requirement (founder):** persist changes users make by uploading JSON; each explicit save is a **timestamped version**; each user gets **max 5 version slots per maquette**.
 
-**Reconciliation with the immutable-publish design.** These are two different layers and must not be conflated:
+**Vocabulary (resolved, Open Q #2):** the quota unit is a **Maquette** — a named build a user iterates on (the canonical build-unit noun, see §1). A user has many maquettes; each keeps up to 5 timestamped JSON snapshots. Publishing a maquette produces an immutable, content-hashed **published maquette** (today's `Puzzle` row). Draft and published are two layers of the same noun and must not be conflated:
 
-| | Draft/version (this proposal) | Published puzzle (exists) |
+| | Maquette draft (this proposal) | Published maquette (`Puzzle`, exists) |
 |---|---|---|
 | Mutability | Mutable working state | Immutable, content-hashed |
 | Visibility | Private to the author | Public / in the world |
-| Identity | `(userId, modelId, versionId)` | `contentHash` |
-| Quota | ≤ 5 versions per model | unlimited (dedup'd) |
+| Identity | `(userId, maquetteId, versionId)` | `contentHash` |
+| Quota | ≤ 5 versions per maquette | unlimited (dedup'd) |
 | Purpose | "save my work in progress" | "ship it to the world" |
-
-**Assumption to confirm (Open Q #2):** a **"model" = a puzzle project** — a named build a user iterates on. A user has many models; each model keeps up to 5 timestamped JSON snapshots.
 
 **Proposed data model:**
 
 ```prisma
-model PuzzleModel {                 // a user's working project ("model")
+model Maquette {                    // a user's working build ("maquette")
   id        String   @id @default(cuid())
   ownerId   String
   owner     User     @relation(fields:[ownerId], references:[id], onDelete: Cascade)
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  versions  PuzzleVersion[]
+  versions  MaquetteVersion[]
   @@index([ownerId])
 }
 
-model PuzzleVersion {               // one timestamped save; ≤5 per model
-  id        String   @id @default(cuid())
-  modelId   String
-  model     PuzzleModel @relation(fields:[modelId], references:[id], onDelete: Cascade)
-  json      String                  // the puzzle document (may be a broken draft — §12 doctrine)
-  valid     Boolean                 // validate() result at save time (advisory)
-  note      String?                 // optional author label
-  createdAt DateTime @default(now())
-  @@index([modelId, createdAt])
+model MaquetteVersion {             // one timestamped save; ≤5 per maquette
+  id         String   @id @default(cuid())
+  maquetteId String
+  maquette   Maquette @relation(fields:[maquetteId], references:[id], onDelete: Cascade)
+  json       String                 // the build document (may be a broken draft — spec §12)
+  valid      Boolean                // validate() result at save time (advisory)
+  note       String?                // optional author label
+  createdAt  DateTime @default(now())
+  @@index([maquetteId, createdAt])
 }
 ```
 
 **Proposed API:**
 
 ```
-POST   /api/models                       create a model {name}
-GET    /api/models                        list my models (+ latest version meta)
-POST   /api/models/:id/versions           save a version {json, note?} → enforces 5-slot quota
-GET    /api/models/:id/versions           list versions (newest first)
-GET    /api/models/:id/versions/:vid       fetch one version's json
-DELETE /api/models/:id/versions/:vid       free a slot
-DELETE /api/models/:id                     delete a model + all versions
+POST   /api/maquettes                          create a maquette {name}
+GET    /api/maquettes                           list mine (+ latest version meta)
+POST   /api/maquettes/:id/versions              save a version {json, note?} → enforces 5-slot quota
+GET    /api/maquettes/:id/versions              list versions (newest first)
+GET    /api/maquettes/:id/versions/:vid          fetch one version's json
+DELETE /api/maquettes/:id/versions/:vid          free a slot
+DELETE /api/maquettes/:id                        delete a maquette + all versions
 ```
 
 **Quota rule (ring buffer, opinionated default):** on the 6th save, evict the **oldest** version in one transaction — *unless* we add explicit slot pinning later. Return the evicted id so the client can surface "replaced your oldest save." Alternative (require the user to free a slot) is more friction; recommend auto-evict with a visible toast.
 
 **Boundaries:** drafts may be broken (editor doctrine §12 allows it); `validate()` runs advisory-only at save. Uploaded JSON is **schema-checked and size-capped** (reuse the 512 KB body limit + `schemaVersion === 4`) but *not* publish-gated — publishing is the separate immutable path. Drafts never enter the world.
 
-**Effort:** ~1 model + 1 migration + ~6 endpoints + client "My Models" panel. Small. Sequence *after* the P2 loop is green.
+**Effort:** 2 models + 1 migration + ~7 endpoints + client "My Maquettes" panel. Small. Sequence *after* the P2 loop is green.
 
 ### 8.2 Component builder + marketplace — contract framework
 
@@ -553,7 +565,13 @@ This is the single largest long-term architectural bet, and it collides head-on 
 
 > Append one entry per development session. Keep newest first. If you changed architecture, the data model, the maths, or infra, update the relevant section above *and* log it here.
 
-### 2026-08-19 — Repo genesis, source of truth, deployment setup
+### 2026-08-19 (b) — Cell size locked, vocabulary set
+- **Resolved D2:** canonical plot cell = **`[16, 12, 16]`**. Spec amended (Revision 4.6, stated reason); guard test added (`run.mjs`, **57/57**). Enlarging later stays open (post-launch = migration).
+- **Naming:** the build unit is a **Maquette** (draft→published→placed as a status on one noun). Pieces stay **literal** (Block/Slab/…); technical terms unchanged. Added a canonical vocabulary table (§1) and rewrote §8.1 (Maquette drafts, 5 slots/maquette). Code `Puzzle → Maquette` rename **deferred** until the milestone loop is green.
+- **Backlog:** vertical build-height scrubber (+/− / scroll) — editor UX, separate from cell geometry.
+- **Next:** deployment (Neon → Railway → Cloudflare/DNS) + prove the milestone loop live.
+
+### 2026-08-19 (a) — Repo genesis, source of truth, deployment setup
 - **Consumed** the full Kimi handoff: spec v4.5, phase2-kickoff, phase3-streaming, and all of `@klar/core` + server + client.
 - **Restructured** the folder: flattened the triple-nested `klarbase/klarbase/klarbase/` to a single git root; archived the Kimi POC under `docs/archive/poc/`.
 - **Verified** `@klar/core`: **56/56** tests pass on Node 24.
