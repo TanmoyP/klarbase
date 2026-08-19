@@ -305,7 +305,7 @@ GET    /api/world/map                      every claimed cell + author
 
 - ✅ **`@klar/core` is complete and tested** — 56/56 assertions pass on Node 24 (`node core/test/run.mjs`). Covers hashing, canonicalization, validation, geometric + stair + illusion edges, per-yaw solvability, ports, and lattice claim/place rules.
 - ✅ **Phase 1 game logic** (the "bug or whoa" question) was answered "whoa" in the frozen POC (`prototypes/phase1.html`, `docs/archive/poc/`). The three teaching presets (First Steps, The Climb, The Seam) validate and solve.
-- 🟡 **Server** (Express + Prisma + better-auth) — fully written, syntax-checked in CI, **never run against a live database.**
+- 🟡→✅ **Server** (Express + Prisma + better-auth) — **boots locally against Postgres (2026-08-19):** `prisma migrate init` creates all tables, `/api/health` → `{ok:true}`, better-auth mounts (`/api/auth/get-session` → 200), client `vite build` produces `dist/`. The `init` migration is committed (the Dockerfile's `migrate deploy` applies it). Still unproven: the OAuth login → publish loop (needs real GitHub/Google creds).
 - 🟡 **Client platform layer** (`main.js`, `roam.js`, `mapview.js`) — written, imports core, **never exercised end to end.**
 - ✅ **CI** runs the core suite + `node --check` sanity on every push.
 
@@ -564,6 +564,12 @@ This is the single largest long-term architectural bet, and it collides head-on 
 ## 9. Session Log
 
 > Append one entry per development session. Keep newest first. If you changed architecture, the data model, the maths, or infra, update the relevant section above *and* log it here.
+
+### 2026-08-19 (c) — Local smoke test GREEN
+- Ran the untested scaffold locally: `npm install` (143 pkgs, Node 24), `prisma generate`, **`prisma migrate dev --name init`** against docker Postgres (tables created), server boot + **`/api/health` `{ok:true}`**, **better-auth mounts** (`/api/auth/get-session` → 200), **client `vite build`** → `dist/` (bundle 561 KB / 150 KB gzip — three.js; code-split is backlog).
+- **Committed the `init` migration** — required by the Dockerfile's `migrate deploy` on Railway.
+- npm audit: 3 high-severity (transitive) — noted, not auto-fixed (avoid destabilizing pins pre-deploy).
+- **Remaining before "milestone loop live":** real GitHub/Google OAuth apps → then Neon + Railway deploy → sign in → publish → play in a fresh browser.
 
 ### 2026-08-19 (b) — Cell size locked, vocabulary set
 - **Resolved D2:** canonical plot cell = **`[16, 12, 16]`**. Spec amended (Revision 4.6, stated reason); guard test added (`run.mjs`, **57/57**). Enlarging later stays open (post-launch = migration).
