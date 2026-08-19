@@ -615,7 +615,7 @@ This is the single largest long-term architectural bet, and it collides head-on 
 - **All 8 valid + solvable**; the 5 seam puzzles (M4–M8) confirmed **load-bearing** (unsolvable without the authored illusion) — real whoa, not decoration. Difficulty arc: flat → stairs → multi-level → 1 seam (aligned) → 1 seam (must turn) → 2 seams → hidden seam over a dead-end → 3 stacked seams.
 - **Greenery:** per-maquette `grass` density (0.9 → 0.35) seeded client-side in `loadPreset` with deterministic position variation — prepopulated grass, no schema/hash impact. (Author-owned greenery for user maquettes stays deferred.)
 - Client start screen → 8-button Playset (anon-playable). Builds clean.
-- **Next:** deploy + live browser verify on klarbase.dev.
+- **Deployed + verified live on klarbase.dev:** all 8 Playset buttons present, Build/Import/Export visible to anonymous, "The Ascent" (3 seams) loads into play mode with zero console errors.
 
 ### 2026-08-19 (h) — Planned: curated playset (8) + AI generation
 - Added **§6.5** (curated 8-maquette playset, content track — spec §9.4 curriculum + risk #2) and **§8.3** (AI natural-language maquette generation, generate→verify→repair). Ledger row added.
