@@ -353,7 +353,7 @@ This has **never been run against a live DB.** First tasks (from the README):
 | Phase | Scope | State | Gate to start next |
 |---|---|---|---|
 | **P1 — Sandbox** | camera, grid, 6 components, illusion seam, avatar, editor doctrine, 3 presets | ✅ done (POC) | "whoa not bug" — answered |
-| **Content — Curated Playset (8)** 🔴 | 8 anon-playable maquettes, rising complexity, prepopulated grass; a "Playset" picker | 🔴 proposed (§6.5) | authored **in-loop with `@klar/core`** (validate+solve every one) |
+| **Content — Curated Playset (8)** | 8 anon-playable maquettes, rising complexity, seeded grass; 8-button Playset | ✅ **built & verified** (all valid+solvable; 5 seam puzzles load-bearing) | — |
 | **P2 — Platform** | repo, auth, publish gate, share links, browse | 🟡→✅ **deployed live** (Railway+Neon); infra half of the loop proven, browser OAuth half pending | **milestone loop green live** |
 | **P2.5 — Maquette drafts & versions** 🔴 | mutable working saves, 5 slots/maquette, upload JSON | 🔴 proposed (§8.1) | P2 loop green |
 | **P3 — Shared world** | lattice claim/place, free-roam streaming, map | 🟡 scaffolded | P2 loop green + world design review |
@@ -609,6 +609,13 @@ This is the single largest long-term architectural bet, and it collides head-on 
 ## 9. Session Log
 
 > Append one entry per development session. Keep newest first. If you changed architecture, the data model, the maths, or infra, update the relevant section above *and* log it here.
+
+### 2026-08-19 (i) — Curated Playset (8) BUILT & verified
+- Authored 8 maquettes **in-loop with `@klar/core`** via a scratch harness (validate + solveReport + candidate inspection): First Steps, The Climb, Split Level, The Seam, Turnabout, Twofold, The Gap, The Ascent.
+- **All 8 valid + solvable**; the 5 seam puzzles (M4–M8) confirmed **load-bearing** (unsolvable without the authored illusion) — real whoa, not decoration. Difficulty arc: flat → stairs → multi-level → 1 seam (aligned) → 1 seam (must turn) → 2 seams → hidden seam over a dead-end → 3 stacked seams.
+- **Greenery:** per-maquette `grass` density (0.9 → 0.35) seeded client-side in `loadPreset` with deterministic position variation — prepopulated grass, no schema/hash impact. (Author-owned greenery for user maquettes stays deferred.)
+- Client start screen → 8-button Playset (anon-playable). Builds clean.
+- **Next:** deploy + live browser verify on klarbase.dev.
 
 ### 2026-08-19 (h) — Planned: curated playset (8) + AI generation
 - Added **§6.5** (curated 8-maquette playset, content track — spec §9.4 curriculum + risk #2) and **§8.3** (AI natural-language maquette generation, generate→verify→repair). Ledger row added.
