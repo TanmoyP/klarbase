@@ -9,6 +9,8 @@ jobs:
         with: { node-version: 20 }
       # core has zero dependencies — no install needed to test the truth
       - run: node core/test/run.mjs
+      # the curated Playset must stay valid + solvable (seams load-bearing)
+      - run: node tools/author.mjs
   sanity:
     runs-on: ubuntu-latest
     steps:

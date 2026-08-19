@@ -606,9 +606,42 @@ This is the single largest long-term architectural bet, and it collides head-on 
 
 ---
 
+## 8.9 Operational learnings & gotchas (hard-won — read before deploying/auth work)
+
+Consolidated from the first deploy day. These cost real time; don't relearn them.
+
+**Auth / better-auth**
+- **`better-auth` is EXACT-pinned to `1.4.22`** to match the committed Prisma schema. `^1.1.0` silently resolved to **1.7.1**, whose adapter queries `Account.issuer` (absent from our schema) → OAuth callback returns `internal_server_error`. **Never bump better-auth without regenerating the schema** (`npx @better-auth/cli generate`) and migrating. The CLI is stuck at deprecated **1.4.21** and cannot describe 1.7's schema — another reason to stay on 1.4.x until a *deliberate* upgrade.
+- OAuth callback URL must match `BETTER_AUTH_URL`'s origin **exactly**. Register the callback for **every** origin you test (the `*.up.railway.app` domain *and* `klarbase.dev`). "redirect_uri is not associated" = the callback isn't registered for that origin.
+
+**Railway / deploy**
+- `railway up --ci` frequently ends its log stream with `reqwest error / operation timed out`. **This is the CLI's log stream dropping, not a failed build** — the build usually completes. Verify by polling the served bundle hash (`curl klarbase.dev | grep index-*.js`) and `/api/health`.
+- Setting env vars in the Railway **UI** on an empty service serves nothing — **code deploys via `railway up`** (local upload + `server/Dockerfile`, per `railway.json`) or a connected GitHub repo. Current method is `railway up`; **connecting the GitHub repo for auto-deploy on push is the recommended upgrade.**
+- The committed **Prisma migration is required** — the Dockerfile boot runs `prisma migrate deploy`.
+
+**Neon**
+- Neon may expose only a **pooled** URL. Derive `DIRECT_URL` (migrations) by **removing `-pooler`** from the pooled host. `DATABASE_URL` = pooled (runtime), `DIRECT_URL` = direct.
+
+**Gating model (settled)**
+- Building / playing / exporting / importing-a-file are **local & client-side → open to everyone** (`gates.canBuild=true`). **Only publish + world persist to the server and require login.** Shared published-maquette links are **public** (`GET /api/puzzles/:hash`, live only).
+
+**Maquette authoring**
+- **Always** verify new maquettes with `node tools/author.mjs` (validate + solve + seam load-bearing) **before** adding them to `client/src/sandbox.js` PRESETS — and keep `tools/author.mjs` in sync with PRESETS (CI runs it). Seam recipe: two walk nodes coincide at yaw 0 iff **+(d,d,d)** apart; a seam is only worth shipping if **load-bearing** (puzzle unsolvable without it).
+- Greenery is **emergent grass-on-blocks, client-side, non-serialized** (§10). Presets seed grass client-side (per-preset density). **Author-owned greenery for user maquettes is deferred** (would put vegetation in the document + content hash).
+
+**Verifying in this environment**
+- The in-app **browser pane does not composite frames here → screenshots fail.** Verify UI via `read_page` / `get_page_text` / `read_console_messages` instead.
+
+**Security**
+- During setup, OAuth secrets + the Neon password were pasted into chat → **rotate them.** Never route secrets through tooling; set them in the Railway dashboard.
+
 ## 9. Session Log
 
 > Append one entry per development session. Keep newest first. If you changed architecture, the data model, the maths, or infra, update the relevant section above *and* log it here.
+
+### 2026-08-19 (j) — Harness committed + learnings consolidated
+- Committed **`tools/author.mjs`** (portable, CI exit code) — the maquette authoring/verification harness; **wired into CI** so the Playset can't silently break (validate + solve + seam load-bearing on every push).
+- Consolidated all first-day learnings into **§8.9** (auth pin, Railway/Neon deploy gotchas, gating model, maquette authoring rule, browser-pane compositing, secret rotation) and the actionable subset into `CLAUDE.md`.
 
 ### 2026-08-19 (i) — Curated Playset (8) BUILT & verified
 - Authored 8 maquettes **in-loop with `@klar/core`** via a scratch harness (validate + solveReport + candidate inspection): First Steps, The Climb, Split Level, The Seam, Turnabout, Twofold, The Gap, The Ascent.

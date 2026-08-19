@@ -55,6 +55,15 @@ A stale source of truth is worse than none. This is not optional.
 
 ---
 
+## Production rules (hard-won 2026-08-19 — full detail in ENGINEERING.md §8.9)
+
+- **Never bump `better-auth` off `1.4.22`** without regenerating the Prisma schema (`npx @better-auth/cli generate`) + migrating. 1.7.x expects `Account.issuer` and 500s the OAuth callback against our schema.
+- **Gating model:** building/playing/exporting/importing-a-file are local & open to all (`gates.canBuild=true`); **only publish + world require login.** Shared links (`GET /api/puzzles/:hash`, live) are public. Don't re-gate building.
+- **New maquettes MUST pass `node tools/author.mjs`** (validate + solve + seam load-bearing) before going into `sandbox.js` PRESETS; keep the two in sync (CI enforces). Seam recipe: nodes +(d,d,d) apart at yaw 0; a seam must be load-bearing.
+- **Greenery** is emergent grass-on-blocks, client-side, non-serialized. Presets seed it client-side. Author-owned greenery for user maquettes is deferred (touches schema + hash).
+- **Deploy:** `railway up` (local upload + `server/Dockerfile`); the `--ci` log stream may time out but the build still lands — verify via bundle hash + `/api/health`. Neon `DIRECT_URL` = pooled URL minus `-pooler`. OAuth callbacks must match `BETTER_AUTH_URL` origin exactly.
+- **Verifying UI here:** the browser pane can't composite — use `read_page`/`get_page_text`/`read_console_messages`, not screenshots.
+
 ## Code style
 
 - Match the existing terse, banner-commented style of `@klar/core`. Comments explain the *non-obvious* (the maths, the parity law, the socket model) — not the syntax.
@@ -69,6 +78,9 @@ A stale source of truth is worse than none. This is not optional.
 ```bash
 # Core — the truth suite (zero deps, run this constantly)
 node core/test/run.mjs
+
+# Verify the curated Playset (validate + solve + seams load-bearing) — CI runs this too
+node tools/author.mjs
 
 # Local dev
 cp .env.example .env            # fill BETTER_AUTH_SECRET + OAuth creds
