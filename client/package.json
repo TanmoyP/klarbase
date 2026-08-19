@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@klar/core": "*",
-    "better-auth": "^1.1.0",
+    "better-auth": "1.4.22",
     "three": "^0.170.0"
   },
   "devDependencies": {
