@@ -8,3 +8,4 @@ export * from './solve.js';
 export * from './schema.js';
 export * from './ports.js';
 export * from './lattice.js';
+export * from './curated.js';
