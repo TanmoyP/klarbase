@@ -305,7 +305,7 @@ GET    /api/world/map                      every claimed cell + author
 
 - ✅ **`@klar/core` is complete and tested** — 56/56 assertions pass on Node 24 (`node core/test/run.mjs`). Covers hashing, canonicalization, validation, geometric + stair + illusion edges, per-yaw solvability, ports, and lattice claim/place rules.
 - ✅ **Phase 1 game logic** (the "bug or whoa" question) was answered "whoa" in the frozen POC (`prototypes/phase1.html`, `docs/archive/poc/`). The three teaching presets (First Steps, The Climb, The Seam) validate and solve.
-- 🟡→✅ **Server** (Express + Prisma + better-auth) — **boots locally against Postgres (2026-08-19):** `prisma migrate init` creates all tables, `/api/health` → `{ok:true}`, better-auth mounts (`/api/auth/get-session` → 200), client `vite build` produces `dist/`. The `init` migration is committed (the Dockerfile's `migrate deploy` applies it). Still unproven: the OAuth login → publish loop (needs real GitHub/Google creds).
+- ✅ **Server — DEPLOYED LIVE on Railway (2026-08-19):** `https://klarbase-production.up.railway.app`. Docker build → boot → `prisma migrate deploy` ran all tables into **Neon (Frankfurt)** → serving. Verified live: `/api/health` `{ok:true}`, client HTML at `/`, better-auth `/api/auth/get-session` → 200, and `POST /api/puzzles` unauth → **401** (gate works). Deploy method: `railway up` (local upload + Dockerfile per `railway.json`). Still unproven: the **OAuth login → publish → play** loop (needs a real browser sign-in).
 - 🟡 **Client platform layer** (`main.js`, `roam.js`, `mapview.js`) — written, imports core, **never exercised end to end.**
 - ✅ **CI** runs the core suite + `node --check` sanity on every push.
 
@@ -353,7 +353,7 @@ This has **never been run against a live DB.** First tasks (from the README):
 | Phase | Scope | State | Gate to start next |
 |---|---|---|---|
 | **P1 — Sandbox** | camera, grid, 6 components, illusion seam, avatar, editor doctrine, 3 presets | ✅ done (POC) | "whoa not bug" — answered |
-| **P2 — Platform** | repo, auth, publish gate, share links, browse | 🟡 scaffolded | **milestone loop green live** |
+| **P2 — Platform** | repo, auth, publish gate, share links, browse | 🟡→✅ **deployed live** (Railway+Neon); infra half of the loop proven, browser OAuth half pending | **milestone loop green live** |
 | **P2.5 — Maquette drafts & versions** 🔴 | mutable working saves, 5 slots/maquette, upload JSON | 🔴 proposed (§8.1) | P2 loop green |
 | **P3 — Shared world** | lattice claim/place, free-roam streaming, map | 🟡 scaffolded | P2 loop green + world design review |
 | **P-water** | water/rotors/flow (parallel client track) | 🔵 designed | independent; needs its own build sprint |
@@ -564,6 +564,15 @@ This is the single largest long-term architectural bet, and it collides head-on 
 ## 9. Session Log
 
 > Append one entry per development session. Keep newest first. If you changed architecture, the data model, the maths, or infra, update the relevant section above *and* log it here.
+
+### 2026-08-19 (d) — FIRST LIVE DEPLOY on Railway 🚀
+- Railway project + service **klarbase** created (workspace `tanmoyp's Projects`); test domain `https://klarbase-production.up.railway.app`.
+- Env vars: 5 public set by CTO via CLI; 5 secrets (`DATABASE_URL`, `DIRECT_URL`, `BETTER_AUTH_SECRET`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_SECRET`) set by founder (secrets never routed through tooling).
+- `railway up` → Docker build (client bundle + prisma generate) → boot → **`prisma migrate deploy` created all tables in Neon Frankfurt** → serving.
+- **Verified live:** `/api/health` ok, client HTML at `/`, better-auth session 200, unauth publish → 401 (gate holds).
+- ⚠️ **Security:** GitHub/Google OAuth secrets + Neon password were pasted in chat → founder to rotate; exposed values must be retired.
+- **Deploy method today:** `railway up` (local upload). **Recommended next:** connect the GitHub repo in Railway for auto-deploy on push.
+- **Next:** browser OAuth milestone-loop test on the Railway domain → then Cloudflare + Namecheap DNS cutover to `klarbase.dev`.
 
 ### 2026-08-19 (c) — Local smoke test GREEN
 - Ran the untested scaffold locally: `npm install` (143 pkgs, Node 24), `prisma generate`, **`prisma migrate dev --name init`** against docker Postgres (tables created), server boot + **`/api/health` `{ok:true}`**, **better-auth mounts** (`/api/auth/get-session` → 200), **client `vite build`** → `dist/` (bundle 561 KB / 150 KB gzip — three.js; code-split is backlog).
