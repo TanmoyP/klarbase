@@ -353,6 +353,7 @@ This has **never been run against a live DB.** First tasks (from the README):
 | Phase | Scope | State | Gate to start next |
 |---|---|---|---|
 | **P1 — Sandbox** | camera, grid, 6 components, illusion seam, avatar, editor doctrine, 3 presets | ✅ done (POC) | "whoa not bug" — answered |
+| **Content — Curated Playset (8)** 🔴 | 8 anon-playable maquettes, rising complexity, prepopulated grass; a "Playset" picker | 🔴 proposed (§6.5) | authored **in-loop with `@klar/core`** (validate+solve every one) |
 | **P2 — Platform** | repo, auth, publish gate, share links, browse | 🟡→✅ **deployed live** (Railway+Neon); infra half of the loop proven, browser OAuth half pending | **milestone loop green live** |
 | **P2.5 — Maquette drafts & versions** 🔴 | mutable working saves, 5 slots/maquette, upload JSON | 🔴 proposed (§8.1) | P2 loop green |
 | **P3 — Shared world** | lattice claim/place, free-roam streaming, map | 🟡 scaffolded | P2 loop green + world design review |
@@ -388,6 +389,38 @@ Captured from live testing; prioritise after DNS cutover. Not yet built unless t
 - ⬜ **Browsing feedback** — loading/empty/error states in the Browse overlay.
 - ⬜ **Publishing feedback** — richer success/failure surfacing (currently a single toast).
 - ⬜ **Back affordance** — a subtle, clickable back arrow (not just Esc) to return home from play/build/world.
+
+### 6.5 Curated maquette playset (8) — content track
+
+Eight anon-playable maquettes of rising complexity, using **only the 6 shipped components** (block, slab, stairs, column, spawn, goal), surfaced as a **"Playset"** picker alongside the existing presets. Roadmap home: this is **content**, not an engine feature — it realises spec §9.4 (curriculum: walk → stairs → illusion → combine) and risk #2's mitigation ("ship 5–10 template plots so the first session is remixing, not a blank grid"). Fits the open gating (§ session f): playable logged-out.
+
+**Complexity arc (draft):** 1 flat walk · 2 first stair · 3 multi-level · 4 first authored seam (the "whoa") · 5 seam + turning · 6 chained seams · 7 branching paths · 8 a small Penrose loop. (Water/rotors excluded — not built.)
+
+**Authoring method — NOT blind LLM.** Every maquette MUST pass `validate()` + `solve()` or it won't load/play. So they are authored **in-loop with `@klar/core`**: generate → run the core harness (validate + solveReport) → iterate until green. Claude Code has the core locally and can verify each programmatically; a blind KIMI dump would produce mostly invalid/unsolvable geometry. KIMI is right for *design prose*, not for exact solvable geometry.
+
+**Greenery reality (⚠️ read before promising "prepopulated greenery"):**
+- Today greenery = **grass on blocks only**, and it is **emergent + client-side**: `grassGrowth` grows as the avatar walks and is **never serialized** (spec §10, "zero schema"). Canopy/trees and the column occlusion test are **not built**.
+- The 8 are **hardcoded presets**, so we can **prepopulate grass client-side per preset (seed `grassGrowth` on load) with NO schema change and NO content-hash impact.** "Various levels at different parts" at MVP = varying grass density on blocks.
+- Making greenery **authorable for user maquettes** (so a published maquette carries its own greenery) is a *different, larger* decision: it puts vegetation into the document (extend `v.g` from on/off to a level) and therefore into the content hash — a real amendment to §10. Deferred; decide only if user-authored greenery is wanted.
+
+### 8.3 AI-assisted maquette generation (natural language) 🔴
+
+**Idea (founder):** describe a maquette in natural language → AI generates a playable maquette.
+
+**The hard constraint:** an LLM cannot be trusted to emit valid, *solvable* v4 geometry — the grid is exact-integer and solvability is a graph property. So the feature is **generate → verify → repair**, never generate-and-trust:
+
+```
+POST /api/generate  { prompt }  (auth + tight rate limit + cost cap)
+  1. LLM (Claude Haiku — cheap; cost-disciplined like Byte) emits candidate v4 JSON,
+     prompted with the component/socket contract (§8.2) and the 16x12x16 envelope.
+  2. Server runs @klar/core validate() + solveReport() on the candidate.
+  3. If invalid/unsolvable: feed the error codes back to the LLM (≤N repair rounds),
+     or reject with the codes. NEVER store or return an unverified maquette.
+  4. Return a verified draft into the editor as a Maquette draft (§8.1) — the human
+     edits/publishes; the AI never publishes directly.
+```
+
+**Why it slots after the contract + drafts:** the LLM needs (a) the **component contract** (§8.2) as its declared vocabulary, and (b) a place to land output — the **Maquette draft** layer (§8.1). It also needs an **LLM budget + abuse controls** (login-gated, per-user rate limit, max components, token cap). Model choice: Claude Haiku for cost (mirrors Byte's discipline); do **not** switch models without a decision. This is a genuine new phase (call it **P-AI**), gated on §8.1 + §8.2.
 
 ## 7. Infrastructure & deployment architecture
 
@@ -576,6 +609,11 @@ This is the single largest long-term architectural bet, and it collides head-on 
 ## 9. Session Log
 
 > Append one entry per development session. Keep newest first. If you changed architecture, the data model, the maths, or infra, update the relevant section above *and* log it here.
+
+### 2026-08-19 (h) — Planned: curated playset (8) + AI generation
+- Added **§6.5** (curated 8-maquette playset, content track — spec §9.4 curriculum + risk #2) and **§8.3** (AI natural-language maquette generation, generate→verify→repair). Ledger row added.
+- **Decision recorded:** author the 8 **in-loop with `@klar/core`** (validate+solve each), not a blind KIMI dump.
+- **Flagged:** greenery is emergent grass-on-blocks, non-serialized (§10). Prepopulating grass in the 8 hardcoded presets = client-side, no schema change. Author-owned greenery for *user* maquettes would amend §10 — deferred.
 
 ### 2026-08-19 (g) — LIVE on klarbase.dev 🌐
 - **DNS cutover complete.** Namecheap nameservers → Cloudflare; `klarbase.dev` proxied (Cloudflare anycast), TLS issued, http→https 301. `BETTER_AUTH_URL` + `CLIENT_ORIGIN` flipped to `https://klarbase.dev` (founder). Verified live on the real domain: client 200, health 200, auth session 200, public share-play 200.
