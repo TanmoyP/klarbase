@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 5,
+  "id": "root-bridge",
+  "name": "Root Bridge",
+  "theme": "jungle",
+  "hint": "Crates can be pushed off a ledge too. Choose where it lands.",
+  "rows": [
+    ", G . T -",
+    ". . . . -",
+    "~ ~ # # #",
+    ".1 .1 .1 C1 .1",
+    "T .1 .1 .1 ^",
+    "- . S . ."
+  ],
+  "par": 12,
+  "solution": "RRUULLDLUUUU"
+}

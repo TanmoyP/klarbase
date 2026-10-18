@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 5,
+  "id": "low-tide",
+  "name": "Low Tide",
+  "theme": "tropical",
+  "hint": "Each flip raises one bridge and sinks another. Think two flips ahead.",
+  "rows": [
+    "G , = . L",
+    "~ ~ ~ _ ~",
+    "~ ~ ~ . L",
+    "~ ~ ~ = ~",
+    "- T . . S"
+  ],
+  "par": 14,
+  "solution": "LUURXLUURXLLLL"
+}

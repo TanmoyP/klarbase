@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "description": "Single source of truth: schema, validator, traversal graph, solver, ports, lattice",
+  "description": "Single source of truth: the isle engine (format, rules, solver, curated isles, contribution rules) + the legacy voxel engine",
   "exports": {
     ".": "./src/index.js"
   },
   "scripts": {
-    "test": "node test/run.mjs"
+    "test": "node test/isles.mjs && node test/run.mjs"
   }
 }

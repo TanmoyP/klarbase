@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 5,
+  "id": "lagoon-locks",
+  "name": "Lagoon Locks",
+  "theme": "tropical",
+  "hint": "Two keys, three doors. One door is a trap.",
+  "rows": [
+    "G . K . . k",
+    "# # # # K #",
+    ". . K . . .",
+    ". # # # # .",
+    "S . . k . ."
+  ],
+  "par": 16,
+  "solution": "RRRRRUULUURLLLLL"
+}

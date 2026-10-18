@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 5,
+  "id": "first-steps",
+  "name": "First Steps",
+  "theme": "jungle",
+  "hint": "Ramps only work along their slope. Find the one facing the goal.",
+  "rows": [
+    "- - G1 -",
+    "- . ^ -",
+    ", . . ,",
+    "- S . T"
+  ],
+  "par": 4,
+  "solution": "URUU"
+}

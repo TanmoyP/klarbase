@@ -1,9 +1,15 @@
 # Game summary — for klarbase.dev
 
-**Tagline:** *Build the illusion. Walk the impossible.*
+**Tagline:** *Tiny floating isles · clever little paths.*
 
 **Paragraph:**
 
-Klarbase is a browser game where Monument Valley's impossible geometry meets LEGO-style building. Snap blocks, slabs, stairs, and columns onto an isometric grid to build small architectural puzzles; then rotate the camera and watch distant walkways line up into seams that shouldn't exist — but do, and your avatar strolls straight across them. Every puzzle you publish can be claimed into a shared, ever-growing world: pick a plot on the lattice, connect its edges to your neighbours', and the whole city becomes walkable end to end, one impossible courtyard at a time. Build it, break the camera's honesty with it, then let strangers wander through it.
+Klarbase is a cozy puzzle game of floating isles. Guide Pip — a round little sprout spirit in
+a scarf — across tiny dioramas drifting above the clouds: push crates into springs to make
+bridges, slide across glacier ice, pull levers that raise and sink bridges, and step through
+arches that carry you across the sky. One hop per key, no timers unless you want them, and
+every isle checked by a solver so it's always fair. Play 24 hand-made isles across jungle,
+oasis, lagoon, rooftop and summit — then build your own, share it with a link, or add it to
+the game on GitHub with your name on it.
 
-*(One-paragraph version above is copy-paste ready for the landing page. Swap "Klarbase" if the game gets its own name.)*
+*(Copy-paste ready for the landing page and store listings.)*

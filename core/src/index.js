@@ -8,4 +8,7 @@ export * from './solve.js';
 export * from './schema.js';
 export * from './ports.js';
 export * from './lattice.js';
-export * from './curated.js';
+// Isles (schemaVersion 5) — the v2 game: format, rules, solver, curated isles.
+// The modules above are the legacy voxel engine, kept only for the deferred
+// world lattice (server/src/routes/world.js).
+export * from './isle/index.js';

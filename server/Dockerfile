@@ -9,6 +9,8 @@ COPY client/package.json client/
 RUN npm install
 COPY core core
 COPY client client
+# community isles are bundled into the client at build time (import.meta.glob)
+COPY isles isles
 RUN npm run build -w @klar/client
 
 FROM node:20-alpine
