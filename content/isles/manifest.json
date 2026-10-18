@@ -1,0 +1,322 @@
+{
+  "schemaVersion": 5,
+  "isles": [
+    {
+      "order": 1,
+      "id": "first-steps",
+      "name": "First Steps",
+      "theme": "jungle",
+      "par": 4,
+      "mechanics": [
+        "walk:ramp"
+      ],
+      "hash": "3727fc423dff6394079bc314af8f522391d8f98a0834f5720f2d43360879902c",
+      "file": "01-first-steps.json"
+    },
+    {
+      "order": 2,
+      "id": "ledge-drop",
+      "name": "Ledge Drop",
+      "theme": "jungle",
+      "par": 11,
+      "mechanics": [
+        "walk:ramp",
+        "walk:down"
+      ],
+      "hash": "99c5f735c6050a3938d545f248b57a284afc86d5db90ed6460120d643df8defd",
+      "file": "02-ledge-drop.json"
+    },
+    {
+      "order": 3,
+      "id": "mossy-crate",
+      "name": "Mossy Crate",
+      "theme": "jungle",
+      "par": 9,
+      "mechanics": [
+        "push",
+        "sink"
+      ],
+      "hash": "ad4cc7140da0e471a025f39706c54fdcae246056c5dc4391e2cf4d5cbc7dbd80",
+      "file": "03-mossy-crate.json"
+    },
+    {
+      "order": 4,
+      "id": "root-bridge",
+      "name": "Root Bridge",
+      "theme": "jungle",
+      "par": 12,
+      "mechanics": [
+        "walk:ramp",
+        "walk:down",
+        "push",
+        "sink"
+      ],
+      "hash": "a2e81391e8cc2bb4f2100ac29a15465c07b18469f3d61f7a4772a517b8460f8a",
+      "file": "04-root-bridge.json"
+    },
+    {
+      "order": 5,
+      "id": "fern-gate",
+      "name": "Fern Gate",
+      "theme": "jungle",
+      "par": 15,
+      "mechanics": [
+        "push",
+        "gate"
+      ],
+      "hash": "33414f684be9fb4209bd4285f6ac4f2af766f20e6caf46903eb2feeeed910f49",
+      "file": "05-fern-gate.json"
+    },
+    {
+      "order": 6,
+      "id": "mirage",
+      "name": "Mirage",
+      "theme": "oasis",
+      "par": 3,
+      "mechanics": [
+        "tp"
+      ],
+      "hash": "e48a1a2e4839444ec2b001b2db461817ff6e7491195479e14f928cb21468f8b9",
+      "file": "06-mirage.json"
+    },
+    {
+      "order": 7,
+      "id": "twin-mirages",
+      "name": "Twin Mirages",
+      "theme": "oasis",
+      "par": 7,
+      "mechanics": [
+        "tp"
+      ],
+      "hash": "bf6206b7af47c312f9bea847b5b0751415a8ccbf730ee50a8edae6f7150e0399",
+      "file": "07-twin-mirages.json"
+    },
+    {
+      "order": 8,
+      "id": "sunken-well",
+      "name": "Sunken Well",
+      "theme": "oasis",
+      "par": 8,
+      "mechanics": [
+        "push",
+        "sink",
+        "tp"
+      ],
+      "hash": "c0b9d0f405f3e0d30fd403c412c8c7151eee09ecb334b6010740f09c344fd454",
+      "file": "08-sunken-well.json"
+    },
+    {
+      "order": 9,
+      "id": "palm-plates",
+      "name": "Palm Plates",
+      "theme": "oasis",
+      "par": 22,
+      "mechanics": [
+        "push",
+        "gate"
+      ],
+      "hash": "7689bc255286eee3154e9b3e33fc95c1f35c5f6bf0d22843a523467715b60176",
+      "file": "09-palm-plates.json"
+    },
+    {
+      "order": 10,
+      "id": "tide-lever",
+      "name": "Tide Lever",
+      "theme": "tropical",
+      "par": 7,
+      "mechanics": [
+        "toggle"
+      ],
+      "hash": "01f6d885177e092b864cc789d47010cf9e151806a9cc25182c77b2f2962b8120",
+      "file": "10-tide-lever.json"
+    },
+    {
+      "order": 11,
+      "id": "low-tide",
+      "name": "Low Tide",
+      "theme": "tropical",
+      "par": 14,
+      "mechanics": [
+        "toggle"
+      ],
+      "hash": "9b73c0946422d507c13d431c5ae41741a52c4e2a32906bca7c9f648b028d4df6",
+      "file": "11-low-tide.json"
+    },
+    {
+      "order": 12,
+      "id": "coconut-key",
+      "name": "Coconut Key",
+      "theme": "tropical",
+      "par": 17,
+      "mechanics": [
+        "push",
+        "sink",
+        "key",
+        "door"
+      ],
+      "hash": "f2dc0fc0d141c56f9bf2d56bf4be5e23e619fa2375757fbfa50226cec2564946",
+      "file": "12-coconut-key.json"
+    },
+    {
+      "order": 13,
+      "id": "lagoon-locks",
+      "name": "Lagoon Locks",
+      "theme": "tropical",
+      "par": 16,
+      "mechanics": [
+        "key",
+        "door"
+      ],
+      "hash": "6661e5a333db60f2ec16c8cc6cf9b4c151fcc34bfd378c32722ec3015764a3d5",
+      "file": "13-lagoon-locks.json"
+    },
+    {
+      "order": 14,
+      "id": "rooftops",
+      "name": "Rooftops",
+      "theme": "urban",
+      "par": 14,
+      "mechanics": [
+        "walk:ramp",
+        "push"
+      ],
+      "hash": "9778d336a661dab80b80150c64ece128c2f97269d078f15ea19834f7f79267c9",
+      "file": "14-rooftops.json"
+    },
+    {
+      "order": 15,
+      "id": "canal-lift",
+      "name": "Canal Lift",
+      "theme": "urban",
+      "par": 8,
+      "mechanics": [
+        "push",
+        "toggle",
+        "fall"
+      ],
+      "hash": "821b902f8270dc7d46900a2794d7e8e1c1dbb2ce24ebea96680dfd24b56c0641",
+      "file": "15-canal-lift.json"
+    },
+    {
+      "order": 16,
+      "id": "subway",
+      "name": "Subway",
+      "theme": "urban",
+      "par": 13,
+      "mechanics": [
+        "tp",
+        "key",
+        "door"
+      ],
+      "hash": "cf4bbc10ed8b8576af82ba96b846f733c2db6d6bc6b6e0ed9b8899d48fe1e28d",
+      "file": "16-subway.json"
+    },
+    {
+      "order": 17,
+      "id": "night-market",
+      "name": "Night Market",
+      "theme": "urban",
+      "par": 17,
+      "mechanics": [
+        "push",
+        "tp",
+        "gate"
+      ],
+      "hash": "52b27ff0f378bb5993e869e3d7ecf61f64fdc1906a5938e6edb22b450d8c7d79",
+      "file": "17-night-market.json"
+    },
+    {
+      "order": 18,
+      "id": "crosswalk",
+      "name": "Crosswalk",
+      "theme": "urban",
+      "par": 24,
+      "mechanics": [
+        "push",
+        "gate"
+      ],
+      "hash": "4035f7cd57bc927c0c560d0bb0ec2b4a6bf7599e63e77e11743235c77467c748",
+      "file": "18-crosswalk.json"
+    },
+    {
+      "order": 19,
+      "id": "first-frost",
+      "name": "First Frost",
+      "theme": "mountain",
+      "par": 4,
+      "mechanics": [
+        "slide"
+      ],
+      "hash": "36f240d94f3c27f9357958a657cded9602c9b8d69aed6d1583c995a8bfcabe21",
+      "file": "19-first-frost.json"
+    },
+    {
+      "order": 20,
+      "id": "glacier-stops",
+      "name": "Glacier Stops",
+      "theme": "mountain",
+      "par": 9,
+      "mechanics": [
+        "slide"
+      ],
+      "hash": "aaa6c8e7d62ff8164f62aaa951cbaee8922ca26d619f7e1969d419e5bc44a304",
+      "file": "20-glacier-stops.json"
+    },
+    {
+      "order": 21,
+      "id": "snowball",
+      "name": "Snowball",
+      "theme": "mountain",
+      "par": 11,
+      "mechanics": [
+        "push",
+        "slide"
+      ],
+      "hash": "af9088a168516109f7c8fab1735ea478a25e4f4e74f8bb123d1dabbc91931c8b",
+      "file": "21-snowball.json"
+    },
+    {
+      "order": 22,
+      "id": "glacier-maze",
+      "name": "Glacier Maze",
+      "theme": "mountain",
+      "par": 13,
+      "mechanics": [
+        "slide"
+      ],
+      "hash": "521b0a5a7e3432c4fb2ae00885625fdb870113a03629e1bc590de667d754b17c",
+      "file": "22-glacier-maze.json"
+    },
+    {
+      "order": 23,
+      "id": "frozen-gate",
+      "name": "Frozen Gate",
+      "theme": "mountain",
+      "par": 19,
+      "mechanics": [
+        "push",
+        "slide",
+        "cslide",
+        "gate"
+      ],
+      "hash": "5482153a39388a9bdeabd5af4f590cda81fde6201bd3430c380148aa632f3a61",
+      "file": "23-frozen-gate.json"
+    },
+    {
+      "order": 24,
+      "id": "the-peak",
+      "name": "The Peak",
+      "theme": "mountain",
+      "par": 27,
+      "mechanics": [
+        "walk:ramp",
+        "push",
+        "tp",
+        "key",
+        "door"
+      ],
+      "hash": "cd4133e4d647783778a3cd6ec8db4fc66228e6017b018829ca9604820c906981",
+      "file": "24-the-peak.json"
+    }
+  ]
+}

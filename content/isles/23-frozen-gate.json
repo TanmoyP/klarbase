@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 5,
+  "id": "frozen-gate",
+  "name": "Frozen Gate",
+  "theme": "mountain",
+  "hint": "Slide the crate onto the plate — the ice will carry it.",
+  "rows": [
+    "# G # # # #",
+    "# D * * * #",
+    "# * * # * #",
+    ". * * * * o",
+    ". C . . . #",
+    "# . S . . #"
+  ],
+  "par": 19,
+  "solution": "URULDRRDRULLLURRULU"
+}

@@ -26,6 +26,15 @@ export const auth = betterAuth({
 
 export const authHandler = toNodeHandler(auth.handler);
 
+// The signed-in user for a request, or null. For public routes that only
+// reveal extra detail (e.g. an isle's solution) to signed-in players.
+export async function sessionUser(req){
+  try {
+    const s = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+    return (s && s.user) || null;
+  } catch { return null; }
+}
+
 // Middleware: anonymous visitors may play the bundled presets only — every API
 // route behind this gate requires a logged-in user (Phase 2 gating rule).
 export async function requireAuth(req, res, next){

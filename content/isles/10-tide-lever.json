@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 5,
+  "id": "tide-lever",
+  "name": "Tide Lever",
+  "theme": "tropical",
+  "hint": "Stand on the lever and press Use. Every bridge flips.",
+  "rows": [
+    ", G . T -",
+    "~ _ ~ ~ ~",
+    ". . L . .",
+    "~ ~ ~ = ~",
+    "- T . S ."
+  ],
+  "par": 7,
+  "solution": "UULXLUU"
+}

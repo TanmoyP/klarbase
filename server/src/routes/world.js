@@ -69,6 +69,8 @@ world.post('/plots/:x/:y/place', worldLimiter, async (req, res) => {
       const puzzle = await tx.puzzle.findUnique({ where:{ hash:String(puzzleHash) } });
       if(!puzzle || puzzle.authorId !== req.user.id || puzzle.status !== 'live')
         throw Object.assign(new Error('only your own published puzzles can be placed'), { status:422 });
+      if(puzzle.portsJson === '{}')   // v2 isles have no plot ports; the world is deferred
+        throw Object.assign(new Error('isles cannot be placed in the world yet'), { status:422 });
 
       const decision = canPlace(windowMap(near), x, y, JSON.parse(puzzle.portsJson));
       if(!decision.ok)

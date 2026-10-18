@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 5,
+  "id": "sundial-steps",
+  "name": "Sundial Steps",
+  "author": "TanmoyP",
+  "theme": "oasis",
+  "rows": [
+    "- ,1 G1 - - -",
+    "- .1 ^ - - -",
+    ". . . ~ C .",
+    "~ ~ ~ ~ . .",
+    "S , p - . p"
+  ],
+  "par": 9,
+  "solution": "RRUULLLUU",
+  "hint": "The arch drops you on the wrong side of the spring. Make your own way home."
+}

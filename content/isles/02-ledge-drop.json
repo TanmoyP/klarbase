@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 5,
+  "id": "ledge-drop",
+  "name": "Ledge Drop",
+  "theme": "jungle",
+  "hint": "You can hop down a ledge, but never climb one. Take the high road.",
+  "rows": [
+    "G . .1 .1 .1",
+    ". , .1 # .1",
+    "# # # # ^",
+    ", . . . .",
+    "T S . , ."
+  ],
+  "par": 11,
+  "solution": "URRRUUULLLL"
+}

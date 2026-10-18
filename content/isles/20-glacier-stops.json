@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 5,
+  "id": "glacier-stops",
+  "name": "Glacier Stops",
+  "theme": "mountain",
+  "hint": "Every slide ends at a rock. Choose your stops.",
+  "rows": [
+    "- - - - G - - -",
+    "- # * * * * * -",
+    "- * # * * * * -",
+    "- # * * * * * -",
+    "- * * * * * # -",
+    "- * * # * * * -",
+    "- * * * * * * -",
+    "- - - - - S - -"
+  ],
+  "par": 9,
+  "solution": "URDLDRULU"
+}

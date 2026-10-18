@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 5,
+  "id": "coconut-key",
+  "name": "Coconut Key",
+  "theme": "tropical",
+  "hint": "Every door wants a key. Some keys want a bridge first.",
+  "rows": [
+    ", G , - -",
+    "# K # - -",
+    ". . . ~ k",
+    ". T C ~ .",
+    "S . . , ."
+  ],
+  "par": 17,
+  "solution": "RRUDLLUURRRRLLLUU"
+}
