@@ -13,7 +13,9 @@
 
 export const CHAPTERS = [{"theme":"jungle","title":"Canopy"},{"theme":"oasis","title":"Mirage"},{"theme":"tropical","title":"Lagoon"},{"theme":"urban","title":"Rooftops"},{"theme":"mountain","title":"Summit"},
   // Phase 2 (K1 + K4): a chapter keyed by id, not theme — its isles say `chapter:'gardens'`.
-  {"id":"gardens","theme":"jungle","title":"Hanging Gardens","blurb":"Sky Scales and gateways: isles on vines, weighed against each other."}];
+  {"id":"gardens","theme":"jungle","title":"Hanging Gardens","blurb":"Sky Scales and gateways: isles on vines, weighed against each other."},
+  // Phase 3 (K1, K6, K9): Weight II — what Pip carries decides where Pip can go.
+  {"id":"windward","theme":"mountain","title":"Windward","blurb":"Balloons, stones, buoys and gusts: what Pip carries decides where Pip can go."}];
 
 export const CURATED_ISLES = [
   // ---- Canopy (jungle) ----
@@ -504,6 +506,117 @@ export const CURATED_ISLES = [
         'p3 T3 #3 -  -',
       ] },
     ] },
+  // ---- Windward (Phase 3, Weight II: K1, K6, K9) — maps of one storey: balloons, stones, buoys, gusts, seeds ----
+  // catch: Intro: a balloon turns a step into the sky into a glide.
+  { id:'lift-off', name:'Lift Off', theme:'mountain', chapter:'windward', tier:'breeze', par:6, solution:'RRXRRR', seedPar:8,
+    needs:["take","glide"],
+    hint:'Stand on the post and press Use to take its balloon. Then step off the edge.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      '-  ,3 .3 -  -  -  -',
+      'S3 .3 B3 .3 -  .1 G1',
+      '-  .3 ,3 -  -  .1 +1',
+    ] }] },
+  // catch: You need the balloon for the glide, then must let it go to weigh enough for the plate.
+  { id:'let-it-go', name:'Let It Go', theme:'mountain', chapter:'windward', tier:'easy', par:8, solution:'RXRRRXRR',
+    needs:["take","glide","release","gate"],
+    hint:'A balloon weighs nothing — not even enough to press a plate.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      '-  ,3 -  -  -  -  -  -',
+      'S3 B3 .3 -  .1 o1 D1 G1',
+      '-  .3 .3 -  ,1 .1 -  -',
+    ] }] },
+  // catch: The crate you must clear lands on the other pan; only stone-Pip outweighs it and rides low enough to hop off.
+  { id:'heavy-heart', name:'Heavy Heart', theme:'mountain', chapter:'windward', tier:'easy', par:8, solution:'RRXDRDRR',
+    needs:["take","push","scales"],
+    hint:'A stone weighs two. Take one from the pile before you ride the scales.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      'S3 .3 P3 -  -  -',
+      '-  .3 C3 .3 -  -',
+      '-  -  b2 a2 .  G',
+    ] }] },
+  // catch: The crate fills the low spring; only the buoy can rise to the high one.
+  { id:'buoy-bay', name:'Buoy Bay', theme:'tropical', chapter:'windward', tier:'easy', par:12, solution:'RRUUDLLUURRR', seedPar:14,
+    needs:["push","sink","float"],
+    hint:'Buoys float up a step that crates can’t climb — and they float on water.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      '.1 .1 ~1 G1',
+      '^  T  u  .',
+      '~  C  .  .',
+      'S  .  .  +',
+    ] }] },
+  // catch: Both crates must be in the spring before you touch the balloon on the way past.
+  { id:'glide-or-push', name:'Glide or Push', theme:'mountain', chapter:'windward', tier:'tricky', par:21, solution:'RDRRDRULLURRLLXRRRRRR',
+    needs:["push","sink","take","glide"],
+    hint:'Holding a balloon, Pip is too light to push anything.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      '-  .3 .3 T3 .3 .3 -  -  -  -',
+      'S3 .3 B3 C3 ~3 ~3 .3 -  .1 G1',
+      '-  .3 .3 C3 .3 #3 .3 -  ,1 -',
+      '-  -  .3 .3 .3 -  -  -  -  -',
+    ] }] },
+  // catch: Cap the vent with the crate from behind, and only then take the balloon.
+  { id:'tailwind', name:'Tailwind', theme:'oasis', chapter:'windward', tier:'tricky', par:25, solution:'RUURRRRRDULLLLLDDXRRRRDDD',
+    needs:["push","take","glide"],
+    hint:'With a balloon you can’t walk into the wind. Quiet the vent first.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      '-  .3 .3 .3 .3 .3 .3',
+      '-  .3 -  -  -  -  C3',
+      'S3 B3 .3 .3 .3 .3 w3',
+      '-  -  -  -  -  .3 -',
+      '-  -  -  -  -  -  -',
+      '-  -  -  -  ,1 .1 -',
+      '-  -  -  -  -  G1 -',
+    ] }] },
+  // catch: The crate on B lifts A only while the buoy rides A with Pip.
+  { id:'ballast', name:'Ballast', theme:'tropical', chapter:'windward', tier:'tricky', par:14, solution:'RDDRUULLUURRRR',
+    needs:["push","scales"],
+    hint:'A buoy on a pan lifts it. Pip and a buoy together weigh nothing.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      '.3 .3 a2 .3 G3',
+      '^2 -  a2 -  -',
+      'S2 .2 u2 .2 -',
+      '-  .2 .2 .2 -',
+      '-  .2 C2 b2 -',
+    ] }] },
+  // catch: Push the buoy in, then shelter the gust at the exact move the buoy reaches the crossing.
+  { id:'drift', name:'Drift', theme:'tropical', chapter:'windward', tier:'hard', par:15, solution:'RRRRDULDRRRRDDD', seedPar:19,
+    needs:["push","gust","float"],
+    hint:'The wind carries the buoy. A crate in the gust stills the wind behind it.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      'S  .  .  .  .  -  -  .  +  -  -',
+      '.  .  .  C  u  .  .  .  .  .  #',
+      'e  ~  ~  .  ~  ~  ~  ~  ~  ~  #',
+      '#  #  #  #  #  #  #  .  #  #  #',
+      '-  -  -  -  -  -  -  G  -  -  -',
+    ] }] },
+  // catch: Stone-Pip caps one gust and loads the plate; the stone must go back before the balloon can come out.
+  { id:'brace', name:'Brace', theme:'mountain', chapter:'windward', tier:'hard', par:33, solution:'DLXRRURRRLLLDRLLLXRUULXRDRRRRDDDD',
+    needs:["take","drop","push","gate","glide"],
+    hint:'Only a stone is heavy enough to push into the wind. Hands full? A pile takes it back.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      'B3 D3 -  -  -  -  -',
+      '-  S3 .3 C3 .3 .3 w3',
+      'P3 .3 C3 .3 o3 .3 w3',
+      '-  -  -  -  -  .3 -',
+      '-  -  -  -  -  -  -',
+      '-  -  -  -  -  .1 -',
+      '-  -  -  -  -  G1 -',
+    ] }] },
+  // catch: A crate on A (pushed into the wind, so: stone) lifts balloon-Pip’s pan B to the one height the glide can reach from —
+  // and a second crate must stand beside B, or the gust blows balloon-Pip straight off it.
+  { id:'windward', name:'Windward', theme:'mountain', chapter:'windward', tier:'fiendish', par:28, solution:'DXRRRDURLLLLXRDDLXRUURRDRDDD',
+    needs:["take","drop","push","scales","glide"],
+    hint:'Height is range: the higher the pan, the farther the glide.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      'S3 .3 .3 .3 .3 -  -',
+      'P3 .3 C3 .3 .3 a2 w3',
+      'T3 .3 #3 C3 .3 -  -',
+      'B3 .3 .3 .3 b2 w3 -',
+      '-  -  -  -  -  -  -',
+      '-  -  -  -  -  -  -',
+      '-  -  -  -  .  -  -',
+      '-  -  -  ,  G  -  -',
+    ] }] },
 ];
 
 export const isleById = id => CURATED_ISLES.find(i => i.id === id) || null;

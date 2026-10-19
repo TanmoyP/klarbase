@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 6,
+  "id": "windward",
+  "name": "Windward",
+  "theme": "mountain",
+  "tier": "fiendish",
+  "hint": "Height is range: the higher the pan, the farther the glide.",
+  "storeys": [
+    {
+      "rows": [
+        "S3 .3 .3 .3 .3 - -",
+        "P3 .3 C3 .3 .3 a2 w3",
+        "T3 .3 #3 C3 .3 - -",
+        "B3 .3 .3 .3 b2 w3 -",
+        "- - - - - - -",
+        "- - - - - - -",
+        "- - - - . - -",
+        "- - - , G - -"
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "par": 28,
+  "solution": "DXRRRDURLLLLXRDDLXRUURRDRDDD"
+}

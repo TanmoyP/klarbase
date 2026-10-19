@@ -2,18 +2,20 @@
 // visual that mirrors engine state. The engine (@klar/core) decides what
 // happens; this file only shows it — beautifully, and never differently.
 import * as THREE from 'three';
-import { bridgeUp, gatesOpen, panTilt, heightAt, cellPlace } from '@klar/core';
+import { bridgeUp, gatesOpen, panTilt, heightAt, cellPlace, pipWeight, floating, windAt } from '@klar/core';
 import { themeOf, PORTAL_COLORS } from './themes.js';
 import {
   LV, rng, hashStr, buildTerrain, makeRock, makeTree, makeFlora, makeTufts,
   makeCrate, makePlate, makeGate, makeLever, makeBridge, makeKey, makeDoor, makePortal,
   makeGoal, makeStart, makeCloud, makeFlyer, makePan, PAN_HOOK,
+  makeBalloon, makePost, makePile, makeBuoy, makeVent, makeSeed,
 } from './props.js';
 import { Pip } from './pip.js';
 import { sfx, setScale, ambient } from './audio.js';
 
 const CW = { U:'R', R:'D', D:'L', L:'U' }, OPPD = { U:'D', D:'U', L:'R', R:'L' };
 const FORWARD = ['U', 'R', 'D', 'L'];
+const YAW_OF = { D:0, U:Math.PI, R:Math.PI / 2, L:-Math.PI / 2 };       // a +Z-facing prop turned to face a move direction
 const YAW0 = 28 * Math.PI / 180, ELEV = 40 * Math.PI / 180;
 const easeIO = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
 
@@ -157,6 +159,7 @@ export class World {
     const r = rng(hashStr(level.cells.map(c => c.ch + c.h).join('|')));
     this.sway = []; this.keys = new Map(); this.doors = new Map(); this.bridges = new Map();
     this.levers = []; this.gates = []; this.plates = new Map(); this.portals = []; this.goals = []; this.pans = new Map();
+    this.posts = new Map(); this.vents = new Map(); this.seedMeshes = new Map(); this.seedsGot = new Set();
     for(let i = 0; i < level.cells.length; i++){
       if(level.sid[i] < 0) continue;              // padding between storeys
       const c = level.cells[i], p = this.cellPos(i, false), home = this.groupOf(i);
@@ -172,13 +175,18 @@ export class World {
         case 'portal': { const pr = put(makePortal(T, c.ch)); pr.rotation.y = this.sideways(i) ? Math.PI / 2 : 0; this.portals.push(pr); break; }
         case 'bridge': { const b = put(makeBridge(T)); b.rotation.y = this.sideways(i) ? 0 : Math.PI / 2; b.userData.baseY = b.position.y; b.userData.storey = level.sid[i]; this.bridges.set(i, b); break; }
         case 'pan': this.pans.set(i, put(makePan(T))); break;
+        case 'post': this.posts.set(i, put(makePost(T))); break;
+        case 'pile': put(makePile(T, r)); break;
+        case 'vent': { const v = put(makeVent(T)); v.rotation.y = YAW_OF[c.blow]; this.vents.set(i, v); break; }
       }
       if(c.flora) put(makeFlora(T, r));
       if(level.start === i) put(makeStart(T));
       if(level.keys.includes(i)) this.keys.set(i, put(makeKey(T)));
+      if(level.seeds && level.seeds.includes(i)) this.seedMeshes.set(i, put(makeSeed(T)));
     }
     this.buildVine(T);
     this.buildThreads();
+    this.buildGusts();
 
     this.buildAtmosphere(T, r);
     this.frameIsle(true);
@@ -231,6 +239,7 @@ export class World {
       m.position.y = y;
       if(state && state.p === i) this.pip.group.position.y = y;
       const cm = this.crateMeshes && this.crateMeshes.get(i); if(cm) cm.position.y = y;
+      const bm = this.buoyMeshes && this.buoyMeshes.get(i); if(bm) bm.position.y = y;
     }
     this.updateVine();
   }
@@ -258,6 +267,34 @@ export class World {
       const m = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, d.length(), 6, 1, true), mat);
       m.position.copy(p).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
       this.isle.add(m); this.threads.push(mat);
+    }
+  }
+
+  // Gusts (K6): pale streaks run along each line, from the vent to where the wind
+  // stops — at the line's end or at the first crate sheltering it (applyState).
+  buildGusts(){
+    this.gustFx = [];
+    const L = this.level, mat = new THREE.MeshBasicMaterial({ color:'#ffffff', transparent:true, opacity:0.75, depthWrite:false });
+    for(const g of L.gusts || []){
+      const [dx, dz] = { U:[0, -1], D:[0, 1], L:[-1, 0], R:[1, 0] }[g.dir];
+      const start = this.cellPos(g.cells[0], false), streaks = [];
+      for(let k = 0; k < g.cells.length * 2 + 2; k++){
+        const m = new THREE.Mesh(new THREE.BoxGeometry(dx ? 0.5 : 0.05, 0.05, dz ? 0.5 : 0.05), mat);
+        m.userData = { ph:k / (g.cells.length * 2 + 2), lane:(k % 3 - 1) * 0.22, hy:0.15 + (k * 0.37 % 1) * 0.45 };
+        this.groupOf(g.cells[0]).add(m); streaks.push(m);
+      }
+      this.gustFx.push({ g, dx, dz, start, streaks, reach:g.cells.length });
+    }
+  }
+  updateGusts(t){
+    for(const f of this.gustFx || []){
+      for(const m of f.streaks){
+        const u = m.userData, d = ((t * 0.9 + u.ph * f.g.cells.length) % (f.g.cells.length + 0.5)) - 0.5;
+        m.visible = d < f.reach - 0.3;
+        const fade = Math.min(1, (d + 0.5) * 2, (f.reach - 0.3 - d) * 2);
+        m.scale.setScalar(Math.max(0.05, fade));
+        m.position.set(f.start.x + f.dx * d + (f.dz ? u.lane : 0), f.start.y + u.hy + Math.sin(t * 3 + u.ph * 9) * 0.04, f.start.z + f.dz * d + (f.dx ? u.lane : 0));
+      }
     }
   }
 
@@ -372,11 +409,15 @@ export class World {
   reset(state){
     for(const m of this.crateMeshes?.values() || []) m.removeFromParent();
     for(const m of this.fillers || []) m.removeFromParent();
+    for(const m of this.buoyMeshes?.values() || []) m.removeFromParent();
     this.tiltShown = panTilt(this.level, state);       // heights first: crates and Pip stand on them
     this.pipStorey = this.level.sid[state.p];
     this.crateMeshes = new Map(); this.fillers = [];
     for(const i of state.crates){ const m = makeCrate(this.T); m.position.copy(this.cellPos(i)); m.userData.cell = i; this.groupOf(i).add(m); this.crateMeshes.set(i, m); }
     for(const i of state.filled){ this.addFiller(i, true); }
+    this.buoyMeshes = new Map();
+    for(const i of state.buoys || []){ const m = makeBuoy(this.T); m.position.copy(this.buoyPos(i, state)); this.groupOf(i).add(m); this.buoyMeshes.set(i, m); }
+    this.pip.setHold(state.hold, this.T);
     for(const [i, k] of this.keys) k.visible = !state.got.includes(i);
     this.applyState(state, true);
     this.pip.placeAt(this.cellPos(state.p)); this.pip.group.visible = true;
@@ -396,15 +437,36 @@ export class World {
     else this.tweenObj(m, m.position.clone(), p, 0.35);
     this.fillers.push(m);
   }
+  // A buoy sits on its tile — or, floating, low in the water with its top at the surface.
+  buoyPos(i, state){ const p = this.cellPos(i); if(floating(this.level, state, i)) p.y -= 0.46; return p; }
+  // Seeds are not engine state: the session says which ones Pip has picked.
+  setSeeds(got){ this.seedsGot = new Set(got); for(const [i, m] of this.seedMeshes) m.visible = !this.seedsGot.has(i); }
+  collectSeed(i){
+    const m = this.seedMeshes.get(i); if(!m || !m.visible) return;
+    this.seedsGot.add(i); sfx.seed(); this.sparkle(i, '#b6ff7a');
+    const y0 = m.position.y; let t = 0;
+    this.fx.push({ update:dt => { t += dt / 0.5; m.position.y = y0 + easeIO(Math.min(1, t)) * 0.9; m.scale.setScalar(Math.max(0.001, 1 - t)); if(t >= 1){ m.visible = false; m.position.y = y0; m.scale.setScalar(1); return false; } return true; } });
+  }
+  // A released balloon drifts up and away.
+  letGo(at){
+    const b = makeBalloon(this.T.accent, 0.62); b.position.copy(this.cellPos(at)).add(new THREE.Vector3(0.17, 0.22, -0.06)); this.scene.add(b);
+    let t = 0; const x0 = b.position.x, y0 = b.position.y;
+    this.fx.push({ update:dt => { t += dt; b.position.y = y0 + t * 1.6 + t * t * 0.4; b.position.x = x0 + Math.sin(t * 2) * 0.25; b.rotation.z = Math.sin(t * 3) * 0.2;
+      if(t > 3.5){ b.removeFromParent(); b.traverse(o => { o.geometry && o.geometry.dispose(); }); return false; } return true; } });
+  }
+
   // Targets for the pieces that ease toward their state each frame.
   applyState(state, instant = false){
     this.state = state;
     const open = gatesOpen(this.level, state);
     for(const g of this.gates){ g.userData.target = open ? 1 : 0; if(instant) g.userData.open = g.userData.target; }
-    for(const [i, p] of this.plates){ p.userData.target = (state.p === i || state.crates.includes(i)) ? 1 : 0; if(instant) p.userData.pressed = p.userData.target; }
+    for(const [i, p] of this.plates){ p.userData.target = ((state.p === i && pipWeight(state) > 0) || state.crates.includes(i)) ? 1 : 0; if(instant) p.userData.pressed = p.userData.target; }
     for(const [i, b] of this.bridges){ b.userData.target = (bridgeUp(this.level.cells[i], state)) ? 1 : 0; if(instant) b.userData.up = b.userData.target; }
     for(const l of this.levers){ l.userData.target = state.flip ? -0.6 : 0.6; if(instant) l.userData.angle = l.userData.target; }
     for(const [i, d] of this.doors){ d.userData.target = state.opened.includes(i) ? 1 : 0; if(instant) d.userData.open = d.userData.target; }
+    for(const [i, pst] of this.posts) pst.userData.balloon.visible = !(state.posts || []).includes(i);
+    for(const [i, v] of this.vents) v.userData.capped = state.crates.includes(i);
+    for(const f of this.gustFx || []){ let n = 0; for(const c of f.g.cells){ if(windAt(this.level, state, c)) n++; else break; } f.reach = n; }
   }
 
   tweenObj(obj, a, b, dur, arc = 0){
@@ -424,19 +486,28 @@ export class World {
     const crateJobs = (async () => {
       for(const e of ev){
         if(e.t === 'push' || e.t === 'cslide'){
-          const m = this.crateMeshes.get(e.from); if(!m) continue;
-          this.crateMeshes.delete(e.from); this.crateMeshes.set(e.to, m); m.userData.cell = e.to;
-          const a = m.position.clone(), b = this.cellPos(e.to);
-          const drop = this.level.cells[e.to].h < this.level.cells[e.from].h;
+          const pieces = e.buoy ? this.buoyMeshes : this.crateMeshes;
+          const m = pieces.get(e.from); if(!m) continue;
+          pieces.delete(e.from); pieces.set(e.to, m); m.userData.cell = e.to;
+          const a = m.position.clone(), b = e.buoy ? this.buoyPos(e.to, res.state) : this.cellPos(e.to);
+          const drop = this.level.cells[e.to].h !== this.level.cells[e.from].h;
           if(e.t === 'push') sfx.push(); else sfx.slide();
           await this.tweenObj(m, a, b, (e.t === 'push' ? 0.2 : 0.09) * speed, drop ? 0.15 : 0);
-        } else if(e.t === 'sink'){
+        } else if(e.t === 'float'){ sfx.float(); this.splash(e.at); }
+        else if(e.t === 'sink'){
           const m = this.crateMeshes.get(e.at); this.crateMeshes.delete(e.at);
           sfx.sink(); this.splash(e.at); this.addFiller(e.at, false, m);
         }
       }
     })();
 
+    const glide = ev.find(e => e.t === 'glide');
+    if(glide){
+      sfx.glide();
+      const a = this.cellPos(glide.from), b = this.cellPos(glide.to), tiles = Math.abs(a.x - b.x) + Math.abs(a.z - b.z);
+      await this.pip.float(a, b, (0.22 + 0.16 * tiles) * speed);
+      this.dust(glide.to);
+    }
     const walk = ev.find(e => e.t === 'walk');
     if(walk){
       const pushing = ev.some(e => e.t === 'push');
@@ -455,6 +526,13 @@ export class World {
       }
       if(e.t === 'key'){ sfx.key(); this.collectKey(e.at); }
       if(e.t === 'toggle'){ sfx.toggle(); }
+      if(e.t === 'take'){ sfx.take(e.what); this.pip.setHold(e.what, this.T); if(e.what === 'balloon') this.posts.get(e.at).userData.balloon.visible = false; }
+      if(e.t === 'drop'){ sfx.drop(); this.pip.setHold('', this.T); }
+      if(e.t === 'release'){ sfx.release(); this.pip.setHold('', this.T); this.letGo(e.at); }
+      if(e.t === 'gust'){
+        if(e.buoy){ const m = this.buoyMeshes.get(e.from); if(m){ this.buoyMeshes.delete(e.from); this.buoyMeshes.set(e.to, m); sfx.gust(); await this.tweenObj(m, m.position.clone(), this.buoyPos(e.to, res.state), 0.3 * speed, 0.08); } }
+        else { sfx.gust(); await this.pip.drift(this.cellPos(e.from), this.cellPos(e.to), 0.32 * speed); }
+      }
       if(e.t === 'fall'){
         const m = this.crateMeshes.get(e.at); this.crateMeshes.delete(e.at);
         sfx.fall(); this.splash(e.at); if(m) this.addFiller(e.at, false, m);
@@ -547,6 +625,11 @@ export class World {
       for(const p of this.portals){ const u = p.userData; u.swirl.rotation.z = -t * 3; u.glowMat.opacity = (0.45 + Math.sin(t * 3) * 0.12) * this.fadeOf(p); u.gem.rotation.y = t * 2; }
       for(const m of this.threads) m.opacity = 0.16 + Math.sin(t * 2.2) * 0.07;
       for(const g of this.storeyGroups){ const u = g.userData; if(Math.abs(u.fade - u.fadeTo) > 0.002) this.fadeStorey(g, u.fade + (u.fadeTo - u.fade) * Math.min(1, dt * 5)); }
+      for(const v of this.vents.values()) if(!v.userData.capped) v.userData.fan.rotation.y = t * 7;
+      for(const m of this.seedMeshes.values()) if(m.visible){ m.userData.spin.rotation.y = t * 1.6; m.userData.spin.position.y = 0.32 + Math.sin(t * 2.2) * 0.05; }
+      for(const pst of this.posts.values()){ const b = pst.userData.balloon; b.rotation.z = Math.sin(t * 1.5 + pst.position.x) * 0.12; }
+      for(const m of this.buoyMeshes?.values() || []){ const b = m.userData.balloon; b.rotation.z = Math.sin(t * 1.7 + m.position.z) * 0.1; m.userData.box.rotation.z = Math.sin(t * 1.2 + m.position.x) * 0.03; }
+      this.updateGusts(t);
       for(const k of this.keys.values()){ if(k.visible){ k.userData.spin.rotation.y = t * 2; k.userData.spin.position.y = 0.55 + Math.sin(t * 2.5) * 0.07; } }
       const lerp = (o, key, rate) => { o.userData[key] += (o.userData.target - o.userData[key]) * Math.min(1, dt * rate); return o.userData[key]; };
       for(const g of this.gates){ if(g.userData.target == null) continue; const o = lerp(g, 'open', 6); g.userData.bars.position.y = -o * 0.86; }

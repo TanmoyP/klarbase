@@ -4,7 +4,7 @@
 //   community  — isles merged on GitHub (isles/community/<author>/<id>.json),
 //                bundled at build time with credit to their author
 //   online     — isles shared in-game and stored on the server (/i/<hash>)
-import { CURATED_ISLES, CHAPTERS, SCHEMAS, parseIsle, solveIsle, starsFor, isleHash, initialState,
+import { CURATED_ISLES, CHAPTERS, SCHEMAS, parseIsle, solveIsle, solveSeeds, starsFor, isleHash, initialState,
   auditIsle, difficultyScore, TIER_IDS, dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate } from '@klar/core';
 import { World } from './game/world.js';
 import { Session } from './game/session.js';
@@ -162,8 +162,13 @@ function helpModal(){
       <div><span class="ico">🕹</span><span>Stand on a lever and press <b>Space</b>: every bridge flips. A crate on a sinking bridge stays as a block.</span></div>
       <div><span class="ico">🔑</span><span>Keys open doors — one key each. Step into an arch ⛩ to appear at its twin.</span></div>
       <div><span class="ico">⚖</span><span>Sky Scales: two pans hang from one vine. The heavier pan sinks a level, the lighter rises one — and you ride along. You and crates weigh 1.</span></div>
+      <div><span class="ico">🎈</span><span>Press <b>Space</b> on a post to take its balloon: you weigh nothing, can’t push or press plates, and a step off an edge becomes a <b>glide</b> — one level down per tile. Space again lets it go, forever.</span></div>
+      <div><span class="ico">🥌</span><span>Space on a stone pile: carry a stone and weigh 2. It only goes back on a pile. You hold one thing at a time.</span></div>
+      <div><span class="ico">🛟</span><span>Buoys weigh −1: they float <b>up</b> a step, never down, and float on water as stepping stones.</span></div>
+      <div><span class="ico">💨</span><span>Vents blow light things (balloon-you, buoys) one tile after each move. A crate in the gust shelters what’s behind it. Only a stone lets you push into the wind.</span></div>
+      <div><span class="ico">🌱</span><span>Seeds are optional — they’re off the short route.</span></div>
       <div><span class="ico">🗺</span><span>Some maps have several isles. A gateway arch carries you between them; press <b>M</b> to see the whole map.</span></div>
-      <div><span class="ico">⭐</span><span>Reach the glowing star. Match par for ★★★. Stuck? <b>H</b> shows your best next move.</span></div>
+      <div><span class="ico">⭐</span><span>Reach the glowing star. Match par for ★★★. Stuck? <b>H</b> shows the isle’s tip, then your best next move.</span></div>
       <div><span class="ico">📈</span><span>Each isle shows a difficulty from <b>Breeze</b> to <b>Mythic</b>. It starts as the maker’s guess and settles as people play.</span></div>
     </div>
     <p class="facts" style="font-size:12.5px;font-weight:600;margin:10px 0 0">Privacy: to rate difficulty, the game counts plays, clears, hints, restarts, moves and time per isle — anonymous totals only, no account, cookie or IP address stored.</p>
@@ -292,6 +297,12 @@ function play(entry){
   $('#hudSub').innerHTML = tierBadge(entry) + ' ' + (entry.author && !entry.daily ? `by <a href="https://github.com/${esc(entry.author)}" target="_blank" rel="noopener" style="color:inherit">@${esc(entry.author)}</a>` : esc(entry.sub || ''));   // tier first, so phones never ellipsize it away
   $('#statPar').textContent = entry.par || '–';
   $('#statKeysWrap').style.display = level.keys.length ? '' : 'none';
+  $('#statSeedsWrap').style.display = level.seeds && level.seeds.length ? '' : 'none';
+  // seed par: stored for official isles, otherwise worked out once, after the isle is on screen
+  if(level.seeds && level.seeds.length && entry.seedPar == null){
+    if(entry.doc.seedPar) entry.seedPar = entry.doc.seedPar;
+    else setTimeout(() => { const r = solveSeeds(level, { maxStates:200000 }); entry.seedPar = r && r.solvable ? r.par : 0; }, 60);
+  }
   $('#btnSolution').disabled = !entry.par;
   $('#keystrip').classList.remove('on');
   if(entry.hint) showTip(entry); else $('#hintText').style.display = 'none';
@@ -310,6 +321,7 @@ function hud(s){
   if(s.moves > 0 && !s.replaying && !s.won && !attemptOpen){ attemptOpen = true; postPlay('start'); }   // start = first real move
   $('#statMoves').textContent = s.moves;
   $('#statKeys').textContent = s.state.keys;
+  if(s.level.seeds && s.level.seeds.length) $('#statSeeds').textContent = `${s.seeds.size}/${s.level.seeds.length}`;
   $('#btnSolution').innerHTML = s.replaying ? '■<span class="lbl"> Stop</span>' : unlocked(current) ? '▶<span class="lbl"> Solution</span>' : '🔒<span class="lbl"> Solution</span>';
   $('#btnUndo').disabled = !s.history.length || s.replaying;
   $('#btnHint').disabled = s.won || s.replaying;
@@ -322,6 +334,7 @@ function won(s){
   const prev = progress[e.key];
   if(!e.draft){
     const best = { stars:Math.max(stars, prev?.stars || 0), moves:Math.min(s.moves, prev?.moves ?? Infinity), time:settings.timer ? Math.min(s.time, prev?.time ?? Infinity) : prev?.time };
+    if(s.level.seeds && s.level.seeds.length) best.seeds = Math.max(s.seeds.size, prev?.seeds || 0);
     progress[e.key] = best; store.set('klarbase.v2.progress', progress);
   }
   postPlay('clear', { moves:s.moves, ms:Math.round(s.time * 1000) }); attemptOpen = false;
@@ -331,8 +344,10 @@ function won(s){
   modal.open(`<h2>${e.daily ? `Daily #${e.daily.no} cleared!` : 'Isle cleared!'}</h2>
     <div class="big-stars">${[0, 1, 2].map(i => `<span class="${i < stars ? 'lit' : ''}" style="animation-delay:${0.15 + i * 0.18}s">★</span>`).join('')}</div>
     <div class="facts">${s.moves} moves · par ${e.par || '?'}${settings.timer ? ' · ' + fmtTime(s.time) : ''}${s.hintsUsed ? ` · ${s.hintsUsed} hint${s.hintsUsed > 1 ? 's' : ''}` : ''}</div>
-    ${stars < 3 && e.par ? `<div class="facts" style="font-weight:600;margin-top:4px">The smart route takes ${e.par} moves — watch it?</div>` : ''}
+    ${stars < 3 && e.par && !(s.level.seeds && s.level.seeds.length && s.seeds.size === s.level.seeds.length) ? `<div class="facts" style="font-weight:600;margin-top:4px">The smart route takes ${e.par} moves — watch it?</div>` : ''}
+    ${seedLine(s, e)}
     ${e.catch ? `<div class="note" style="margin-top:10px;text-align:left"><b>The catch:</b> ${esc(e.catch)}</div>` : ''}
+    ${movesHistogram(e, s.moves)}
     ${share ? `<div class="share-text" id="wShareText">${esc(share)}<br><small>${esc(location.origin)}/daily</small></div>` : ''}
     <div class="row">
       ${share ? `<button class="btn primary" id="wDaily">📋 Copy result</button>` : ''}
@@ -353,6 +368,28 @@ function won(s){
   $('#wWatch') && ($('#wWatch').onclick = () => { modal.close(); watch(); });
   $('#wShare') && ($('#wShare').onclick = () => navigator.clipboard.writeText(location.href).then(() => toast('Link copied')));
   $('#wList') && ($('#wList').onclick = () => { nav(e.daily ? '/play' : e.author ? '/community' : '/play'); });
+}
+
+// Seeds (Phase 3) are optional: how many you found, and the seed par once all are in.
+function seedLine(s, e){
+  const n = s.level.seeds ? s.level.seeds.length : 0;
+  if(!n) return '';
+  const all = s.seeds.size === n;
+  return `<div class="facts" style="margin-top:4px">🌱 ${s.seeds.size} of ${n} seed${n > 1 ? 's' : ''}${all && e.seedPar ? ` · ${s.moves <= e.seedPar ? 'seed par!' : `seed par ${e.seedPar}`}` : !all ? ' — they’re off the short route' : ''}</div>`;
+}
+// How everyone else cleared it (K7 sums, no one in particular): moves from par to
+// par + 8 or more, your bar lit. Shown once a few people have cleared the isle.
+function movesHistogram(e, mine){
+  const h = e.statKey && plays[e.statKey] && plays[e.statKey].moves;
+  if(!h || !e.par) return '';
+  const cols = Array.from({ length:9 }, () => 0);
+  let total = 0;
+  for(const [k, c] of Object.entries(h)){ const m = +k, n = +c || 0; if(m > 0 && n > 0){ cols[Math.max(0, Math.min(8, m - e.par))] += n; total += n; } }
+  if(total < 3) return '';
+  const max = Math.max(...cols), you = Math.max(0, Math.min(8, mine - e.par));
+  return `<div class="hist-cap">How players cleared it · ${total} clear${total > 1 ? 's' : ''}</div>
+    <div class="hist">${cols.map((n, k) => `<i class="${k === you ? 'you' : ''}" style="height:${4 + Math.round(40 * n / max)}px" title="${e.par + k}${k === 8 ? '+' : ''} moves: ${n}"></i>`).join('')}</div>
+    <div class="hist-axis"><span>par ${e.par}</span><span>${e.par + 8}+</span></div>`;
 }
 
 // screen arrow for a world move in the current view — keeps hints & replays readable after turning
@@ -436,7 +473,7 @@ function hint(){
   if(!unlocked(current)) freeHints--;
   postPlay('hint');
   if(h.stuck) toast('Hmm — this spot can’t reach the goal any more. Undo or restart.', true);
-  else toast((h.move === 'X' ? `Best next move: pull the lever (Space) · ${h.left} to go` : `Best next move: ${glyphFor(h.move)} · ${h.left} to go`) + (unlocked(current) ? '' : ' · that was your free hint'));
+  else toast((h.move === 'X' ? `Best next move: Use (Space) · ${h.left} to go` : `Best next move: ${glyphFor(h.move)} · ${h.left} to go`) + (unlocked(current) ? '' : ' · that was your free hint'));
 }
 $('#btnBack').onclick = () => { nav(current?.draft ? '/create' : current?.daily ? '/' : current?.author ? '/community' : current?.online ? '/community' : '/play'); };
 $('#btnUndo').onclick = () => game && game.undo();

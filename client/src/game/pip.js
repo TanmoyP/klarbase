@@ -2,6 +2,7 @@
 // Cuteness lives in proportion and motion, not detail: squash & stretch on
 // every hop, a sprout that lags behind, blinking, and a happy little spin.
 import * as THREE from 'three';
+import { makeBalloon, makeStone } from './props.js';
 
 const ease = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
 const easeOutBack = t => 1 + 2.4 * Math.pow(t - 1, 3) + 1.4 * Math.pow(t - 1, 2);
@@ -67,6 +68,15 @@ export class Pip {
     this.tweens = [];
     this.blinkAt = 2; this.lookAt = 4;
     this.squash = 1;
+    // what Pip holds (Weight II): a balloon floats beside, a stone sits overhead
+    this.held = null; this.holding = '';
+  }
+
+  setHold(what, T){
+    if(this.held){ this.held.removeFromParent(); this.held = null; }
+    this.holding = what || '';
+    if(what === 'balloon'){ this.held = makeBalloon(T.accent, 0.62); this.held.position.set(0.17, 0.22, -0.06); this.group.add(this.held); }
+    else if(what === 'stone'){ this.held = makeStone(T); this.held.position.set(0, 0.66, 0); this.body.add(this.held); }
   }
 
   setScarf(color){ this.scarfMat.color.set(color); }
@@ -102,6 +112,25 @@ export class Pip {
       this.group.position.lerpVectors(a, b, p);
       this.body.rotation.x = -0.22; this.body.scale.set(1.05, 0.95, 1.05);
       if(p >= 1){ this.body.rotation.x = 0; this.body.scale.setScalar(1); }
+    });
+  }
+  // A balloon glide: a long, soft descent from a to b, sprout and scarf streaming.
+  float(a, b, dur = 0.5){
+    return this.tween(dur, p => {
+      const e = p * (2 - p);
+      this.group.position.lerpVectors(a, b, e);
+      this.group.position.y = a.y + (b.y - a.y) * p * p + Math.sin(Math.PI * p) * 0.25;
+      this.body.rotation.x = 0.15; this.body.scale.set(1.04, 0.97, 1.04);
+      if(p >= 1){ this.body.rotation.x = 0; this.body.scale.setScalar(1); this.squash = 0.86; }
+    });
+  }
+  // Nudged one tile by the wind.
+  drift(a, b, dur = 0.32){
+    return this.tween(dur, p => {
+      this.group.position.lerpVectors(a, b, p * (2 - p));
+      this.group.position.y += Math.sin(Math.PI * p) * 0.12;
+      this.body.rotation.z = Math.sin(Math.PI * p) * 0.25;
+      if(p >= 1) this.body.rotation.z = 0;
     });
   }
   async teleport(a, b){
@@ -146,6 +175,7 @@ export class Pip {
     this.sprout.rotation.z = Math.sin(t * 2.1) * 0.12;
     this.sprout.rotation.x = Math.sin(t * 1.7 + 1) * 0.08;
     this.tail.rotation.z = 0.3 + Math.sin(t * 5) * 0.12;
+    if(this.holding === 'balloon' && this.held){ this.held.rotation.z = Math.sin(t * 1.8) * 0.1; this.held.rotation.x = Math.sin(t * 1.3 + 1) * 0.08; }
     // blink & glance
     if(t > this.blinkAt){ this.blinkAt = t + 2.2 + Math.random() * 3.2; this.blinkEnd = t + 0.12; }
     const closed = this.blinkEnd && t < this.blinkEnd;

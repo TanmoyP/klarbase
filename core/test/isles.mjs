@@ -293,6 +293,8 @@ for(const isle of CURATED_ISLES){
   let s = initialState(level); const used = new Set();
   for(const m of isle.solution){ const st = step(level, s, m); for(const e of st.events) used.add(eventMechanic(e)); s = st.state; }
   for(const n of isle.needs || []) t(`${isle.id}: uses ${n}`, used.has(n));
+  const sp = solveSeeds(level);
+  if(sp || isle.seedPar) t(`${isle.id}: seedPar ${isle.seedPar} == ${sp && sp.par}, and seeds sit off the par route`, sp && sp.par === isle.seedPar && sp.par > r.par);
 }
 
 /* ---------------- community contribution rules ---------------- */

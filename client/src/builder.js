@@ -13,11 +13,13 @@ const TOOLS = [
   ['.', '▢', 'Ground'], [',', '🌼', 'Flowers'], ['#', '🪨', 'Rock'], ['T', '🌳', 'Tree'], ['~', '🌊', 'Water'], ['*', '🧊', 'Ice'],
   ['ramp', '⬆', 'Ramp'], ['C', '📦', 'Crate'], ['o', '◎', 'Plate'], ['D', '▥', 'Gate'], ['L', '🕹', 'Lever'], ['=', '═', 'Bridge'],
   ['_', '┄', 'Sunk br.'], ['k', '🔑', 'Key'], ['K', '🚪', 'Door'], ['p', '⛩', 'Arch A'], ['q', '⛩', 'Arch B'], ['S', '🐣', 'Start'],
-  ['G', '⭐', 'Goal'], ['-', '✕', 'Erase'], ['+', '▲', 'Raise'], ['^h', '▼', 'Lower'],
+  ['G', '⭐', 'Goal'], ['-', '✕', 'Erase'], ['^+', '▲', 'Raise'], ['^h', '▼', 'Lower'],
   ['a', '⚖', 'Pan A'], ['b', '⚖', 'Pan B'], ['r', '⛩', 'Arch C'],     // maps only (schemaVersion 6)
+  ['B', '🎈', 'Balloon'], ['P', '🥌', 'Stones'], ['u', '🛟', 'Buoy'], ['vent', '⇑', 'Vent'], ['+', '🌱', 'Seed'],   // Weight II (maps only)
 ];
 const RAMP_DIRS = ['^', '>', 'v', '<'], RAMP_ARROW = { '^':'⬆', '>':'➡', 'v':'⬇', '<':'⬅' };
-const GLYPH = { ',':'🌼', '#':'🪨', 'T':'🌳', 'C':'📦', 'o':'◎', 'D':'▥', 'L':'🕹', '=':'═', '_':'┄', 'k':'🔑', 'K':'🚪', 'p':'⛩', 'q':'⛩', 'r':'⛩', 'S':'🐣', 'G':'⭐', '*':'', 'a':'A', 'b':'B' };
+const VENT_DIRS = ['n', 'e', 's', 'w'], VENT_ARROW = { n:'⇑', e:'⇒', s:'⇓', w:'⇐' };
+const GLYPH = { ',':'🌼', '#':'🪨', 'T':'🌳', 'C':'📦', 'o':'◎', 'D':'▥', 'L':'🕹', '=':'═', '_':'┄', 'k':'🔑', 'K':'🚪', 'p':'⛩', 'q':'⛩', 'r':'⛩', 'S':'🐣', 'G':'⭐', '*':'', 'a':'A', 'b':'B', 'B':'🎈', 'P':'🥌', 'u':'🛟', '+':'🌱' };
 const store = { get:(k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set:(k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
 const template = () => ({ name:'My isle', theme:'jungle', rows:[
@@ -27,7 +29,7 @@ const template = () => ({ name:'My isle', theme:'jungle', rows:[
 export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, communityHashes, canSeeSolutions = () => false }){
   const root = document.getElementById('builderPanel');
   let draft = store.get('klarbase.v2.draft', null) || template();
-  let grid = [], tool = '.', rampDir = 0, painting = false, stroke = new Set(), last = null, verdict = null;
+  let grid = [], tool = '.', rampDir = 0, ventDir = 0, painting = false, stroke = new Set(), last = null, verdict = null;
   const fromRows = rows => rows.map(r => r.trim().split(/\s+/).map(t => [t[0], t.length > 1 ? +t[1] : 0]));
   const toRows = (g = grid) => g.map(r => r.map(([c, h]) => (h ? c + h : c).padEnd(2)).join(' ').trimEnd());
   // Archipelago maps (K4): the draft holds 1–3 storeys; `grid` is the one being painted.
@@ -85,12 +87,12 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
   const tools = $('#bTools');
   for(const [id, ico, label] of TOOLS){
     const b = document.createElement('button'); b.className = 'tool'; b.dataset.tool = id;
-    b.innerHTML = `<span>${ico}</span><small>${label}</small>`; b.title = label + (id === 'ramp' ? ' (click again or press R to turn)' : '');
-    b.onclick = () => { if(id === 'ramp' && tool === 'ramp') rampDir = (rampDir + 1) % 4; tool = id; syncTools(); sfx.ui(); };
+    b.innerHTML = `<span>${ico}</span><small>${label}</small>`; b.title = label + (id === 'ramp' ? ' (click again or press R to turn)' : id === 'vent' ? ' (click again to turn the gust)' : '');
+    b.onclick = () => { if(id === 'ramp' && tool === 'ramp') rampDir = (rampDir + 1) % 4; if(id === 'vent' && tool === 'vent') ventDir = (ventDir + 1) % 4; tool = id; syncTools(); sfx.ui(); };
     tools.appendChild(b);
   }
   const syncTools = () => {
-    for(const b of tools.children){ b.classList.toggle('on', b.dataset.tool === tool); if(b.dataset.tool === 'ramp') b.firstChild.textContent = RAMP_ARROW[RAMP_DIRS[rampDir]]; }
+    for(const b of tools.children){ b.classList.toggle('on', b.dataset.tool === tool); if(b.dataset.tool === 'ramp') b.firstChild.textContent = RAMP_ARROW[RAMP_DIRS[rampDir]]; if(b.dataset.tool === 'vent') b.firstChild.textContent = VENT_ARROW[VENT_DIRS[ventDir]]; }
   };
   const themes = $('#bThemes');
   for(const t of THEME_NAMES){ const c = document.createElement('button'); c.className = 'chip'; c.dataset.theme = t; c.textContent = themeOf(t).label; c.onclick = () => { draft.theme = t; changed(); }; themes.appendChild(c); }
@@ -113,10 +115,10 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     const key = x + ',' + z; if(stroke.has(key)) return; stroke.add(key);
     const cell = grid[z][x];
     if(erase || tool === '-'){ grid[z][x] = ['-', 0]; return; }
-    if(tool === '+'){ if(cell[0] !== '-') cell[1] = Math.min(MAX_LEVEL, cell[1] + 1); return; }
+    if(tool === '^+'){ if(cell[0] !== '-') cell[1] = Math.min(MAX_LEVEL, cell[1] + 1); return; }
     if(tool === '^h'){ if(cell[0] !== '-') cell[1] = Math.max(0, cell[1] - 1); return; }
     if(tool === 'S') for(const s of storeys) for(const row of s.grid) for(const c of row) if(c[0] === 'S') c[0] = '.';
-    grid[z][x] = [tool === 'ramp' ? RAMP_DIRS[rampDir] : tool, cell[0] === '-' ? 0 : cell[1]];
+    grid[z][x] = [tool === 'ramp' ? RAMP_DIRS[rampDir] : tool === 'vent' ? VENT_DIRS[ventDir] : tool, cell[0] === '-' ? 0 : cell[1]];
   };
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   canvas.addEventListener('pointerdown', e => { const c = cellAt(e); if(!c) return; painting = e.button === 2 ? 'erase' : 'paint'; stroke = new Set(); canvas.setPointerCapture(e.pointerId); apply(c, painting === 'erase'); changed(); });
@@ -137,7 +139,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
       if(c === '~' || c === '=' || c === '_') fill = T.water; else if(c === '*') fill = T.ice; else if(c === '#') fill = T.rock;
       g2.fillStyle = fill; roundRect(g2, px + 1.5, pz + 1.5, cs - 3, cs - 3, 6); g2.fill();
       if(hh){ g2.fillStyle = `rgba(255,255,255,${0.08 * hh})`; roundRect(g2, px + 1.5, pz + 1.5, cs - 3, cs - 3, 6); g2.fill(); g2.fillStyle = 'rgba(42,34,56,.75)'; g2.font = `800 ${Math.max(9, cs * 0.28)}px Nunito`; g2.fillText(hh, px + cs - cs * 0.2, pz + cs - cs * 0.22); }
-      const glyph = RAMP_ARROW[c] || GLYPH[c];
+      const glyph = RAMP_ARROW[c] || VENT_ARROW[c] || GLYPH[c];
       if(glyph){
         g2.font = `${Math.floor(cs * 0.55)}px "Segoe UI Emoji","Apple Color Emoji",sans-serif`;
         if(c === 'p' || c === 'q' || c === 'r'){ g2.fillStyle = PORTAL_COLORS[c]; g2.beginPath(); g2.arc(px + cs / 2, pz + cs / 2, cs * 0.3, 0, Math.PI * 2); g2.fill(); g2.fillStyle = '#fff'; g2.font = `800 ${cs * 0.34}px Nunito`; g2.fillText({ p:'A', q:'B', r:'C' }[c], px + cs / 2, pz + cs / 2 + 1); }
