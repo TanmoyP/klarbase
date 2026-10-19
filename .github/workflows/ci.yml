@@ -30,6 +30,8 @@ jobs:
         with: { node-version: 20 }
       - name: Isle engine, official isles, contribution rules
         run: node core/test/isles.mjs
+      - name: Difficulty audit, evolving score, daily pick
+        run: node core/test/difficulty.mjs
       - name: Legacy voxel engine (deferred world lattice)
         run: node core/test/run.mjs
       - name: Official isles verified and artifacts current
