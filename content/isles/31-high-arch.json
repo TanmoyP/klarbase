@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 6,
+  "id": "high-arch",
+  "name": "High Arch",
+  "theme": "tropical",
+  "tier": "tricky",
+  "hint": "Crates can't take the arch. Whatever weighs the far pan must be set before you leave.",
+  "storeys": [
+    {
+      "rows": [
+        "#1 .1 .1 .1 -",
+        "- C1 ~1 .1 b1",
+        "S1 .1 .1 .1 .1",
+        ".1 .1 - .1 .1",
+        "- .1 .1 .1 p1"
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "rows": [
+        "G2 .2 - -",
+        "- a2 .3 .3",
+        "- T3 - p3"
+      ],
+      "at": [
+        1,
+        0,
+        10
+      ]
+    }
+  ],
+  "par": 31,
+  "solution": "RRRUULLDDRRDDLLULURRRDRUDDULLUL"
+}

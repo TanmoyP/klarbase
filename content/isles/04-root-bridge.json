@@ -3,6 +3,7 @@
   "id": "root-bridge",
   "name": "Root Bridge",
   "theme": "jungle",
+  "tier": "easy",
   "hint": "Crates can be pushed off a ledge too. Choose where it lands.",
   "rows": [
     ", G . T -",

@@ -3,6 +3,7 @@
   "id": "fern-gate",
   "name": "Fern Gate",
   "theme": "jungle",
+  "tier": "easy",
   "hint": "Gates open while every plate is pressed — and you can only stand in one place.",
   "rows": [
     "# G # , T",

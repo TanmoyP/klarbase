@@ -1,8 +1,12 @@
-// @klar/core — the curated isles. Hand-designed puzzles in themed chapters
-// (the sixth, Hanging Gardens, uses archipelago maps), each verified by the solver (core/test/isles.mjs re-checks every
+// @klar/core — the curated isles. 24 main-path puzzles + one Twist per chapter, in five themed
+// chapters, plus the Hanging Gardens chapter of archipelago maps (schemaVersion 6),
+// each verified by the solver (core/test/isles.mjs re-checks every
 // one in CI): solvable, featured mechanics load-bearing, and `solution` is the
 // solver's shortest key combo — so par is exact and the replay is guaranteed.
 // Moves: U D L R = north/south/west/east, X = use (lever).
+// `tier` is the designer's gut call (K3, core/src/isle/difficulty.js) — presentation only,
+// never part of the hash. `twist:true` marks a chapter's optional Twist isle: built around a
+// written catch (comment above it) to the Hard targets checked in core/test/difficulty.mjs.
 //
 // Generated once from the design harness; edit freely, then run
 // `node core/test/isles.mjs` — it will tell you the new par and solution.
@@ -14,7 +18,7 @@ export const CHAPTERS = [{"theme":"jungle","title":"Canopy"},{"theme":"oasis","t
 export const CURATED_ISLES = [
   // ---- Canopy (jungle) ----
   { id:'first-steps', name:'First Steps', theme:'jungle', par:4, solution:'URUU',
-    needs:["walk:ramp"],
+    needs:["walk:ramp"], tier:'breeze',
     hint:"Ramps only work along their slope. Find the one facing the goal.",
     rows:[
       '-  -  G1 -',
@@ -23,7 +27,7 @@ export const CURATED_ISLES = [
       '-  S  .  T',
     ] },
   { id:'ledge-drop', name:'Ledge Drop', theme:'jungle', par:11, solution:'URRRUUULLLL',
-    needs:["walk:ramp","walk:down"],
+    needs:["walk:ramp","walk:down"], tier:'breeze',
     hint:"You can hop down a ledge, but never climb one. Take the high road.",
     rows:[
       'G  .  .1 .1 .1',
@@ -33,7 +37,7 @@ export const CURATED_ISLES = [
       'T  S  .  ,  .',
     ] },
   { id:'mossy-crate', name:'Mossy Crate', theme:'jungle', par:9, solution:'URULDLUUU',
-    needs:["push","sink"],
+    needs:["push","sink"], tier:'breeze',
     hint:"A crate pushed into water sinks and becomes a stepping stone. Line it up first.",
     rows:[
       '-  G  #  -',
@@ -43,7 +47,7 @@ export const CURATED_ISLES = [
       'T  .  S  ,',
     ] },
   { id:'root-bridge', name:'Root Bridge', theme:'jungle', par:12, solution:'RRUULLDLUUUU',
-    needs:["push","sink","walk:down"],
+    needs:["push","sink","walk:down"], tier:'easy',
     hint:"Crates can be pushed off a ledge too. Choose where it lands.",
     rows:[
       ',  G  .  T  -',
@@ -54,7 +58,7 @@ export const CURATED_ISLES = [
       '-  .  S  .  .',
     ] },
   { id:'fern-gate', name:'Fern Gate', theme:'jungle', par:15, solution:'URRUULDRDLLLUUU',
-    needs:["push","gate"],
+    needs:["push","gate"], tier:'easy',
     hint:"Gates open while every plate is pressed — and you can only stand in one place.",
     rows:[
       '#  G  #  ,  T',
@@ -63,9 +67,25 @@ export const CURATED_ISLES = [
       'o  .  ,  .  .',
       'T  .  S  .  #',
     ] },
+  // TWIST (Canopy) — the catch: the gate needs a crate on BOTH plates, but the east plate can
+  // only be loaded by pushing north from the spring below it. A crate has to drown so you can
+  // stand there — and the one that can reach the spring is the one you parked on the south
+  // plate. Spend it, then refill that plate with the far-west crate. (Phase 1, K2: written first.)
+  { id:'spring-lock', name:'Spring Lock', theme:'jungle', par:33, solution:'UURLULDLLLUURDLDRRDRRRRULLULDUUUU', twist:true,
+    needs:["push","sink","gate"], tier:'fiendish',
+    hint:"Two plates, three crates. Not every crate gets to keep its place.",
+    rows:[
+      '-  -  #  G  #  -  -',
+      '-  #  #  D  #  .  -',
+      '.  .  ~  .  .  ~  ,',
+      '.  C  ~  .  ,  T  o',
+      '.  .  .  C  .  C  .',
+      '.  ~  .  o  .  .  ~',
+      '-  ~  .  .  S  .  -',
+    ] },
   // ---- Mirage (oasis) ----
   { id:'mirage', name:'Mirage', theme:'oasis', par:3, solution:'RRU',
-    needs:["tp"],
+    needs:["tp"], tier:'breeze',
     hint:"Step into an arch to appear at its twin.",
     rows:[
       '-  -  -  ,  G  .',
@@ -75,7 +95,7 @@ export const CURATED_ISLES = [
       'S  .  p  -  -  -',
     ] },
   { id:'twin-mirages', name:'Twin Mirages', theme:'oasis', par:7, solution:'RRUURUL',
-    needs:["tp"],
+    needs:["tp"], tier:'breeze',
     hint:"Two pairs of arches. Ride them in the right order.",
     rows:[
       'G  .  -  -  .  q',
@@ -85,7 +105,7 @@ export const CURATED_ISLES = [
       'S  .  p  -  -  -',
     ] },
   { id:'sunken-well', name:'Sunken Well', theme:'oasis', par:8, solution:'RDDLUUUU',
-    needs:["tp","push","sink"],
+    needs:["tp","push","sink"], tier:'easy',
     hint:"Arrive through the arch, then build your own way across.",
     rows:[
       '-  -  -  G  -',
@@ -95,7 +115,7 @@ export const CURATED_ISLES = [
       'S  p  -  .  .',
     ] },
   { id:'palm-plates', name:'Palm Plates', theme:'oasis', par:22, solution:'URRURUULDDRDLLLRRUULLU',
-    needs:["push","gate"],
+    needs:["push","gate"], tier:'tricky',
     hint:"One plate for the crate, one for you — so stand where the gate is close.",
     rows:[
       '#  G  #  .  .',
@@ -104,9 +124,23 @@ export const CURATED_ISLES = [
       'o  .  .  ,  .',
       'T  S  .  .  T',
     ] },
+  // TWIST (Mirage) — the catch: the arches are a revolving door. The only way onto the east
+  // plates' lane is out through one arch and back through the other, and crates can't ride
+  // arches — so standing on a plate is useless: both east plates must hold crates, each pushed
+  // from the one side that doesn't drive it into the spring, before you take the door home.
+  { id:'revolving-arch', name:'Revolving Arch', theme:'oasis', par:30, solution:'DLLLRUUUURDLDDDLRRRULDLLULURUU', twist:true,
+    needs:["tp","push","gate"], tier:'hard',
+    hint:"Standing on a plate only helps if you can stay there.",
+    rows:[
+      '#  G  #  -  .  .  .',
+      '#  D  .  -  .  C  .',
+      '.  .  .  -  .  o  ~',
+      '.  C  ~  -  o  C  S',
+      '~  .  p  -  p  .  .',
+    ] },
   // ---- Lagoon (tropical) ----
   { id:'tide-lever', name:'Tide Lever', theme:'tropical', par:7, solution:'UULXLUU',
-    needs:["toggle"],
+    needs:["toggle"], tier:'breeze',
     hint:"Stand on the lever and press Use. Every bridge flips.",
     rows:[
       ',  G  .  T  -',
@@ -116,7 +150,7 @@ export const CURATED_ISLES = [
       '-  T  .  S  .',
     ] },
   { id:'low-tide', name:'Low Tide', theme:'tropical', par:14, solution:'LUURXLUURXLLLL',
-    needs:["toggle"],
+    needs:["toggle"], tier:'easy',
     hint:"Each flip raises one bridge and sinks another. Think two flips ahead.",
     rows:[
       'G  ,  =  .  L',
@@ -126,7 +160,7 @@ export const CURATED_ISLES = [
       '-  T  .  .  S',
     ] },
   { id:'coconut-key', name:'Coconut Key', theme:'tropical', par:17, solution:'RRUDLLUURRRRLLLUU',
-    needs:["key","door"],
+    needs:["key","door"], tier:'easy',
     hint:"Every door wants a key. Some keys want a bridge first.",
     rows:[
       ',  G  ,  -  -',
@@ -136,7 +170,7 @@ export const CURATED_ISLES = [
       'S  .  .  ,  .',
     ] },
   { id:'lagoon-locks', name:'Lagoon Locks', theme:'tropical', par:16, solution:'RRRRRUULUURLLLLL',
-    needs:["key","door"],
+    needs:["key","door"], tier:'easy',
     hint:"Two keys, three doors. One door is a trap.",
     rows:[
       'G  .  K  .  .  k',
@@ -145,9 +179,24 @@ export const CURATED_ISLES = [
       '.  #  #  #  #  .',
       'S  .  .  k  .  .',
     ] },
+  // TWIST (Lagoon) — the catch: the lever raises the goal's bridge but sinks the west bridge,
+  // your only way back north. A crate waiting on that bridge at the flip drops in and stays as
+  // a step — but the one crate that can get there is walled in. First drown the other two in
+  // the south springs to pave a path around it, push it onto the bridge, then pull the lever.
+  { id:'sunken-step', name:'Sunken Step', theme:'tropical', par:35, solution:'LDDRRDLULDUUURDDDDLLULDLURRXLLUURUU', twist:true,
+    needs:["push","sink","toggle","fall"], tier:'hard',
+    hint:"A bridge that sinks with a crate on it keeps the crate.",
+    rows:[
+      '-  ,  G  ,  -  -  -',
+      '.  #  _  #  .  S  -',
+      '.  .  .  #  .  C  ~',
+      '~  =  #  .  .  =  .',
+      '~  .  C  L  .  C  .',
+      '-  .  ~  .  .  ~  -',
+    ] },
   // ---- Rooftops (urban) ----
   { id:'rooftops', name:'Rooftops', theme:'urban', par:14, solution:'UURRURDRUULLLL',
-    needs:["walk:ramp","push"],
+    needs:["walk:ramp","push"], tier:'easy',
     hint:"Clear the walkway — but never push the crate where you still need to walk.",
     rows:[
       'G3 <2 .2 .2 .2',
@@ -157,7 +206,7 @@ export const CURATED_ISLES = [
       'S  .  ,  .  .',
     ] },
   { id:'canal-lift', name:'Canal Lift', theme:'urban', par:8, solution:'URXLUUUU',
-    needs:["toggle","fall"],
+    needs:["toggle","fall"], tier:'easy',
     hint:"Both bridges must be up at once. A crate on a sinking bridge stays behind as a block.",
     rows:[
       '-  ,  G  T  -',
@@ -168,7 +217,7 @@ export const CURATED_ISLES = [
       '-  .  S  .  -',
     ] },
   { id:'subway', name:'Subway', theme:'urban', par:13, solution:'URRDRULDRRULL',
-    needs:["tp","key","door"],
+    needs:["tp","key","door"], tier:'easy',
     hint:"Ride the arches out for the key, then ride them home.",
     rows:[
       'G  K  .  -  q  .',
@@ -178,7 +227,7 @@ export const CURATED_ISLES = [
       'S  .  .  .  p  .',
     ] },
   { id:'night-market', name:'Night Market', theme:'urban', par:17, solution:'RRURUULDRDDLUUULU',
-    needs:["tp","push","gate"],
+    needs:["tp","push","gate"], tier:'easy',
     hint:"One plate here, one across the arches. The crate cannot travel — you can.",
     rows:[
       '#  G  #  -  .  .',
@@ -188,7 +237,7 @@ export const CURATED_ISLES = [
       'S  .  p  -  -  -',
     ] },
   { id:'crosswalk', name:'Crosswalk', theme:'urban', par:24, solution:'ULULUURDRDDULDDRRRLUURUU',
-    needs:["push","gate"],
+    needs:["push","gate"], tier:'tricky',
     hint:"Two crates, two plates, and many ways to wedge a crate in a corner.",
     rows:[
       '.  .  .  #  G  #',
@@ -197,9 +246,24 @@ export const CURATED_ISLES = [
       '#  .  C  .  #  .',
       '.  .  S  .  .  o',
     ] },
+  // TWIST (Rooftops) — the catch: crates only ever go DOWN. The first crate you can drop lands
+  // right on the near street plate — but it is the only one that can ever reach the far plate,
+  // so push it off and all the way down the street, then refill the near plate from the roof,
+  // shuffling the rooftop crates so the one stair back up stays clear.
+  { id:'street-drop', name:'Street Drop', theme:'urban', par:23, solution:'ULDRDLLLUURDULDDRLUUUUU', twist:true,
+    needs:["walk:ramp","walk:down","push","gate"], tier:'hard',
+    hint:"Crates can drop off a roof, but they never come back up.",
+    rows:[
+      '-  -  G2 -  -  -',
+      '-  -  ^1 -  -  -',
+      '.  .  D1 .1 .  .',
+      '.  .  .1 .1 C1 .1',
+      '.  .  ^  C1 C1 S1',
+      '.  o  .  .  o  .',
+    ] },
   // ---- Summit (mountain) ----
   { id:'first-frost', name:'First Frost', theme:'mountain', par:4, solution:'LURU',
-    needs:["slide"],
+    needs:["slide"], tier:'breeze',
     hint:"Ice keeps you sliding. Rocks are your brakes.",
     rows:[
       '#  #  G  #  #',
@@ -209,7 +273,7 @@ export const CURATED_ISLES = [
       '.  .  S  .  .',
     ] },
   { id:'glacier-stops', name:'Glacier Stops', theme:'mountain', par:9, solution:'URDLDRULU',
-    needs:["slide"],
+    needs:["slide"], tier:'easy',
     hint:"Every slide ends at a rock. Choose your stops.",
     rows:[
       '-  -  -  -  G  -  -  -',
@@ -222,7 +286,7 @@ export const CURATED_ISLES = [
       '-  -  -  -  -  S  -  -',
     ] },
   { id:'snowball', name:'Snowball', theme:'mountain', par:11, solution:'RUUDLLLUURU',
-    needs:["slide","push"],
+    needs:["slide","push"], tier:'easy',
     hint:"No rock where you need one? Bring a crate.",
     rows:[
       '#  #  G  #  #  #',
@@ -232,7 +296,7 @@ export const CURATED_ISLES = [
       'T  .  S  .  .  #',
     ] },
   { id:'glacier-maze', name:'Glacier Maze', theme:'mountain', par:13, solution:'URURDLULURULU',
-    needs:["slide"],
+    needs:["slide"], tier:'easy',
     hint:"Count your stops — the shortest route zig-zags.",
     rows:[
       '-  G  -  -  -  -  -  -',
@@ -245,7 +309,7 @@ export const CURATED_ISLES = [
       '-  -  S  -  -  -  -  -',
     ] },
   { id:'frozen-gate', name:'Frozen Gate', theme:'mountain', par:19, solution:'URULDRRDRULLLURRULU',
-    needs:["slide","gate"],
+    needs:["slide","gate"], tier:'tricky',
     hint:"Slide the crate onto the plate — the ice will carry it.",
     rows:[
       '#  G  #  #  #  #',
@@ -256,7 +320,7 @@ export const CURATED_ISLES = [
       '#  .  S  .  .  #',
     ] },
   { id:'the-peak', name:'The Peak', theme:'mountain', par:27, solution:'LLUDRRUULUULLLLRRRRRRUULLUU',
-    needs:["push","tp","key","door","walk:ramp"],
+    needs:["push","tp","key","door","walk:ramp"], tier:'tricky',
     hint:"Everything you have learned, on one mountain.",
     rows:[
       '-  -  -  G3 -  k2 q2',
@@ -269,13 +333,28 @@ export const CURATED_ISLES = [
       '-  .  C  #  .  .  .',
       '-  .  .  .  S  .  -',
     ] },
+  // TWIST (Summit) — the catch: one push along the ice row glides a crate straight onto the
+  // plate, but the only crate that can reach that row starts two rows away, and every push on
+  // ice overshoots. Ferry it — with the other crate moved aside first — onto the single tile
+  // that lines it up, then slide up the same ice to the gate.
+  { id:'frost-ferry', name:'Frost Ferry', theme:'mountain', par:20, solution:'LDRURUUURDLULDRDLLUU', twist:true,
+    needs:["slide","push","cslide","gate"], tier:'hard',
+    hint:"On ice, a push is a promise: the crate goes until something stops it.",
+    rows:[
+      '#  #  G  #  #  #',
+      '*  *  D  *  *  *',
+      '#  .  *  .  C  *',
+      '.  o  *  S  *  #',
+      '*  *  .  C  .  .',
+      '.  .  .  *  *  *',
+    ] },
   // ---- Hanging Gardens (archipelago maps + Sky Scales, schemaVersion 6) ----
   // Each isle was designed around the catch written above it, then tuned with the
   // solver (tools/difficulty.mjs metrics) until par, traps and routes fit its tier.
   // CATCH: the pan to the star sinks under Pip alone. Weigh the other pan first — then
   // the near pan is lifted, so you must board it from the high ledge and ride it down.
   // The crate in front is in the way; the one behind it is the counterweight.
-  { id:'counterweight', name:'Counterweight', theme:'jungle', chapter:'gardens', tier:'Tricky', par:15, solution:'DRUURDLDRURRRUU',
+  { id:'counterweight', name:'Counterweight', theme:'jungle', chapter:'gardens', tier:'tricky', par:15, solution:'DRUURDLDRURRRUU',
     needs:["scales"],
     hint:"The near pan sinks under you alone. Weigh down the other one first.",
     storeys:[{ at:[0, 0, 0], rows:[
@@ -288,7 +367,7 @@ export const CURATED_ISLES = [
   // CATCH: the star is upstairs past a pan that sinks under you; its partner pan is
   // downstairs, and crates never ride an arch. Set the counterweight before you go up —
   // the short lane to the pan runs past a spring that would swallow the only crate.
-  { id:'high-arch', name:'High Arch', theme:'tropical', chapter:'gardens', tier:'Tricky', par:31, solution:'RRRUULLDDRRDDLLULURRRDRUDDULLUL',
+  { id:'high-arch', name:'High Arch', theme:'tropical', chapter:'gardens', tier:'tricky', par:31, solution:'RRRUULLDDRRDDLLULURRRDRUDDULLUL',
     needs:["scales","gateway"],
     hint:"Crates can't take the arch. Whatever weighs the far pan must be set before you leave.",
     storeys:[
@@ -305,10 +384,36 @@ export const CURATED_ISLES = [
         '-  T3 -  p3',
       ] },
     ] },
+  // CATCH: three isles, and Pip starts in the middle. The arch up leads straight to the
+  // high pan — which sinks under you, stranding you, unless the low pan two storeys down
+  // was weighed first. Down first: one crate, a cramped yard, and the pan only takes it
+  // pushed up from the south.
+  { id:'three-storeys', name:'Three Storeys', theme:'tropical', chapter:'gardens', tier:'hard', par:46, solution:'UURUURRRUULLLDLDRRLUURRRDDDLULLDDLDDDRRRRDRRRU',
+    needs:["scales","gateway"],
+    hint:"The pan at the top answers to the pan at the bottom.",
+    storeys:[
+      { at:[0, 0, 0], rows:[
+        '-  .1 .1 .1 .1',
+        '.1 C1 -  b1 .1',
+        '.1 .1 .1 .1 .1',
+        '-  .1 T1 .1 .1',
+        'p1 .1 .1 -  .1',
+      ] },
+      { at:[6, 0, 5], rows:[
+        'p2 .2 -  -',
+        '.2 #2 #2 -',
+        'S2 -  -  -',
+        '.2 .2 .2 q2',
+      ] },
+      { at:[2, 1, 14], rows:[
+        'q4 .4 #4 -  G3',
+        'T4 .4 .4 a3 .3',
+      ] },
+    ] },
   // CATCH: your own weight is in the way. The bridge pan must stay HIGH while you stand
   // on it: one crate on the far pan lifts it only until you step on — it takes two. And a
   // crate pushed along the far pan's row strands you on it when it sinks.
-  { id:'own-weight', name:'Own Weight', theme:'jungle', chapter:'gardens', tier:'Hard', par:23, solution:'RRDDLLDRRULLURRURDURRRU',
+  { id:'own-weight', name:'Own Weight', theme:'jungle', chapter:'gardens', tier:'hard', par:23, solution:'RRDDLLDRRULLURRURDURRRU',
     needs:["scales"],
     hint:"One crate lifts the bridge — until you step on it. You weigh as much as a crate.",
     storeys:[{ at:[0, 0, 0], rows:[
@@ -323,7 +428,7 @@ export const CURATED_ISLES = [
   // while the pan is level, THEN weigh the downstairs pan with two crates: the crate rides
   // up to the spring's height and you can tip it in. In the wrong order the raised pan
   // takes no crate (and a loaded crate sinks its pan, lifting the far one out of reach).
-  { id:'the-crane', name:'The Crane', theme:'jungle', chapter:'gardens', tier:'Hard', par:38, solution:'URRDRDDRDDRLUULUULURLLLDRRRLLDLDLLUUUU',
+  { id:'the-crane', name:'The Crane', theme:'jungle', chapter:'gardens', tier:'hard', par:38, solution:'URRDRDDRDDRLUULUULURLLLDRRRLLDLDLLUUUU',
     needs:["scales","gateway","sink"],
     hint:"No push can lift a crate. A pan can — if it's loaded before the other side is.",
     storeys:[
@@ -346,7 +451,7 @@ export const CURATED_ISLES = [
   // travel. The first crate down that lane is lost to the spring — spend it, and the next
   // one rolls across onto the pan. Weighed, the bridge pan meets you at your height and
   // settles to the star's; unweighed, it sinks under you.
-  { id:'spend-a-crate', name:'Spend a Crate', theme:'jungle', chapter:'gardens', tier:'Fiendish', par:31, solution:'URRRURDDULLDLDDRUULURRURDDDURRU',
+  { id:'spend-a-crate', name:'Spend a Crate', theme:'jungle', chapter:'gardens', tier:'fiendish', par:31, solution:'URRRURDDULLDLDDRUULURRURDDDURRU',
     needs:["scales","sink"],
     hint:"The spring keeps the first crate it gets. Make it worth it.",
     storeys:[{ at:[0, 0, 0], rows:[
@@ -360,7 +465,7 @@ export const CURATED_ISLES = [
   // CATCH: pans on different isles, and both isles crowded. Downstairs only one crate has
   // a clean run at the low pan, from the west; upstairs two crates hem in the arch and the
   // bridge pan — clear them without parking one on the pan, whose weight would sink it.
-  { id:'garden-lift', name:'Garden Lift', theme:'tropical', chapter:'gardens', tier:'Fiendish', par:27, solution:'RDRRURRUULLLDRDDLLDLRUURRRU',
+  { id:'garden-lift', name:'Garden Lift', theme:'tropical', chapter:'gardens', tier:'fiendish', par:27, solution:'RDRRURRUULLLDRDDLLDLRUURRRU',
     needs:["scales","gateway"],
     hint:"Only one crate downstairs can reach the pan. Which one, and from where?",
     storeys:[
@@ -378,36 +483,10 @@ export const CURATED_ISLES = [
         'p3 C3 .3 -  -',
       ] },
     ] },
-  // CATCH: three isles, and Pip starts in the middle. The arch up leads straight to the
-  // high pan — which sinks under you, stranding you, unless the low pan two storeys down
-  // was weighed first. Down first: one crate, a cramped yard, and the pan only takes it
-  // pushed up from the south.
-  { id:'three-storeys', name:'Three Storeys', theme:'tropical', chapter:'gardens', tier:'Hard', par:46, solution:'UURUURRRUULLLDLDRRLUURRRDDDLULLDDLDDDRRRRDRRRU',
-    needs:["scales","gateway"],
-    hint:"The pan at the top answers to the pan at the bottom.",
-    storeys:[
-      { at:[0, 0, 0], rows:[
-        '-  .1 .1 .1 .1',
-        '.1 C1 -  b1 .1',
-        '.1 .1 .1 .1 .1',
-        '-  .1 T1 .1 .1',
-        'p1 .1 .1 -  .1',
-      ] },
-      { at:[6, 0, 5], rows:[
-        'p2 .2 -  -',
-        '.2 #2 #2 -',
-        'S2 -  -  -',
-        '.2 .2 .2 q2',
-      ] },
-      { at:[2, 1, 14], rows:[
-        'q4 .4 #4 -  G3',
-        'T4 .4 .4 a3 .3',
-      ] },
-    ] },
   // CATCH (the chapter's signature): the pans hang on different isles. Load the LOWER
   // isle to lift the upper one — but the low pan only takes a crate pushed up from below,
   // and the crates crowding the upper isle must be cleared without blocking the pan.
-  { id:'sky-scales', name:'Sky Scales', theme:'tropical', chapter:'gardens', tier:'Mythic', par:43, solution:'DRRUUURRRDDLDLRURUULLLDDRDRULLDLLDUUURDRRRU',
+  { id:'sky-scales', name:'Sky Scales', theme:'tropical', chapter:'gardens', tier:'mythic', par:43, solution:'DRRUUURRRDDLDLRURUULLLDDRDRULLDLLDUUURDRRRU',
     needs:["scales","gateway"],
     hint:"Load the lower isle to lift the upper one.",
     storeys:[

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 5,
+  "id": "sunken-step",
+  "name": "Sunken Step",
+  "theme": "tropical",
+  "tier": "hard",
+  "twist": true,
+  "hint": "A bridge that sinks with a crate on it keeps the crate.",
+  "rows": [
+    "- , G , - - -",
+    ". # _ # . S -",
+    ". . . # . C ~",
+    "~ = # . . = .",
+    "~ . C L . C .",
+    "- . ~ . . ~ -"
+  ],
+  "par": 35,
+  "solution": "LDDRRDLULDUUURDDDDLLULDLURRXLLUURUU"
+}

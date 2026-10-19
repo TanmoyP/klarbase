@@ -4,7 +4,8 @@
 //   community  — isles merged on GitHub (isles/community/<author>/<id>.json),
 //                bundled at build time with credit to their author
 //   online     — isles shared in-game and stored on the server (/i/<hash>)
-import { CURATED_ISLES, CHAPTERS, SCHEMAS, parseIsle, solveIsle, starsFor, isleHash, initialState } from '@klar/core';
+import { CURATED_ISLES, CHAPTERS, SCHEMAS, parseIsle, solveIsle, starsFor, isleHash, initialState,
+  auditIsle, difficultyScore, TIER_IDS, dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate } from '@klar/core';
 import { World } from './game/world.js';
 import { Session } from './game/session.js';
 import { THEMES, themeOf } from './game/themes.js';
@@ -25,13 +26,74 @@ const store = {
 const COMMUNITY = Object.values(import.meta.glob('../../isles/community/*/*.json', { eager:true, import:'default' }))
   .filter(d => d && (Array.isArray(d.rows) || Array.isArray(d.storeys)))
   .sort((a, b) => a.name.localeCompare(b.name));
+// statKey: the isle's id in the anonymous play stats (K7) — see server/src/routes/plays.js
+// Main-path numbering skips Twist isles (an optional side path, labelled "Twist" instead)
 // A chapter is keyed by its id, or by its theme for the original five (one theme each).
 const chapterKey = c => c.id || c.theme, chapterOf = d => CHAPTERS.find(c => chapterKey(c) === (d.chapter || d.theme));
-const official = CURATED_ISLES.map((d, i) => ({ key:'o:' + d.id, doc:d, name:d.name, theme:d.theme, par:d.par, solution:d.solution,
-  hint:d.hint, index:i, sub:`${chapterOf(d)?.title || themeOf(d.theme).chapter} · isle ${i + 1} of ${CURATED_ISLES.length}` }));
-const community = COMMUNITY.map(d => ({ key:`c:${d.author}/${d.id}`, doc:d, name:d.name, theme:d.theme, par:d.par, solution:d.solution,
-  hint:d.hint, author:d.author, sub:`by @${d.author}` }));
+const MAIN_COUNT = CURATED_ISLES.filter(d => !d.twist).length;
+let mainNo = 0;
+const official = CURATED_ISLES.map((d, i) => ({ num:d.twist ? null : ++mainNo, key:'o:' + d.id, statKey:d.id, doc:d, name:d.name, theme:d.theme, par:d.par, solution:d.solution,
+  hint:d.hint, tier:d.tier, twist:!!d.twist, index:i, sub:`${chapterOf(d)?.title || themeOf(d.theme).chapter} · ${d.twist ? 'Twist isle' : `isle ${mainNo} of ${MAIN_COUNT}`}` }));
+const community = COMMUNITY.map(d => ({ key:`c:${d.author}/${d.id}`, statKey:`c/${d.author}/${d.id}`, doc:d, name:d.name, theme:d.theme, par:d.par, solution:d.solution,
+  hint:d.hint, tier:d.tier, author:d.author, sub:`by @${d.author}` }));
+// Hand-made dated Daily Isles: isles/daily/YYYY-MM-DD.json (checked by tools/check-isles.mjs)
+const DATED = Object.entries(import.meta.glob('../../isles/daily/*.json', { eager:true, import:'default' }))
+  .map(([p, d]) => ({ date:p.slice(-15, -5), d })).filter(({ date, d }) => d && (Array.isArray(d.rows) || Array.isArray(d.storeys)) && d.id === 'daily-' + date)
+  .map(({ date, d }) => ({ key:'d:' + date, statKey:'d/' + date, date, doc:d, name:d.name, theme:d.theme, par:d.par, solution:d.solution,
+    hint:d.hint, tier:d.tier, catch:d.catch, author:d.author || null, sub:d.author ? `by @${d.author}` : 'today’s hand-made isle' }));
 const communityHashes = () => COMMUNITY.map(d => [isleHash(d), `community isle “${d.name}” by @${d.author}`]);
+
+/* ---------------- difficulty (K3) + anonymous play stats (K7) ---------------- */
+// Every card shows a tier and a 0–100 score: the maker's gut call (or the solver
+// audit) first, real players' results taking over as plays accumulate. The math
+// is difficultyScore() in @klar/core; this file only gathers its inputs.
+let plays = {}, playsAt = 0;
+async function loadPlays(){
+  if(Date.now() - playsAt < 60000) return;
+  playsAt = Date.now();
+  try { plays = (await api('/plays')).plays || {}; } catch { return; }
+  document.querySelectorAll('[data-score]').forEach(el => { const e = entryByKey(el.dataset.score); if(e) el.outerHTML = tierBadge(e); });
+}
+const auditCache = new Map();
+function scoreOf(e){
+  let audit = e.audit || null;
+  if(!e.tier && !audit && e.doc && (Array.isArray(e.doc.rows) || Array.isArray(e.doc.storeys))){      // undeclared tier → provisional prior from the audit
+    const k = e.doc.theme + JSON.stringify(e.doc.storeys || e.doc.rows);
+    if(!auditCache.has(k)){ const { level } = parseIsle(e.doc); auditCache.set(k, level ? auditIsle(level) : null); }
+    audit = auditCache.get(k);
+  }
+  const st = e.statKey && plays[e.statKey];
+  return difficultyScore({ tier:e.tier, audit, stats:st ? { ...st, par:e.par } : null });
+}
+function tierBadge(e){
+  const d = scoreOf(e);
+  const why = d.settling ? `settling — ${d.n} of 20 plays so far; starts from ${d.declared ? 'the maker’s gut call' : 'the solver’s estimate'}` : `from ${d.n} plays`;
+  return `<span class="tier t-${d.tier.id}" data-score="${esc(e.key)}" title="Difficulty ${d.score}/100 · ${why}">${d.tier.name} ${d.score}${d.settling ? '<i> · settling</i>' : ''}</span>`;
+}
+const entryByKey = k => [...official, ...community, ...DATED, ...(online || [])].find(e => e.key === k) || (current && current.key === k ? current : null);
+// Fire-and-forget; counts only — no id, no cookie (credentials omitted).
+function postPlay(event, extra = {}){
+  if(!current || current.draft || !current.statKey) return;
+  fetch('/api/plays', { method:'POST', headers:{ 'content-type':'application/json' }, credentials:'omit', keepalive:true,
+    body:JSON.stringify({ key:current.statKey, event, ...extra }) }).catch(() => {});
+}
+let attemptOpen = false;   // a "start" is the first move of a visit, or the first move after a clear
+
+/* ---------------- Daily Isle ---------------- */
+// Today's hand-made file wins; otherwise a deterministic pick (same for everyone)
+// from Twist isles, Tricky+ official isles and community isles.
+const DAILY_EPOCH_DATE = dailyEpoch(DATED.map(e => e.date));
+const atLeastTricky = e => TIER_IDS.indexOf(e.tier) >= TIER_IDS.indexOf('tricky');
+function dailyEntry(date = utcDate()){
+  const no = dailyNumber(date, DAILY_EPOCH_DATE);
+  let e = DATED.find(x => x.date === date);
+  if(!e){
+    const pool = [...official.filter(x => x.twist || atLeastTricky(x)), ...community];
+    const key = dailyPick(pool.map(x => x.key), date);
+    e = pool.find(x => x.key === key);
+  }
+  return e && { ...e, daily:{ no, date }, sub:`Daily Isle #${no} · ${e.sub}` };
+}
 
 /* ---------------- app state ---------------- */
 const world = new World($('#stage'));
@@ -102,7 +164,9 @@ function helpModal(){
       <div><span class="ico">⚖</span><span>Sky Scales: two pans hang from one vine. The heavier pan sinks a level, the lighter rises one — and you ride along. You and crates weigh 1.</span></div>
       <div><span class="ico">🗺</span><span>Some maps have several isles. A gateway arch carries you between them; press <b>M</b> to see the whole map.</span></div>
       <div><span class="ico">⭐</span><span>Reach the glowing star. Match par for ★★★. Stuck? <b>H</b> shows your best next move.</span></div>
+      <div><span class="ico">📈</span><span>Each isle shows a difficulty from <b>Breeze</b> to <b>Mythic</b>. It starts as the maker’s guess and settles as people play.</span></div>
     </div>
+    <p class="facts" style="font-size:12.5px;font-weight:600;margin:10px 0 0">Privacy: to rate difficulty, the game counts plays, clears, hints, restarts, moves and time per isle — anonymous totals only, no account, cookie or IP address stored.</p>
     <div class="row"><button class="btn primary" onclick="document.getElementById('modal').classList.remove('on')">Got it</button></div>`);
 }
 
@@ -116,6 +180,7 @@ function titleScreen(){
   const { level } = parseIsle(pick);
   world.load(level, pick.theme, { showcase:true }); world.setShowcase(true); world.reset(initialState(level));
   setAccent(pick.theme); show('title');
+  const d = dailyEntry(); $('#btnDaily').textContent = d ? `☀ Daily #${d.daily.no}` : '☀ Daily';
 }
 
 /* ---------------- choose an isle ---------------- */
@@ -162,13 +227,13 @@ function cardHtml(e, num){
   const T = themeOf(e.theme), p = progress[e.key], img = thumb(e.doc);
   return `<button class="card" data-key="${esc(e.key)}">
     <div class="sky" style="${img ? `background:url(${img}) center/cover` : `background:linear-gradient(180deg, ${T.sky[0]}, ${T.sky[1]} 75%, ${T.sky[2]})`}">
-      ${num ? `<span class="num">${num}</span>` : ''}</div>
+      ${num ? `<span class="num">${num}</span>` : ''}${tierBadge(e)}</div>
     <div class="body"><div class="name">${esc(e.name)}</div>
       ${e.author ? `<div class="credit">by <a href="https://github.com/${esc(e.author)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">@${esc(e.author)}</a></div>` : ''}
       <div class="meta"><span>${e.par ? 'par ' + e.par : T.label}${p ? ` · best ${p.moves}` : ''}</span>${starsHtml(p ? p.stars : 0)}</div></div></button>`;
 }
 function selectScreen(which){
-  stopGame(); tab = which; show('select');
+  stopGame(); tab = which; show('select'); loadPlays();
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   const list = $('#selectList');
   if(tab === 'official'){
@@ -176,7 +241,7 @@ function selectScreen(which){
       const T = THEMES[ch.theme], isles = official.filter(e => chapterOf(e.doc) === ch);
       const got = isles.reduce((s, e) => s + (progress[e.key]?.stars || 0), 0);
       return `<div class="chapter"><div class="chapter-head"><h3>${ch.title}</h3><span>${T.label} · ${ch.blurb || T.blurb} · ${got}/${isles.length * 3} ★</span></div>
-        <div class="grid">${isles.map(e => cardHtml(e, e.index + 1)).join('')}</div></div>`;
+        <div class="grid">${isles.map(e => cardHtml(e, e.twist ? 'Twist' : e.num)).join('')}</div></div>`;
     }).join('');
   } else {
     list.innerHTML = `<div class="chapter"><div class="chapter-head"><h3>Made by players</h3><span>merged on GitHub · every one checked solvable</span></div>
@@ -193,7 +258,8 @@ async function loadOnline(){
   const grid = $('#onlineGrid'); if(!grid) return;
   try {
     const r = await api('/puzzles?limit=30');
-    online = r.puzzles.filter(p => p.isle).map(p => ({ key:'i:' + p.hash, hash:p.hash, name:p.title, theme:p.theme || 'jungle', author:null, sub:'shared by ' + p.author.name, online:true }));
+    online = r.puzzles.filter(p => p.isle).map(p => ({ key:'i:' + p.hash, statKey:'i/' + p.hash, hash:p.hash, name:p.title, theme:p.theme || 'jungle', author:null,
+      par:p.par, tier:p.tier, audit:p.audit, sub:'shared by ' + p.author.name, online:true }));
     grid.innerHTML = online.map(e => cardHtml(e)).join('') || '<div class="empty">Nothing shared online yet.</div>';
   } catch { grid.innerHTML = '<div class="empty">Online isles are unavailable right now.</div>'; }
 }
@@ -206,7 +272,8 @@ $('#selectList').addEventListener('click', e => {
   else nav('/i/' + k.slice(2));
 });
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { nav(b.dataset.tab === 'official' ? '/play' : '/community'); });
-$('#btnContinue').onclick = () => { const next = official.find(e => !progress[e.key]) || official[0]; nav('/isle/' + next.doc.id); };
+// Continue skips Twist isles — they're an optional side path
+$('#btnContinue').onclick = () => { const next = official.find(e => !progress[e.key] && !e.twist) || official[0]; nav('/isle/' + next.doc.id); };
 
 /* ---------------- play ---------------- */
 function play(entry){
@@ -220,9 +287,9 @@ function play(entry){
   setAccent(entry.doc.theme);
   if(!entry.par){ const r = solveIsle(level, { maxStates:200000 }); entry.par = r.solvable ? r.par : 0; entry.solution = r.solution || ''; }
   game = new Session(world, level, entry, { onChange:hud, onWin:won, onEffort:addEffort });
-  freeHints = 1;
+  freeHints = 1; attemptOpen = false;
   $('#hudName').textContent = entry.name;
-  $('#hudSub').innerHTML = entry.author ? `by <a href="https://github.com/${esc(entry.author)}" target="_blank" rel="noopener" style="color:inherit">@${esc(entry.author)}</a>` : esc(entry.sub || '');
+  $('#hudSub').innerHTML = tierBadge(entry) + ' ' + (entry.author && !entry.daily ? `by <a href="https://github.com/${esc(entry.author)}" target="_blank" rel="noopener" style="color:inherit">@${esc(entry.author)}</a>` : esc(entry.sub || ''));   // tier first, so phones never ellipsize it away
   $('#statPar').textContent = entry.par || '–';
   $('#statKeysWrap').style.display = level.keys.length ? '' : 'none';
   $('#btnSolution').disabled = !entry.par;
@@ -230,11 +297,18 @@ function play(entry){
   const ht = $('#hintText');
   if(entry.hint){ ht.textContent = entry.hint; ht.style.opacity = 1; ht.style.display = ''; clearTimeout(play.ht); play.ht = setTimeout(() => ht.style.opacity = 0, 9000); }
   else ht.style.display = 'none';
-  show('game'); syncTopbar(); hud(game);
+  show('game'); syncTopbar(); hud(game); loadPlays();
+}
+// Restart button / R key. Restarting after some moves (and before a clear) is a stats signal.
+function restartGame(){
+  if(!game) return;
+  if(game.moves > 0 && !game.won && !game.replaying) postPlay('restart');
+  game.restart();
 }
 function stopGame(){ if(game){ game.stopReplay(); game = null; } modal.close(); }
 function hud(s){
   if(s !== game) return;
+  if(s.moves > 0 && !s.replaying && !s.won && !attemptOpen){ attemptOpen = true; postPlay('start'); }   // start = first real move
   $('#statMoves').textContent = s.moves;
   $('#statKeys').textContent = s.state.keys;
   $('#btnSolution').innerHTML = s.replaying ? '■<span class="lbl"> Stop</span>' : unlocked(current) ? '▶<span class="lbl"> Solution</span>' : '🔒<span class="lbl"> Solution</span>';
@@ -250,12 +324,18 @@ function won(s){
     const best = { stars:Math.max(stars, prev?.stars || 0), moves:Math.min(s.moves, prev?.moves ?? Infinity), time:settings.timer ? Math.min(s.time, prev?.time ?? Infinity) : prev?.time };
     progress[e.key] = best; store.set('klarbase.v2.progress', progress);
   }
-  const next = e.index != null ? official[e.index + 1] : null;
-  modal.open(`<h2>Isle cleared!</h2>
+  postPlay('clear', { moves:s.moves, ms:Math.round(s.time * 1000) }); attemptOpen = false;
+  // the main path skips Twist isles (an optional side path); a daily has no "next"
+  const next = e.index != null && !e.daily ? official.slice(e.index + 1).find(x => !x.twist) : null;
+  const share = e.daily ? dailyShareText({ no:e.daily.no, moves:s.moves, par:e.par, stars }) : null;
+  modal.open(`<h2>${e.daily ? `Daily #${e.daily.no} cleared!` : 'Isle cleared!'}</h2>
     <div class="big-stars">${[0, 1, 2].map(i => `<span class="${i < stars ? 'lit' : ''}" style="animation-delay:${0.15 + i * 0.18}s">★</span>`).join('')}</div>
     <div class="facts">${s.moves} moves · par ${e.par || '?'}${settings.timer ? ' · ' + fmtTime(s.time) : ''}${s.hintsUsed ? ` · ${s.hintsUsed} hint${s.hintsUsed > 1 ? 's' : ''}` : ''}</div>
     ${stars < 3 && e.par ? `<div class="facts" style="font-weight:600;margin-top:4px">The smart route takes ${e.par} moves — watch it?</div>` : ''}
+    ${e.catch ? `<div class="note" style="margin-top:10px;text-align:left"><b>The catch:</b> ${esc(e.catch)}</div>` : ''}
+    ${share ? `<div class="share-text" id="wShareText">${esc(share)}<br><small>${esc(location.origin)}/daily</small></div>` : ''}
     <div class="row">
+      ${share ? `<button class="btn primary" id="wDaily">📋 Copy result</button>` : ''}
       ${next ? `<button class="btn primary" id="wNext">Next isle ▶</button>` : ''}
       ${e.draft ? `<button class="btn primary" id="wBuild">Back to builder</button>` : ''}
       <button class="btn" id="wAgain">⟲ Again</button>
@@ -263,12 +343,16 @@ function won(s){
       ${e.online ? `<button class="btn" id="wShare">🔗 Copy link</button>` : ''}
       ${!e.draft ? `<button class="btn ghost" id="wList">All isles</button>` : ''}
     </div>`);
+  // spoiler-free daily result: moves, par and stars — never the route
+  const copyShare = quiet => (navigator.clipboard ? navigator.clipboard.writeText(`${share}\n${location.origin}/daily`) : Promise.reject())
+    .then(() => toast('Result copied — no spoilers inside'), () => quiet || toast('Copy failed — select the text above', true));
+  if(share){ $('#wDaily').onclick = () => copyShare(false); copyShare(true); }   // try right away; the button is the reliable path
   $('#wNext') && ($('#wNext').onclick = () => { nav('/isle/' + next.doc.id); });
   $('#wBuild') && ($('#wBuild').onclick = () => { nav('/create'); });
   $('#wAgain').onclick = () => { modal.close(); game.restart(); };
   $('#wWatch') && ($('#wWatch').onclick = () => { modal.close(); watch(); });
   $('#wShare') && ($('#wShare').onclick = () => navigator.clipboard.writeText(location.href).then(() => toast('Link copied')));
-  $('#wList') && ($('#wList').onclick = () => { nav(e.author ? '/community' : '/play'); });
+  $('#wList') && ($('#wList').onclick = () => { nav(e.daily ? '/play' : e.author ? '/community' : '/play'); });
 }
 
 // screen arrow for a world move in the current view — keeps hints & replays readable after turning
@@ -335,12 +419,13 @@ function hint(){
   if(!unlocked(current)) freeHints--;
   const h = game.hint();
   if(!h) return;
+  postPlay('hint');
   if(h.stuck) toast('Hmm — this spot can’t reach the goal any more. Undo or restart.', true);
   else toast((h.move === 'X' ? `Best next move: pull the lever (Space) · ${h.left} to go` : `Best next move: ${glyphFor(h.move)} · ${h.left} to go`) + (unlocked(current) ? '' : ' · that was your free hint'));
 }
-$('#btnBack').onclick = () => { nav(current?.draft ? '/create' : current?.author ? '/community' : current?.online ? '/community' : '/play'); };
+$('#btnBack').onclick = () => { nav(current?.draft ? '/create' : current?.daily ? '/' : current?.author ? '/community' : current?.online ? '/community' : '/play'); };
 $('#btnUndo').onclick = () => game && game.undo();
-$('#btnRestart').onclick = () => game && game.restart();
+$('#btnRestart').onclick = restartGame;
 $('#btnHint').onclick = hint;
 $('#btnSolution').onclick = watch;
 $('#btnTurn').onclick = () => { world.turn(1); sfx.ui(); };
@@ -360,7 +445,7 @@ addEventListener('keydown', e => {
   switch(e.key){
     case ' ': case 'Enter': case 'x': case 'X': e.preventDefault(); game.input('X'); break;
     case 'z': case 'Z': case 'Backspace': e.preventDefault(); game.undo(); break;
-    case 'r': case 'R': game.restart(); break;
+    case 'r': case 'R': restartGame(); break;
     case 'h': case 'H': hint(); break;
     case 'q': case 'Q': world.turn(-1); break;
     case 'e': case 'E': world.turn(1); break;
@@ -382,7 +467,7 @@ addEventListener('pointerdown', () => unlockAudio(), { once:true });
 
 /* ---------------- builder ---------------- */
 const builder = mountBuilder({ world, api, toast, repoUrl:REPO_URL, communityHashes, getSession:() => session, canSeeSolutions:() => !!session,
-  onTest:doc => { play({ key:'draft', doc, name:doc.name, theme:doc.theme, par:doc.par, solution:doc.solution, sub:'testing your isle', draft:true }); } });
+  onTest:doc => { play({ key:'draft', doc, name:doc.name, theme:doc.theme, par:doc.par, solution:doc.solution, tier:doc.tier, sub:'testing your isle', draft:true }); } });
 
 /* ---------------- routing ---------------- */
 // Real paths (/isle/root-bridge), not #/ hashes. The server answers every path with
@@ -400,6 +485,7 @@ async function route(){
   if(h === '/') return titleScreen();
   if(h === '/play') return selectScreen('official');
   if(h === '/community') return selectScreen('community');
+  if(h === '/daily'){ const e = dailyEntry(); return e ? play(e) : nav('/play'); }
   if(h === '/create'){ stopGame(); world.setShowcase(false); show('create'); builder.show(); setAccent(builder.draft.theme); return; }
   if((m = /^\/isle\/([\w-]+)$/.exec(h))){ const e = official.find(x => x.doc.id === m[1]); return e ? play(e) : nav('/play'); }
   if((m = /^\/c\/([\w-]+)\/([\w-]+)$/.exec(h))){ const e = community.find(x => x.author === m[1] && x.doc.id === m[2]); return e ? play(e) : nav('/community'); }
@@ -407,7 +493,7 @@ async function route(){
     try {
       const r = await api('/puzzles/' + m[1]);
       if(!SCHEMAS.includes(r.puzzle.schemaVersion)){ toast('That link is from an older version of Klarbase', true); nav('/community'); return; }
-      return play({ key:'i:' + m[1], doc:{ ...r.puzzle, name:r.title }, name:r.title, theme:r.puzzle.theme, par:r.puzzle.par, solution:r.puzzle.solution, sub:'shared by ' + r.author.name, online:true });
+      return play({ key:'i:' + m[1], statKey:'i/' + m[1], tier:r.puzzle.tier, audit:r.puzzle.audit, doc:{ ...r.puzzle, name:r.title }, name:r.title, theme:r.puzzle.theme, par:r.puzzle.par, solution:r.puzzle.solution, sub:'shared by ' + r.author.name, online:true });
     } catch { toast('That isle could not be found', true); nav('/community'); return; }
   }
   nav('/');

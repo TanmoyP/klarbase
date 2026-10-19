@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 5,
+  "id": "frost-ferry",
+  "name": "Frost Ferry",
+  "theme": "mountain",
+  "tier": "hard",
+  "twist": true,
+  "hint": "On ice, a push is a promise: the crate goes until something stops it.",
+  "rows": [
+    "# # G # # #",
+    "* * D * * *",
+    "# . * . C *",
+    ". o * S * #",
+    "* * . C . .",
+    ". . . * * *"
+  ],
+  "par": 20,
+  "solution": "LDRURUUURDLULDRDLLUU"
+}

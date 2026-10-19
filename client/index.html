@@ -93,6 +93,19 @@
   .card .body{ padding:10px 12px 12px; }
   .card .name{ font-family:Fredoka, Nunito, ui-rounded, "Segoe UI", system-ui, sans-serif; font-weight:600; font-size:17px; line-height:1.15; }
   .card .meta{ display:flex; justify-content:space-between; align-items:center; margin-top:6px; color:var(--ink-3); font-size:12.5px; font-weight:800; }
+  /* difficulty tier (K3): Breeze → Mythic, "settling" until 20 plays */
+  .tier{ display:inline-block; padding:2px 8px; border-radius:999px; font-family:Nunito, ui-sans-serif, system-ui, sans-serif; font-size:11.5px; font-weight:800;
+    color:#fff; background:#8d859b; white-space:nowrap; vertical-align:middle; letter-spacing:.2px; }
+  .tier i{ font-style:normal; font-weight:700; opacity:.85; }
+  .tier.t-breeze{ background:#3fae86; } .tier.t-easy{ background:#4f93d6; } .tier.t-tricky{ background:#d99528; }
+  .tier.t-hard{ background:#e0663a; } .tier.t-fiendish{ background:#c93f68; } .tier.t-mythic{ background:#7a4bd0; }
+  .card .sky .tier{ position:absolute; left:8px; bottom:7px; max-width:calc(100% - 16px); overflow:hidden; text-overflow:ellipsis; box-shadow:0 2px 6px rgba(30,20,50,.18); }
+  .hud-title .sub .tier{ font-size:10.5px; padding:1px 7px; margin-right:2px; }
+  .share-text{ margin:12px auto 0; padding:10px 12px; border-radius:12px; background:rgba(42,34,56,.06); font-weight:800; font-size:15px; user-select:all; }
+  .share-text small{ font-weight:700; color:var(--ink-3); }
+  .diff{ font-size:13px; font-weight:700; color:var(--ink-2); padding:9px 12px; border-radius:12px; background:rgba(42,34,56,.05); display:flex; flex-direction:column; gap:6px; }
+  .diff ul{ margin:0; padding-left:18px; font-weight:600; }
+  .diff .warn{ color:#9a5b12; }
   .stars{ letter-spacing:1px; font-size:14px; color:#d9d3e1; }
   .stars b{ color:#ffb02e; font-weight:800; }
   .credit{ color:var(--ink-2); font-size:12.5px; font-weight:800; }
@@ -198,7 +211,7 @@
     #builderPanel > .palette{ order:1; display:flex; overflow-x:auto; gap:5px; padding-bottom:4px; scrollbar-width:none; flex-shrink:0; }
     #builderPanel > .palette .tool{ flex:0 0 52px; height:52px; }
     #builderPanel > #gridCanvas{ order:2; max-width:min(100%, 34vh); margin:0 auto; }
-    #builderPanel > .status{ order:3; }
+    #builderPanel > .status, #builderPanel > .diff{ order:3; }
     #builderPanel > .row-btns{ order:4; }
     #builderPanel > .row-btns .btn{ flex:1; justify-content:center; padding:9px 10px; font-size:14px; }
     #scr-select .panel{ top:60px; }
@@ -225,6 +238,7 @@
         <button class="btn primary" data-go="/play">▶ Play</button>
         <button class="btn" data-go="/create">✎ Create</button>
         <button class="btn" data-go="/community">☁ Community</button>
+        <button class="btn" data-go="/daily" id="btnDaily" title="One isle a day, the same for everyone">☀ Daily</button>
       </div>
       <div class="fine">No account needed to play or build. Sign in only to share online.</div>
     </div>

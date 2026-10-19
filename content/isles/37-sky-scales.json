@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 6,
+  "id": "sky-scales",
+  "name": "Sky Scales",
+  "theme": "tropical",
+  "tier": "mythic",
+  "hint": "Load the lower isle to lift the upper one.",
+  "storeys": [
+    {
+      "rows": [
+        ".1 - .1 .1 .1 .1",
+        ".1 C1 .1 - b1 .1",
+        "S1 T1 .1 C1 .1 .1",
+        ".1 C1 .1 .1 .1 -",
+        "p1 - .1 - - T1"
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "rows": [
+        ".3 C3 .3 - G2",
+        ".3 C3 .3 a2 .2",
+        ".3 .3 #3 - T2",
+        "p3 T3 #3 - -"
+      ],
+      "at": [
+        1,
+        1,
+        10
+      ]
+    }
+  ],
+  "par": 43,
+  "solution": "DRRUUURRRDDLDLRURUULLLDDRDRULLDLLDUUURDRRRU"
+}

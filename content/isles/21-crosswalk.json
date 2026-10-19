@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 5,
+  "id": "crosswalk",
+  "name": "Crosswalk",
+  "theme": "urban",
+  "tier": "tricky",
+  "hint": "Two crates, two plates, and many ways to wedge a crate in a corner.",
+  "rows": [
+    ". . . # G #",
+    ". C . # D #",
+    "o . . . . .",
+    "# . C . # .",
+    ". . S . . o"
+  ],
+  "par": 24,
+  "solution": "ULULUURDRDDULDDRRRLUURUU"
+}

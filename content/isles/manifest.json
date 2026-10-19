@@ -6,6 +6,7 @@
       "id": "first-steps",
       "name": "First Steps",
       "theme": "jungle",
+      "tier": "breeze",
       "par": 4,
       "mechanics": [
         "walk:ramp"
@@ -18,6 +19,7 @@
       "id": "ledge-drop",
       "name": "Ledge Drop",
       "theme": "jungle",
+      "tier": "breeze",
       "par": 11,
       "mechanics": [
         "walk:ramp",
@@ -31,6 +33,7 @@
       "id": "mossy-crate",
       "name": "Mossy Crate",
       "theme": "jungle",
+      "tier": "breeze",
       "par": 9,
       "mechanics": [
         "push",
@@ -44,6 +47,7 @@
       "id": "root-bridge",
       "name": "Root Bridge",
       "theme": "jungle",
+      "tier": "easy",
       "par": 12,
       "mechanics": [
         "walk:ramp",
@@ -59,6 +63,7 @@
       "id": "fern-gate",
       "name": "Fern Gate",
       "theme": "jungle",
+      "tier": "easy",
       "par": 15,
       "mechanics": [
         "push",
@@ -69,33 +74,52 @@
     },
     {
       "order": 6,
+      "id": "spring-lock",
+      "name": "Spring Lock",
+      "theme": "jungle",
+      "tier": "fiendish",
+      "twist": true,
+      "par": 33,
+      "mechanics": [
+        "push",
+        "sink",
+        "gate"
+      ],
+      "hash": "a6e1ed585312963d1874a0088448d4c1a5c2154dd2fe5f3ba4fe96fd3d1785df",
+      "file": "06-spring-lock.json"
+    },
+    {
+      "order": 7,
       "id": "mirage",
       "name": "Mirage",
       "theme": "oasis",
+      "tier": "breeze",
       "par": 3,
       "mechanics": [
         "tp"
       ],
       "hash": "e48a1a2e4839444ec2b001b2db461817ff6e7491195479e14f928cb21468f8b9",
-      "file": "06-mirage.json"
+      "file": "07-mirage.json"
     },
     {
-      "order": 7,
+      "order": 8,
       "id": "twin-mirages",
       "name": "Twin Mirages",
       "theme": "oasis",
+      "tier": "breeze",
       "par": 7,
       "mechanics": [
         "tp"
       ],
       "hash": "bf6206b7af47c312f9bea847b5b0751415a8ccbf730ee50a8edae6f7150e0399",
-      "file": "07-twin-mirages.json"
+      "file": "08-twin-mirages.json"
     },
     {
-      "order": 8,
+      "order": 9,
       "id": "sunken-well",
       "name": "Sunken Well",
       "theme": "oasis",
+      "tier": "easy",
       "par": 8,
       "mechanics": [
         "push",
@@ -103,50 +127,70 @@
         "tp"
       ],
       "hash": "c0b9d0f405f3e0d30fd403c412c8c7151eee09ecb334b6010740f09c344fd454",
-      "file": "08-sunken-well.json"
+      "file": "09-sunken-well.json"
     },
     {
-      "order": 9,
+      "order": 10,
       "id": "palm-plates",
       "name": "Palm Plates",
       "theme": "oasis",
+      "tier": "tricky",
       "par": 22,
       "mechanics": [
         "push",
         "gate"
       ],
       "hash": "7689bc255286eee3154e9b3e33fc95c1f35c5f6bf0d22843a523467715b60176",
-      "file": "09-palm-plates.json"
+      "file": "10-palm-plates.json"
     },
     {
-      "order": 10,
+      "order": 11,
+      "id": "revolving-arch",
+      "name": "Revolving Arch",
+      "theme": "oasis",
+      "tier": "hard",
+      "twist": true,
+      "par": 30,
+      "mechanics": [
+        "push",
+        "tp",
+        "gate"
+      ],
+      "hash": "7137ca925922b50875a0f7be794471832a7680b2e1a8131733ecde97f1086c33",
+      "file": "11-revolving-arch.json"
+    },
+    {
+      "order": 12,
       "id": "tide-lever",
       "name": "Tide Lever",
       "theme": "tropical",
+      "tier": "breeze",
       "par": 7,
       "mechanics": [
         "toggle"
       ],
       "hash": "01f6d885177e092b864cc789d47010cf9e151806a9cc25182c77b2f2962b8120",
-      "file": "10-tide-lever.json"
+      "file": "12-tide-lever.json"
     },
     {
-      "order": 11,
+      "order": 13,
       "id": "low-tide",
       "name": "Low Tide",
       "theme": "tropical",
+      "tier": "easy",
       "par": 14,
       "mechanics": [
         "toggle"
       ],
       "hash": "9b73c0946422d507c13d431c5ae41741a52c4e2a32906bca7c9f648b028d4df6",
-      "file": "11-low-tide.json"
+      "file": "13-low-tide.json"
     },
     {
-      "order": 12,
+      "order": 14,
       "id": "coconut-key",
       "name": "Coconut Key",
       "theme": "tropical",
+      "tier": "easy",
       "par": 17,
       "mechanics": [
         "push",
@@ -155,39 +199,59 @@
         "door"
       ],
       "hash": "f2dc0fc0d141c56f9bf2d56bf4be5e23e619fa2375757fbfa50226cec2564946",
-      "file": "12-coconut-key.json"
+      "file": "14-coconut-key.json"
     },
     {
-      "order": 13,
+      "order": 15,
       "id": "lagoon-locks",
       "name": "Lagoon Locks",
       "theme": "tropical",
+      "tier": "easy",
       "par": 16,
       "mechanics": [
         "key",
         "door"
       ],
       "hash": "6661e5a333db60f2ec16c8cc6cf9b4c151fcc34bfd378c32722ec3015764a3d5",
-      "file": "13-lagoon-locks.json"
+      "file": "15-lagoon-locks.json"
     },
     {
-      "order": 14,
+      "order": 16,
+      "id": "sunken-step",
+      "name": "Sunken Step",
+      "theme": "tropical",
+      "tier": "hard",
+      "twist": true,
+      "par": 35,
+      "mechanics": [
+        "push",
+        "sink",
+        "toggle",
+        "fall"
+      ],
+      "hash": "2693099b1cc38396be320dd161d61410487384e604fc79e9bb067d21ad5ecbab",
+      "file": "16-sunken-step.json"
+    },
+    {
+      "order": 17,
       "id": "rooftops",
       "name": "Rooftops",
       "theme": "urban",
+      "tier": "easy",
       "par": 14,
       "mechanics": [
         "walk:ramp",
         "push"
       ],
       "hash": "9778d336a661dab80b80150c64ece128c2f97269d078f15ea19834f7f79267c9",
-      "file": "14-rooftops.json"
+      "file": "17-rooftops.json"
     },
     {
-      "order": 15,
+      "order": 18,
       "id": "canal-lift",
       "name": "Canal Lift",
       "theme": "urban",
+      "tier": "easy",
       "par": 8,
       "mechanics": [
         "push",
@@ -195,13 +259,14 @@
         "fall"
       ],
       "hash": "821b902f8270dc7d46900a2794d7e8e1c1dbb2ce24ebea96680dfd24b56c0641",
-      "file": "15-canal-lift.json"
+      "file": "18-canal-lift.json"
     },
     {
-      "order": 16,
+      "order": 19,
       "id": "subway",
       "name": "Subway",
       "theme": "urban",
+      "tier": "easy",
       "par": 13,
       "mechanics": [
         "tp",
@@ -209,13 +274,14 @@
         "door"
       ],
       "hash": "cf4bbc10ed8b8576af82ba96b846f733c2db6d6bc6b6e0ed9b8899d48fe1e28d",
-      "file": "16-subway.json"
+      "file": "19-subway.json"
     },
     {
-      "order": 17,
+      "order": 20,
       "id": "night-market",
       "name": "Night Market",
       "theme": "urban",
+      "tier": "easy",
       "par": 17,
       "mechanics": [
         "push",
@@ -223,75 +289,98 @@
         "gate"
       ],
       "hash": "52b27ff0f378bb5993e869e3d7ecf61f64fdc1906a5938e6edb22b450d8c7d79",
-      "file": "17-night-market.json"
+      "file": "20-night-market.json"
     },
     {
-      "order": 18,
+      "order": 21,
       "id": "crosswalk",
       "name": "Crosswalk",
       "theme": "urban",
+      "tier": "tricky",
       "par": 24,
       "mechanics": [
         "push",
         "gate"
       ],
       "hash": "4035f7cd57bc927c0c560d0bb0ec2b4a6bf7599e63e77e11743235c77467c748",
-      "file": "18-crosswalk.json"
+      "file": "21-crosswalk.json"
     },
     {
-      "order": 19,
+      "order": 22,
+      "id": "street-drop",
+      "name": "Street Drop",
+      "theme": "urban",
+      "tier": "hard",
+      "twist": true,
+      "par": 23,
+      "mechanics": [
+        "walk:ramp",
+        "walk:down",
+        "push",
+        "gate"
+      ],
+      "hash": "c48f853ca2e4dec480433b1045ea68b1d9d88007ce323daea4bd862c8b787a3d",
+      "file": "22-street-drop.json"
+    },
+    {
+      "order": 23,
       "id": "first-frost",
       "name": "First Frost",
       "theme": "mountain",
+      "tier": "breeze",
       "par": 4,
       "mechanics": [
         "slide"
       ],
       "hash": "36f240d94f3c27f9357958a657cded9602c9b8d69aed6d1583c995a8bfcabe21",
-      "file": "19-first-frost.json"
+      "file": "23-first-frost.json"
     },
     {
-      "order": 20,
+      "order": 24,
       "id": "glacier-stops",
       "name": "Glacier Stops",
       "theme": "mountain",
+      "tier": "easy",
       "par": 9,
       "mechanics": [
         "slide"
       ],
       "hash": "aaa6c8e7d62ff8164f62aaa951cbaee8922ca26d619f7e1969d419e5bc44a304",
-      "file": "20-glacier-stops.json"
+      "file": "24-glacier-stops.json"
     },
     {
-      "order": 21,
+      "order": 25,
       "id": "snowball",
       "name": "Snowball",
       "theme": "mountain",
+      "tier": "easy",
       "par": 11,
       "mechanics": [
         "push",
         "slide"
       ],
       "hash": "af9088a168516109f7c8fab1735ea478a25e4f4e74f8bb123d1dabbc91931c8b",
-      "file": "21-snowball.json"
+      "file": "25-snowball.json"
     },
     {
-      "order": 22,
+      "order": 26,
       "id": "glacier-maze",
       "name": "Glacier Maze",
       "theme": "mountain",
+      "tier": "easy",
       "par": 13,
       "mechanics": [
         "slide"
       ],
       "hash": "521b0a5a7e3432c4fb2ae00885625fdb870113a03629e1bc590de667d754b17c",
-      "file": "22-glacier-maze.json"
+      "file": "26-glacier-maze.json"
     },
     {
-      "order": 23,
+      "order": 27,
       "id": "frozen-gate",
       "name": "Frozen Gate",
       "theme": "mountain",
+      "tier": "tricky",
       "par": 19,
       "mechanics": [
         "push",
@@ -300,13 +389,14 @@
         "gate"
       ],
       "hash": "5482153a39388a9bdeabd5af4f590cda81fde6201bd3430c380148aa632f3a61",
-      "file": "23-frozen-gate.json"
+      "file": "27-frozen-gate.json"
     },
     {
-      "order": 24,
+      "order": 28,
       "id": "the-peak",
       "name": "The Peak",
       "theme": "mountain",
+      "tier": "tricky",
       "par": 27,
       "mechanics": [
         "walk:ramp",
@@ -316,26 +406,45 @@
         "door"
       ],
       "hash": "cd4133e4d647783778a3cd6ec8db4fc66228e6017b018829ca9604820c906981",
-      "file": "24-the-peak.json"
+      "file": "28-the-peak.json"
     },
     {
-      "order": 25,
+      "order": 29,
+      "id": "frost-ferry",
+      "name": "Frost Ferry",
+      "theme": "mountain",
+      "tier": "hard",
+      "twist": true,
+      "par": 20,
+      "mechanics": [
+        "push",
+        "slide",
+        "cslide",
+        "gate"
+      ],
+      "hash": "7a7bf5be483ebc5bb06f05dc7ea69163ea5affa844f6b1d25643189e674fa760",
+      "file": "29-frost-ferry.json"
+    },
+    {
+      "order": 30,
       "id": "counterweight",
       "name": "Counterweight",
       "theme": "jungle",
+      "tier": "tricky",
       "par": 15,
       "mechanics": [
         "push",
         "scales"
       ],
       "hash": "d7a6849b3f20ed45e12973f19dda636245fa45d8c69e7943d2d7b804684840ac",
-      "file": "25-counterweight.json"
+      "file": "30-counterweight.json"
     },
     {
-      "order": 26,
+      "order": 31,
       "id": "high-arch",
       "name": "High Arch",
       "theme": "tropical",
+      "tier": "tricky",
       "par": 31,
       "mechanics": [
         "push",
@@ -343,26 +452,43 @@
         "gateway"
       ],
       "hash": "f69e2de5eb43cf8085443cfd7c911d2356b286ddae86a6fdbef976ed7276cfec",
-      "file": "26-high-arch.json"
+      "file": "31-high-arch.json"
     },
     {
-      "order": 27,
+      "order": 32,
+      "id": "three-storeys",
+      "name": "Three Storeys",
+      "theme": "tropical",
+      "tier": "hard",
+      "par": 46,
+      "mechanics": [
+        "push",
+        "scales",
+        "gateway"
+      ],
+      "hash": "7e377d1b04b1c1875720ca0efc98e05a8b2e0794618a6e0326c35c2f5252b402",
+      "file": "32-three-storeys.json"
+    },
+    {
+      "order": 33,
       "id": "own-weight",
       "name": "Own Weight",
       "theme": "jungle",
+      "tier": "hard",
       "par": 23,
       "mechanics": [
         "push",
         "scales"
       ],
       "hash": "4b59c394390fb3cfab301d70d73c55a08f7fd6a983866895cb31f59529c683fd",
-      "file": "27-own-weight.json"
+      "file": "33-own-weight.json"
     },
     {
-      "order": 28,
+      "order": 34,
       "id": "the-crane",
       "name": "The Crane",
       "theme": "jungle",
+      "tier": "hard",
       "par": 38,
       "mechanics": [
         "push",
@@ -371,13 +497,14 @@
         "gateway"
       ],
       "hash": "c5a1f6ce0394494f07f810b873bb818f13dc7d8ef4f2969c1028d79ce09bb0df",
-      "file": "28-the-crane.json"
+      "file": "34-the-crane.json"
     },
     {
-      "order": 29,
+      "order": 35,
       "id": "spend-a-crate",
       "name": "Spend a Crate",
       "theme": "jungle",
+      "tier": "fiendish",
       "par": 31,
       "mechanics": [
         "push",
@@ -385,13 +512,14 @@
         "scales"
       ],
       "hash": "cf42517922717c7eed8a6ebb8c8f39837f06a47ff5b8fdc25ebd172bf9211c2b",
-      "file": "29-spend-a-crate.json"
+      "file": "35-spend-a-crate.json"
     },
     {
-      "order": 30,
+      "order": 36,
       "id": "garden-lift",
       "name": "Garden Lift",
       "theme": "tropical",
+      "tier": "fiendish",
       "par": 27,
       "mechanics": [
         "push",
@@ -399,27 +527,14 @@
         "gateway"
       ],
       "hash": "6683f6f7abff97802b0243ea12505159c6aa8bcfd26a1438a3f8c0835317a357",
-      "file": "30-garden-lift.json"
+      "file": "36-garden-lift.json"
     },
     {
-      "order": 31,
-      "id": "three-storeys",
-      "name": "Three Storeys",
-      "theme": "tropical",
-      "par": 46,
-      "mechanics": [
-        "push",
-        "scales",
-        "gateway"
-      ],
-      "hash": "7e377d1b04b1c1875720ca0efc98e05a8b2e0794618a6e0326c35c2f5252b402",
-      "file": "31-three-storeys.json"
-    },
-    {
-      "order": 32,
+      "order": 37,
       "id": "sky-scales",
       "name": "Sky Scales",
       "theme": "tropical",
+      "tier": "mythic",
       "par": 43,
       "mechanics": [
         "push",
@@ -427,7 +542,7 @@
         "gateway"
       ],
       "hash": "61e28e8cece0d2b98a0042a5ef344cf09ef19491c1acaad772b2da2b5115f87e",
-      "file": "32-sky-scales.json"
+      "file": "37-sky-scales.json"
     }
   ]
 }

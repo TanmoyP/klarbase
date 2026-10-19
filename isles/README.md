@@ -2,7 +2,7 @@
 
 Every isle is a small grid written as text. This folder holds the **community** isles —
 `community/<github-username>/<id>.json` — which are bundled into the game with credit to
-their author. The official isles live in `core/src/isle/isles.js`.
+their author, and `daily/YYYY-MM-DD.json` — hand-made Daily Isles. The official isles live in `core/src/isle/isles.js`.
 
 How to contribute one: see [CONTRIBUTING.md](../CONTRIBUTING.md).
 
@@ -75,6 +75,31 @@ that share map tiles must be at least **8 levels** apart so the lower one stays 
 - A pan is plain ground: one token can't be a pan and water, ice, a plate, a crate, a
   start, a goal or a key at once (`a~`, `Ca` … are rejected with a clear error).
 - If one pan exists the other must too. Each pan can span several tiles.
+
+### Difficulty: the `tier` field
+
+An optional `"tier"` is the maker's **gut call**: `breeze` · `easy` · `tricky` · `hard` ·
+`fiendish` · `mythic`. Every isle shows a score from 0 to 100 and its tier
+(Breeze 0–15 · Easy 15–35 · Tricky 35–55 · Hard 55–72 · Fiendish 72–88 · Mythic 88–100):
+
+```
+score = (20 · prior + n · observed) / (20 + n)
+```
+
+- **prior** = the middle of the declared tier, or — when no tier is declared — an estimate from
+  the solver audit (reachable positions, trap moves, whether walking toward the star wins, how
+  many shortest routes). Never from tile counts or layout.
+- **observed** = what players did, from anonymous per-isle totals: clear rate, hints and
+  restarts per attempt, median moves over par, median time to clear. **n** = attempts.
+- The card says **settling** until 20 people have played. `tier` is presentation, like `name`:
+  it never changes the isle's hash. One function computes all of this:
+  `difficultyScore()` in `core/src/isle/difficulty.js`.
+
+### Daily Isles
+
+`isles/daily/YYYY-MM-DD.json` holds a hand-made isle for that UTC date — same format, plus a
+required `tier` and an optional `catch` (the designer's note, shown only after a clear).
+Details: [`daily/README.md`](daily/README.md).
 
 ## The rules
 

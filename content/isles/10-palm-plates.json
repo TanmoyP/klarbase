@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 5,
+  "id": "palm-plates",
+  "name": "Palm Plates",
+  "theme": "oasis",
+  "tier": "tricky",
+  "hint": "One plate for the crate, one for you — so stand where the gate is close.",
+  "rows": [
+    "# G # . .",
+    "# D o C .",
+    ". . # . .",
+    "o . . , .",
+    "T S . . T"
+  ],
+  "par": 22,
+  "solution": "URRURUULDDRDLLLRRUULLU"
+}

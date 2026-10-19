@@ -36,6 +36,7 @@ it only reads your JSON and judges it with the game engine. A PR can't be merged
 | **Unique** — not identical to an official or another community isle | no copies |
 | `author` = your folder = **your GitHub username**, and your PR only changes `isles/community/<you>/` | credit stays honest: nobody can submit, edit or remove an isle credited to someone else |
 | Plain-text `name` (3–40 chars), `hint` (≤ 140) and `description` (≤ 240), **no links** | no spam |
+| `tier`, if present, is one of `breeze` `easy` `tricky` `hard` `fiendish` `mythic` | difficulty labels players can trust |
 | Only known fields, file under 8 KB | keeps isles small and reviewable |
 
 ## The isle file
@@ -64,14 +65,23 @@ it only reads your JSON and judges it with the game engine. A PR can't be merged
 (far from the camera). A token is a tile character plus an optional height digit `0`–`5`.
 The full tile table and the rules of the game are in [`isles/README.md`](isles/README.md).
 
-Optional fields: `hint`, `description`, `credit` (a display name if you'd like one).
+Optional fields: `hint`, `description`, `credit` (a display name if you'd like one), and
+`tier` — your gut call on difficulty: `breeze`, `easy`, `tricky`, `hard`, `fiendish` or `mythic`
+(pick it in the builder; it's exported with the file). Every isle shows a difficulty score from
+0 to 100: it starts from your tier (or the solver's estimate if you leave it out) and settles as
+people play. `tier` never changes the isle's identity, and a hard isle is never required —
+simple isles are welcome. The builder's **"make it harder"** hints are optional suggestions.
 
 **Maps (schemaVersion 6).** An isle can also be an *archipelago map*: up to 3 isles linked by
 gateway arches, optionally with Sky Scales pans. Such a file has `"schemaVersion": 6` and
 `"storeys": [{ "rows": [...], "at": [x, z, altitude] }, ...]` instead of `rows` — the builder
 writes it for you when you add a second isle or a pan. Same checks, same limits. Format and
 rules: [`isles/README.md`](isles/README.md#archipelago-maps-schemaversion-6).
+
 Themes: `jungle`, `oasis`, `tropical`, `urban`, `mountain`.
+
+Daily Isles (`isles/daily/YYYY-MM-DD.json`) use the same format with a required `tier`; see
+[`isles/daily/README.md`](isles/daily/README.md).
 
 ## What makes a great isle
 
@@ -88,6 +98,7 @@ anything big. These need a maintainer's review (see `.github/CODEOWNERS`) on top
 ```bash
 npm install
 node core/test/isles.mjs   # engine + official isles + contribution rules
+node core/test/difficulty.mjs  # difficulty audit + score, tiers, Twist isles, Daily Isle
 node core/test/run.mjs     # legacy world engine
 npm run dev:client         # the game at http://localhost:5173 (no server needed to play/build)
 ```
