@@ -28,7 +28,7 @@ import { sha256hex, stableStringify } from '../schema.js';
 export const ISLE_SCHEMA = 5;                  // one isle: { rows }
 export const MAP_SCHEMA = 6;                   // archipelago map: { storeys:[{ rows, at }] }
 export const SCHEMAS = [ISLE_SCHEMA, MAP_SCHEMA];
-export const MAX_W = 14, MAX_H = 14, MAX_LEVEL = 5, MAX_CRATES = 8;
+export const MAX_W = 14, MAX_H = 14, MAX_LEVEL = 5, MAX_CRATES = 8, MAX_SEEDS = 3;
 export const MAX_STOREYS = 3, MAX_AT = 40, MAX_ALT = 24, STOREY_GAP = 8;
 export const THEMES = ['jungle', 'oasis', 'tropical', 'urban', 'mountain'];
 
@@ -63,6 +63,15 @@ export const TILES = {
   'r': { kind:'portal', pair:'r', label:'Portal C', v6:true },
   'a': { kind:'pan', pan:'a', label:'Pan A', v6:true },     // Sky Scales (K1): two pans on one vine
   'b': { kind:'pan', pan:'b', label:'Pan B', v6:true },
+  // Weight II (K1, K6, K9) — maps only. Pip holds one thing: a balloon (weight 0) or a stone (2).
+  'B': { kind:'post', label:'Balloon post', v6:true },          // one balloon; Use takes it
+  'P': { kind:'pile', label:'Stone pile', v6:true },            // Use takes a stone / puts it back
+  'u': { kind:'ground', buoy:true, label:'Buoy', v6:true },     // a crate on a balloon: weight −1
+  'n': { kind:'vent', blow:'U', label:'Vent ↑', v6:true },      // gust vents blow along a line
+  'e': { kind:'vent', blow:'R', label:'Vent →', v6:true },
+  's': { kind:'vent', blow:'D', label:'Vent ↓', v6:true },
+  'w': { kind:'vent', blow:'L', label:'Vent ←', v6:true },
+  '+': { kind:'ground', seed:true, label:'Seed', v6:true },     // optional collectible, never part of the rules
   '-': { kind:'void',   label:'Empty' },
 };
 
@@ -70,7 +79,7 @@ export const MOVE_DIRS = { U:[0,-1], D:[0,1], L:[-1,0], R:[1,0] };
 export const OPP  = { U:'D', D:'U', L:'R', R:'L' };
 export const MOVES = ['U','D','L','R','X'];   // X = use (pull a lever you stand on)
 
-const TOKEN = /^([.,SG#T~*^v<>CoDL=_kKpqrab-])([0-5])?$/;
+const TOKEN = /^([.,SG#T~*^v<>CoDL=_kKpqrabBPunesw+-])([0-5])?$/;
 const PAIRS = ['p', 'q', 'r'];
 
 export const ERR = {
@@ -82,15 +91,17 @@ export const ERR = {
   E_GOAL:'needs at least one goal (G)',
   E_PORTAL:'arches come in pairs — each of p / q / r appears 0 or 2 times',
   E_GATE:'a gate (D) needs at least one plate (o) to open it',
-  E_CRATES:`at most ${MAX_CRATES} crates`,
+  E_CRATES:`at most ${MAX_CRATES} crates and buoys in all`,
   E_THEME:'unknown theme',
   E_STOREYS:`storeys must be a list of 1 to ${MAX_STOREYS} isles, each { rows, at:[x, z, altitude] }`,
   E_AT:`each storey needs "at": [x, z, altitude] — whole numbers, x and z 0–${MAX_AT}, altitude 0–${MAX_ALT}`,
   E_OVERLAP:`storeys that overlap on the map must float at least ${STOREY_GAP} levels apart`,
-  E_V6:'pans (a, b) and arch C (r) need an archipelago map (schemaVersion 6 with "storeys")',
+  E_V6:'pans (a, b), arch C (r), balloon posts (B), stone piles (P), buoys (u), vents (n e s w) and seeds (+) need an archipelago map (schemaVersion 6 with "storeys")',
   E_PANS:'Sky Scales need both pans — at least one a and one b',
   E_PAN_H:'a pan needs a base height from 1 to 4 (it moves one level down and up)',
   E_PAN_PLAIN:'a pan is plain ground — it cannot also be water, ice, a plate, a crate, a start, a goal or a key',
+  E_SEEDS:`at most ${MAX_SEEDS} seeds`,
+  E_GUSTS:'two gusts cross or overlap — each tile may be in at most one gust line',
 };
 
 const validAt = at => Array.isArray(at) && at.length === 3 && at.every(Number.isInteger)
@@ -152,13 +163,15 @@ export function parseIsle(doc){
       if(t.dir) cell.dir = t.dir;
       if(t.kind === 'bridge') cell.on = t.on;
       if(t.flora) cell.flora = true;
+      if(t.blow) cell.blow = t.blow;
       if(t.pan){ cell.pan = t.pan; if(cell.h < 1 || cell.h > MAX_LEVEL - 1) fail('E_PAN_H', at); }
       cells[i] = cell;
     }
   });
 
   const start = [], goals = [], crates = [], keys = [], plates = [],
-        gates = [], doors = [], levers = [], bridges = [], portals = { p:[], q:[], r:[] }, pans = { a:[], b:[] };
+        gates = [], doors = [], levers = [], bridges = [], portals = { p:[], q:[], r:[] }, pans = { a:[], b:[] },
+        buoys = [], posts = [], piles = [], vents = [], seeds = [];
   for(let i = 0; i < cells.length; i++){
     const c = cells[i], t = TILES[c.ch];
     if(t.start) start.push(i);
@@ -172,12 +185,18 @@ export function parseIsle(doc){
     if(t.kind === 'bridge') bridges.push(i);
     if(t.pair) portals[t.pair].push(i);
     if(t.pan) pans[t.pan].push(i);
+    if(t.buoy) buoys.push(i);
+    if(t.kind === 'post') posts.push(i);
+    if(t.kind === 'pile') piles.push(i);
+    if(t.blow) vents.push(i);
+    if(t.seed) seeds.push(i);
   }
   if(start.length !== 1) fail('E_START');
   if(!goals.length) fail('E_GOAL');
   if(PAIRS.some(pr => portals[pr].length % 2 || portals[pr].length > 2)) fail('E_PORTAL');
   if(gates.length && !plates.length) fail('E_GATE');
-  if(crates.length > MAX_CRATES) fail('E_CRATES');
+  if(crates.length + buoys.length > MAX_CRATES) fail('E_CRATES');
+  if(seeds.length > MAX_SEEDS) fail('E_SEEDS');
   if(!pans.a.length !== !pans.b.length) fail('E_PANS');
 
   // Arch pairs. A pair whose arches sit on different storeys is a GATEWAY.
@@ -187,13 +206,31 @@ export function parseIsle(doc){
     twin[u] = v; twin[v] = u;
     if(sid[u] !== sid[v]) cells[u].gateway = cells[v].gateway = true;
   }
+  // Gust lines (K6) are fixed by the map: from the vent along its direction, over
+  // floor no higher than the vent, until a rock, tree, gate, door, ramp, the sky or
+  // the storey's edge. (Crates shelter what lies behind them — that part is state, rules.js.)
+  const gusts = [], inGust = new Map();
+  for(const v of vents){
+    const [dx, dz] = MOVE_DIRS[cells[v].blow], line = [v];
+    for(let x = v % W + dx, z = ((v / W) | 0) + dz; x >= 0 && z >= 0 && x < W && z < H; x += dx, z += dz){
+      const i = z*W + x, c = cells[i];
+      if(sid[i] !== sid[v] || ['void', 'rock', 'tree', 'gate', 'door', 'ramp'].includes(c.kind) || c.h > cells[v].h) break;
+      line.push(i);
+    }
+    for(const i of line){ if(inGust.has(i)) fail('E_GUSTS', cellAt(storeys, sid, W, i, map)); inGust.set(i, gusts.length); }
+    gusts.push({ dir:cells[v].blow, cells:line });
+  }
+
   const level = { w:W, h:H, theme, cells, start:start[0], goals, crates, keys, plates,
-                  gates, doors, levers, bridges, twin,
+                  gates, doors, levers, bridges, twin, buoys, posts, piles, seeds, gusts, inGust,
                   pans: pans.a.length && pans.b.length ? pans : null,
                   storeys: storeys.map(({ w, h, at, x0 }) => ({ w, h, at, x0 })), sid,
                   name: String(doc.name || 'Untitled isle').slice(0, 60) };
   return { ok: errors.length === 0, errors, level };
 }
+
+// Error position [x, z(, storey)] of flattened cell i.
+const cellAt = (storeys, sid, W, i, map) => { const k = sid[i], x = i % W - storeys[k].x0, z = (i / W) | 0; return map ? [x, z, k] : [x, z]; };
 
 // Map position of cell i: its storey, column and row inside that storey, and
 // where it sits on the whole map (x/z in tiles). Renderer and audit tools use it.
