@@ -3,6 +3,7 @@
   "id": "frozen-gate",
   "name": "Frozen Gate",
   "theme": "mountain",
+  "tier": "tricky",
   "hint": "Slide the crate onto the plate — the ice will carry it.",
   "rows": [
     "# G # # # #",

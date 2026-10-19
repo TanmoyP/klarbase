@@ -112,3 +112,17 @@ model Plot {
   @@id([x, y])
   @@index([ownerId])
 }
+
+// Anonymous per-isle play counters (decision K7). Holds NO user data: no user
+// reference, no IP, no cookie, nothing per person — only running sums per isle,
+// so nothing here needs a cascade delete. Written by POST /api/plays.
+model IslePlay {
+  isleKey   String   @id                    // official id · c/<author>/<id> · d/<YYYY-MM-DD> · i/<64-hex hash>
+  started   Int      @default(0)            // attempts (first move of a visit, or after a clear)
+  cleared   Int      @default(0)
+  hints     Int      @default(0)
+  restarts  Int      @default(0)
+  moves     Json     @default("{}")         // { "<moves to clear>": count }, moves clamped to 1..500
+  times     Json     @default("{}")         // { "<bucket>": count } — buckets = TIME_BUCKETS in @klar/core
+  updatedAt DateTime @default(now()) @updatedAt
+}

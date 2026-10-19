@@ -52,9 +52,10 @@ a stored isle a `Puzzle` (table, `/api/puzzles`) — don't rename in passing.
 ```
 klarbase/
 ├── core/                 @klar/core — pure, zero-dep, isomorphic. THE rules.
-│   ├── src/isle/         format.js · rules.js · solve.js · contrib.js · isles.js (24 official)
+│   ├── src/isle/         format.js · rules.js · solve.js · contrib.js · isles.js (24 + 5 Twist)
+│   │                     difficulty.js (audit + K3 score + tiers) · daily.js (Daily Isle pick/number/share)
 │   ├── src/*.js          legacy voxel engine — kept only for the deferred world API
-│   └── test/             isles.mjs (192 assertions) · run.mjs (legacy, 57)
+│   └── test/             isles.mjs · difficulty.mjs · run.mjs (legacy, 57)
 ├── client/               @klar/client — Vite + three.js
 │   ├── index.html        shell + all CSS (glass UI, responsive)
 │   └── src/
@@ -63,15 +64,18 @@ klarbase/
 │       └── game/         world.js (scene) · props.js (procedural art) · pip.js (critter)
 │                         session.js (play/undo/hint/replay) · audio.js (synth) · themes.js
 ├── server/               @klar/server — Express + Prisma + better-auth
-│   └── src/routes/       puzzles.js (isle publish gate, public play/browse) · world.js (deferred)
+│   └── src/routes/       puzzles.js (isle publish gate, public play/browse) · plays.js (anonymous
+│                         per-isle stats, K7) · stats.js (maintainer counts) · world.js (deferred)
 ├── isles/
 │   ├── community/<user>/<id>.json   community isles — bundled into the client with credit
+│   ├── daily/<YYYY-MM-DD>.json      hand-made Daily Isles (same gate, daily rules)
 │   ├── README.md         the format + rules for players, contributors and builder bots
 │   └── MAINTAINERS       who may edit any community folder
 ├── content/isles/        generated artifacts for the official isles (deterministic)
 ├── tools/
-│   ├── check-isles.mjs   the PR gate for community isles (zero-dep, data-only)
-│   └── author.mjs        verifies official isles, writes content/isles, --seed to DB
+│   ├── check-isles.mjs   the PR gate for community + daily isles (zero-dep, data-only)
+│   ├── author.mjs        verifies official isles, writes content/isles, --seed to DB
+│   └── difficulty.mjs    prints the solver audit + gut/audit tier of every official isle
 └── .github/              ci.yml · CODEOWNERS · PR template · ruleset-main.json
 ```
 
@@ -126,6 +130,29 @@ A, arch pair B, empty sky.
 gate needs a plate. **Identity:** `isleHash` = SHA-256 of `{schemaVersion, theme, rows}` with
 whitespace normalized — name, author, par, hints never change it. Same isle ⇒ same hash in
 browser, Node and DB.
+
+**`tier` (2026-10-19, K3):** optional gut call — `breeze · easy · tricky · hard · fiendish · mythic`
+— on official isles (all 29 declare one), community files, daily files (required there) and online
+shares (publish payload). Presentation only: never part of the hash (`core/test/difficulty.mjs`
+pins all 24 pre-existing hashes).
+
+### Difficulty score (K3) — `core/src/isle/difficulty.js`
+- `auditIsle(level, {maxStates=200000})` → `{states, deadPct, traps, away, greedy, routes, par, capped}`
+  (moved here from `tools/difficulty.mjs`, identical numbers; lean nodes = key, Pip tile, out-edges).
+- `TIERS`: Breeze 0–15 · Easy 15–35 · Tricky 35–55 · Hard 55–72 · Fiendish 72–88 · Mythic 88–100.
+- `provisionalPrior(audit)`: the proposal §4.2 table — highest tier whose bar is cleared
+  (Easy ≥ 50 states; Tricky ≥ 300 & ≥ 2 traps & ≤ 6 routes; Hard ≥ 3k & ≥ 3 traps & ≤ 4 routes;
+  Fiendish ≥ 30k & ≥ 4 traps & ≤ 2 routes; Mythic > 150k, or ≥ 6 traps **and ≥ 30k states**, with
+  1 route — the 30k floor is ours: `traps` counts any step with one losing move, so crate isles
+  reach 6 traps at a few thousand states and would all read Mythic; greedy win
+  ⇒ Breeze; capped ⇒ Fiendish), placed inside the band by log(states).
+- `observedScore(stats)` (0–100): weights .35 not-cleared rate · .20 median time to clear (log
+  15 s → 30 min) · .20 median moves over par (par → 3× par) · .15 hints/attempt (0 → 3) ·
+  .10 restarts/attempt (0 → 3). Each term is monotonic; with no clears, time and moves count as 1.
+- `difficultyScore({tier, audit, stats})` = `(20·prior + n·observed)/(20 + n)`, prior = declared
+  tier midpoint, else provisional prior, else Easy; `settling` while n < 20.
+- Builder helpers: `harderHints(audit)` (K2 "make it harder", optional) and `gutMismatch(tier, audit)`
+  (warn, never block, when gut and audit differ by ≥ 2 tiers).
 
 ## 4. The rules & engine
 
@@ -193,12 +220,39 @@ route. The goal is protecting the "aha" for players who try, not secrecy.
 | 23 | Frozen Gate | Summit | 19 | push, ice, crate-slide, gate |
 | 24 | The Peak | Summit | 27 | stairs, push, arches, key, door |
 
+**Gut tiers** (2026-10-19): Breeze — First Steps, Ledge Drop, Mossy Crate, Mirage, Twin Mirages,
+Tide Lever, First Frost · Tricky — Palm Plates, Crosswalk, Frozen Gate, The Peak · Easy — the rest.
+
+**Twist isles (Phase 1, 2026-10-19)** — one optional side-path isle per chapter, appended to its
+chapter, `twist:true`, existing tiles only, each built around a written catch (comment above it
+in `isles.js`). Main-path numbering, Continue and "Next isle" skip them. Targets enforced in
+`core/test/difficulty.mjs`: ≥ 3,000 states, ≥ 3 traps, greedy fails, ≤ 4 shortest routes, ≤ 60 tiles.
+
+| Twist | Chapter | Gut | Par | States | Traps | Greedy | Routes | Tiles | Audit | Catch (short) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Spring Lock | Canopy | Fiendish | 33 | 33,679 | 9 | fails | 1 | 41 | Mythic | the crate on the south plate must drown in the spring so you can load the east plate |
+| Revolving Arch | Mirage | Hard | 30 | 5,865 | 8 | fails | 1 | 30 | Hard | arches are a revolving door; both plates need crates, pushed from the side that misses the spring |
+| Sunken Step | Lagoon | Hard | 35 | 8,776 | 7 | fails | 1 | 35 | Hard | the lever sinks your way back; park the walled-in crate on that bridge after paving the springs |
+| Street Drop | Rooftops | Hard | 23 | 7,332 | 9 | fails | 1 | 26 | Hard | crates only go down; the crate that lands on the near plate is the only one that reaches the far one |
+| Frost Ferry | Summit | Hard | 20 | 8,014 | 7 | fails | 1 | 36 | Hard | one push glides a crate onto the plate, but only from one tile two rows from where it starts |
+
+Designed with a scratch solver harness: write the catch and a draft around it, then hill-climb the
+filler tiles (crate, plate, gate and key cells pinned) until the solver shows the catch is the only
+route (Hazelden's "whack-a-mole" with the audit doing the whacking).
+
 **How they were made:** designed in-loop with the solver — a harness flags any isle whose
 solution doesn't use its featured mechanic, and the two glacier mazes were found by a
 solver-driven search over random rock layouts (kept: longest routes with the most sliding).
 Each chapter introduces one idea and ends by combining it with earlier ones.
 
 **Community isles** live in `isles/community/` and reach players on the next build.
+**Daily Isles:** `/daily` plays `isles/daily/<UTC today>.json` if it exists (hand-made, checked by
+the same gate with `checkDailyIsle`: id = `daily-<date>`, `tier` required, optional `catch` shown
+only after a clear, any schema version the parser knows); otherwise `dailyPick()` walks a fixed
+shuffle of the pool (Twist + Tricky-or-harder official + community isles), one per UTC day, same
+for everyone with the same build. Numbering: `#1` = the first dated file's date (else 2026-10-19).
+After a clear the share text `Klarbase Daily #N · M moves (par P) · ★★☆` + `/daily` link is
+copied (no route). See `isles/daily/README.md`.
 **Online isles** live in the database (`Puzzle` rows, `json` = canonical isle + par + solution).
 Legacy v4 maquette rows may still exist in prod; the client tells players those links are
 from an older version.
@@ -211,7 +265,8 @@ hand-checking puzzles.
 | Layer | What it enforces |
 |---|---|
 | `core/src/isle/contrib.js` | the rules: schema & allowed fields, size ≤ 8 KB, plain-text fields with no links, valid grid, solvable within 200k states, `par` exact, `solution` is a shortest winning route, ≥ 6 moves, ≥ 1 real mechanic, unique hash |
-| `tools/check-isles.mjs` | the gate: runs the rules on every file, plus **location** (`isles/community/<author>/<id>.json`) and, in PRs, **credit** — the PR author may only add/change/delete files in their own folder (or be in `isles/MAINTAINERS`). Duplicates are blamed on the newcomer. Writes a job summary with each isle's map, par and solution. |
+| `checkDailyIsle` (same file) | the same checks for `isles/daily/YYYY-MM-DD.json` through one shared `checkIsleFile`: no author folder (author optional), `id` = `daily-<date>` = file name (a real date), `tier` required, optional plain-text `catch` ≤ 200 |
+| `tools/check-isles.mjs` | the gate: runs the rules on every community **and daily** file, plus **location** (`isles/community/<author>/<id>.json`) and, in PRs, **credit** — the PR author may only add/change/delete files in their own folder (or be in `isles/MAINTAINERS`). Duplicates are blamed on the newcomer. Writes a job summary with each isle's map, par and solution. |
 | `.github/workflows/ci.yml` | jobs `engine`, `isles`, `sanity` on every push/PR. `pull_request` event (read-only token, no secrets), no installs, no contributor code executed. |
 | Branch ruleset (enable when public) | required checks `engine`/`isles`/`sanity`; Code Owner review for everything except `isles/community/` (`.github/CODEOWNERS`), so isle-only PRs merge on green. Source: `.github/ruleset-main.json`. |
 
@@ -245,6 +300,17 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
 - **Builder:** palette (22 tools), click/drag paint, right-click erase, raise/lower, rotating
   stairs, size 3–14, theme chips, remix any official isle, two-way "Isle code" text, live
   verdict (60k states; Deep check 300k), Test, Share online, Export for GitHub, JSON import/export.
+- **Difficulty (Phase 1):** every card (official, community, online) and the in-game title show
+  a tier badge + score, "· settling" until 20 plays. Inputs: declared tier, else the audit (computed
+  client-side for community isles, stored by the server for online shares), plus `GET /api/plays`
+  (fetched at most once a minute). Play events go to `POST /api/plays` (fire-and-forget,
+  `credentials:'omit'`): `start` = first real move of a visit or after a clear, `clear` with moves
+  + ms, `hint`, `restart` (Restart/R after ≥ 1 move, before a clear). Drafts and replays send nothing.
+- **Daily Isle:** title button `☀ Daily #N` → `/daily` (via `nav()`, replaces history); win modal
+  copies the spoiler-free share text. Help modal carries the one-line privacy note.
+- **Builder difficulty:** "Difficulty — your gut call" chips (saved in the draft, exported in
+  JSON / Export for GitHub, sent with Share online), live audit (60k live / 200k deep check),
+  score, audit tier, the gut-vs-audit warning and optional "make it harder" hints.
 - **Bundle:** ~600 KB / ~166 KB gzip (mostly three.js). Code-splitting the builder is a cheap
   future win.
 
@@ -260,12 +326,24 @@ DELETE /api/puzzles/:hash                  own only
 POST   /api/puzzles/:hash/report           login; ≥ 3 reports auto-hide
 /api/world/*                               legacy world lattice — deferred, hidden in the UI; isles are refused
 GET    /api/stats                          maintainer aggregates (counts only); 404 unless STATS_TOKEN is set and sent as Bearer
+POST   /api/plays  {key, event, moves?, ms?}   public, anonymous play event (K7) → 204; 120 / 10 min per IP (in memory)
+GET    /api/plays                          public per-isle sums for the picker; Cache-Control: public, max-age=60
 ```
-No schema migration was needed: isles reuse `Puzzle` (`json` holds the canonical isle + `par`
-+ `solution`; `portsJson` = `'{}'`). Rate limits unchanged (publish 20/h).
+Isles reuse `Puzzle` (`json` holds the canonical isle + `par` + `solution`, and since Phase 1 an
+optional `tier` and the solver `audit` numbers `{states, traps, greedy, routes, par, capped}`
+computed at publish; `portsJson` = `'{}'`). Browse returns `tier` + `audit`. Rate limits: publish 20/h.
+
+**`IslePlay` (migration `20261019200000_isle_play`) — holds NO user data.** One row per isle key
+(official id · `c/<author>/<id>` · `d/<YYYY-MM-DD>` · `i/<64-hex>`) with running sums: `started,
+cleared, hints, restarts`, `moves` jsonb `{moves: count}` (clamped 1..500), `times` jsonb
+`{bucket: count}` (buckets = `TIME_BUCKETS` in core), `updatedAt`. No user reference, no IP, no
+cookie, nothing per person — so no cascade delete is needed. Keys are validated (official ids from
+core, community/daily files present in the bundled `isles/`, online hashes must exist in `Puzzle`).
+Writes are one atomic `INSERT … ON CONFLICT DO UPDATE` with `jsonb_set` increments.
 
 **Stats (2026-10-19).** `/api/stats` returns `{users, users7d, isles, isles7d, sharers7d}`: counts
-only, no ids, names or emails, no new table. Plays and clears are **not** measured anywhere yet.
+only, no ids, names or emails, no new table. Since Phase 1, plays and clears are measured
+anonymously per isle in `IslePlay` (above).
 
 ---
 
@@ -279,7 +357,9 @@ must move to a shared store before running more than one replica.
 
 ## 10. Current state & numbers
 
-- ✅ Engine: 192 isle assertions + 57 legacy, green. 24 official isles verified; artifacts deterministic.
+- ✅ Engine: 225 isle assertions + 137 difficulty/daily + 57 legacy, green. 29 official isles
+  (24 + 5 Twist) verified; artifacts deterministic. (CI's `engine` job does not run
+  `core/test/difficulty.mjs` yet — add one line to `.github/workflows/ci.yml`; `npm test` runs it.)
 - ✅ Client: all screens verified in the browser (title, picker with real mini-map thumbnails,
   play, replay, win, lock modal, builder with live verdict, community tab). Phone-width layout done; the phone builder is a bottom sheet (paint tools first) and the 3D isle is framed above it (`World.setInsetBottom`).
 - ✅ Contribution pipeline: checker + CI + docs + 11 PR scenarios.
@@ -292,7 +372,7 @@ must move to a shared store before running more than one replica.
 |---|---|---|
 | **Builder bot** | "Describe your isle" → LLM writes `rows` → `parseIsle`/`solveIsle`/`checkCommunityIsle` → repair loop → draft in the builder. Never ships unverified output. Claude Haiku for cost. | login, rate limits, cost cap |
 | **Isle drafts** | server-side drafts with 5 versioned slots per isle (v1 §8.1 design, renamed) | — |
-| **Daily isle** | one community isle featured per day, shared leaderboard by moves/time | traffic |
+| **Daily isle** | ✅ shipped in Phase 1 (`/daily`, share text). Next: a moves histogram after a clear from `IslePlay` (Phase 3) | — |
 | **More tiles** | e.g. moving platforms, colour-matched plates/gates, one-way doors. Each one is a schema decision: rules + solver + tests + art + builder tool + docs together | design review |
 | **Themes** | snow-night, cherry blossom, deep-sea | art time |
 | **World (v1 idea)** | stitch isles into a walkable archipelago | strong demand |
@@ -324,6 +404,24 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-10-19 (o) — Phase 1 · Depth with what we have (K2, K3, K7)
+- **Core:** `difficulty.js` — `auditIsle` (moved from `tools/difficulty.mjs`, same numbers), `TIERS`,
+  `provisionalPrior`, `observedScore`, `difficultyScore` (K = 20), `harderHints`, `gutMismatch`;
+  `daily.js` — `dailyPick` / `dailyNumber` / `dailyEpoch` / `dailyShareText`. Tests in
+  `core/test/difficulty.mjs` (in `npm test`), incl. all 24 old hashes unchanged by `tier`.
+- **Decision (ours):** Mythic via "≥ 6 traps" also needs ≥ 30k states — otherwise every crate
+  Twist isle read Mythic at ~6k states (see §3).
+- **Content:** `tier` gut calls on all official isles; 5 Twist isles (table in §5); artifacts
+  regenerated (files renumbered 06–29 because Twists sit inside their chapters).
+- **Data:** `IslePlay` table (no user data) + `POST/GET /api/plays`; publish stores `tier` + `audit`.
+  Migration SQL hand-written to match `prisma migrate diff --from-empty` output and exercised with
+  the plays upsert in PGlite (in-memory Postgres) — never against a real database.
+- **Client:** tier badge + score on every card and the in-game title, play events, builder gut
+  call + live audit + "make it harder" hints, `/daily` + share text, privacy line (help + README).
+- **Daily Isles:** dated hand-made files in `isles/daily/` (`checkDailyIsle`, same gate).
+- **Next:** add `node core/test/difficulty.mjs` to CI's `engine` job; after deploy check
+  `GET /api/plays` and that `IslePlay` exists; Phase 3 moves histogram reads `IslePlay.moves`.
 
 ### 2026-10-19 (n) — stats endpoint + link previews
 - **Added:** `GET /api/stats` (token-gated aggregate counts, off unless `STATS_TOKEN` is set;

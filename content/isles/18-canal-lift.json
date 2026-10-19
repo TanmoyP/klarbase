@@ -3,6 +3,7 @@
   "id": "canal-lift",
   "name": "Canal Lift",
   "theme": "urban",
+  "tier": "easy",
   "hint": "Both bridges must be up at once. A crate on a sinking bridge stays behind as a block.",
   "rows": [
     "- , G T -",

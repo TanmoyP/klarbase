@@ -4,7 +4,7 @@
 // @klar/core isle parser + solver HERE, on the server, from the same module
 // the client uses. Never trust the client; never fork the rules.
 import { Router } from 'express';
-import { ISLE_SCHEMA, parseIsle, solveIsle, canonicalIsle, isleHash, stableStringify } from '@klar/core';
+import { ISLE_SCHEMA, parseIsle, solveIsle, canonicalIsle, isleHash, stableStringify, auditIsle, TIER_IDS } from '@klar/core';
 import { prisma } from '../db.js';
 import { requireAuth, sessionUser } from '../auth.js';
 import { publishLimiter, reportLimiter } from '../middleware.js';
@@ -45,7 +45,8 @@ puzzles.get('/', async (req, res) => {
   const page = rows.slice(0, limit);
   res.json({
     puzzles: page.map(p => { const d = docOf(p);
-      return { ...pub(p), isle:d.schemaVersion === ISLE_SCHEMA, theme:d.theme || null, par:d.par || null, mine:!!user && p.authorId === user.id }; }),
+      return { ...pub(p), isle:d.schemaVersion === ISLE_SCHEMA, theme:d.theme || null, par:d.par || null,
+               tier:d.tier || null, audit:d.audit || null, mine:!!user && p.authorId === user.id }; }),
     nextCursor: rows.length > limit ? page[page.length - 1].hash : null,
   });
 });
@@ -61,6 +62,9 @@ puzzles.post('/', publishLimiter, async (req, res) => {
     return res.status(400).json({ error:'title required (max 60 chars)' });
   if(!puzzle || puzzle.schemaVersion !== ISLE_SCHEMA || !Array.isArray(puzzle.rows))
     return res.status(422).json({ errors:[{ code:'E_SHAPE', text:'not an isle document (schemaVersion 5)' }] });
+  // optional gut call (K3) — presentation, not geometry: it never changes the hash
+  if(puzzle.tier != null && !TIER_IDS.includes(puzzle.tier))
+    return res.status(422).json({ errors:[{ code:'E_TIER', text:`tier must be one of: ${TIER_IDS.join(', ')}` }] });
 
   // 1. parse — the grid must be well formed (tiles, one start, a goal, paired arches…)
   const { ok, errors, level } = parseIsle(puzzle);
@@ -78,10 +82,15 @@ puzzles.post('/', publishLimiter, async (req, res) => {
   if(existing) return res.status(existing.authorId === req.user.id ? 200 : 409)
     .json({ hash, deduped:true, author:pub(existing).author });
 
+  // 4. the solver audit — the provisional difficulty prior when no tier was declared (K3).
+  //    Stored as numbers only, so the picker can score the isle without its rows.
+  const a = auditIsle(level, { maxStates:SOLVE_BUDGET });
+  const audit = { states:a.states, traps:a.traps, greedy:a.greedy, routes:a.routes, par:a.par, capped:a.capped };
+
   const row = await prisma.puzzle.create({
     data:{
       hash, title:title.trim(),
-      json: stableStringify({ ...canonicalIsle(puzzle), par:r.par, solution:r.solution }),
+      json: stableStringify({ ...canonicalIsle(puzzle), par:r.par, solution:r.solution, audit, ...(puzzle.tier ? { tier:puzzle.tier } : {}) }),
       portsJson: '{}',                // isles don't join the (deferred) world lattice
       authorId: req.user.id,
       status: 'live',                 // flip to 'pending' here for pre-moderation

@@ -3,6 +3,7 @@
   "id": "first-frost",
   "name": "First Frost",
   "theme": "mountain",
+  "tier": "breeze",
   "hint": "Ice keeps you sliding. Rocks are your brakes.",
   "rows": [
     "# # G # #",

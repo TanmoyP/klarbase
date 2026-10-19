@@ -3,6 +3,7 @@
   "id": "twin-mirages",
   "name": "Twin Mirages",
   "theme": "oasis",
+  "tier": "breeze",
   "hint": "Two pairs of arches. Ride them in the right order.",
   "rows": [
     "G . - - . q",

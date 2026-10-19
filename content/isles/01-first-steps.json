@@ -3,6 +3,7 @@
   "id": "first-steps",
   "name": "First Steps",
   "theme": "jungle",
+  "tier": "breeze",
   "hint": "Ramps only work along their slope. Find the one facing the goal.",
   "rows": [
     "- - G1 -",

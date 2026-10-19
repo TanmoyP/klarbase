@@ -3,6 +3,7 @@
   "id": "the-peak",
   "name": "The Peak",
   "theme": "mountain",
+  "tier": "tricky",
   "hint": "Everything you have learned, on one mountain.",
   "rows": [
     "- - - G3 - k2 q2",

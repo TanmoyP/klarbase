@@ -3,6 +3,7 @@
   "id": "palm-plates",
   "name": "Palm Plates",
   "theme": "oasis",
+  "tier": "tricky",
   "hint": "One plate for the crate, one for you — so stand where the gate is close.",
   "rows": [
     "# G # . .",

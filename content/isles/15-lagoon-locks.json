@@ -3,6 +3,7 @@
   "id": "lagoon-locks",
   "name": "Lagoon Locks",
   "theme": "tropical",
+  "tier": "easy",
   "hint": "Two keys, three doors. One door is a trap.",
   "rows": [
     "G . K . . k",

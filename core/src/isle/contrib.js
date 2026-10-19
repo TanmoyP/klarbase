@@ -6,13 +6,14 @@
 import { THEMES, ISLE_SCHEMA, parseIsle, isleHash } from './format.js';
 import { solveIsle } from './solve.js';
 import { simulate, initialState, step } from './rules.js';
+import { TIER_IDS } from './difficulty.js';
 
 export const CONTRIB = {
   MIN_PAR: 6,                       // shorter than this is a walk, not a puzzle
   MAX_STATES: 200000,               // solver budget — keeps CI fast and fair
   MAX_BYTES: 8192,
   REQUIRED: ['schemaVersion', 'id', 'name', 'author', 'theme', 'rows', 'par', 'solution'],
-  OPTIONAL: ['hint', 'description', 'credit'],
+  OPTIONAL: ['hint', 'description', 'credit', 'tier'],   // tier = the maker's gut call (K3), one of TIERS
   ID: /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
   AUTHOR: /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/,   // a GitHub login
   NAME: /^[\p{L}\p{N}][\p{L}\p{N} '’&.,!?:-]{1,38}[\p{L}\p{N}!?.]$/u,
@@ -36,23 +37,47 @@ export function mechanicsUsed(level, moves){
 // doc: a parsed community isle file. existing: Map(hash -> label) of every
 // other isle (official + community) for the uniqueness rule.
 // -> { ok, errors:[string], report:{ hash, par, solution, mechanics, explored } }
-export function checkCommunityIsle(doc, { existing = new Map(), bytes = 0 } = {}){
+export const checkCommunityIsle = (doc, opts) => checkIsleFile(doc, opts, CONTRIB);
+
+// Dated Daily Isles: isles/daily/YYYY-MM-DD.json. The same rules as community
+// isles (one code path), except: no author folder (author optional), `id` must
+// be "daily-<date>", a `tier` is REQUIRED, an optional `catch` holds the
+// designer's note (never shown before a clear), and any schema version the
+// parser knows is accepted. date: the file's name without ".json".
+export const DAILY = {
+  REQUIRED: ['schemaVersion', 'id', 'name', 'theme', 'rows', 'par', 'solution', 'tier'],
+  OPTIONAL: ['author', 'hint', 'description', 'credit', 'catch'],
+  DATE: /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/,
+};
+export function checkDailyIsle(doc, { date, ...opts } = {}){
+  return checkIsleFile(doc, opts, { ...DAILY, extra:(d, err) => {
+    const real = typeof date === 'string' && DAILY.DATE.test(date) && new Date(date + 'T00:00:00Z').toISOString().slice(0, 10) === date;
+    if(!real) err('daily isle files are named isles/daily/YYYY-MM-DD.json (a real UTC date)');
+    else if(d.id !== `daily-${date}`) err(`id must be "daily-${date}" to match the file name`);
+  } });
+}
+
+function checkIsleFile(doc, { existing = new Map(), bytes = 0 } = {}, spec = CONTRIB){
   const errors = [], report = {};
   const err = m => errors.push(m);
   if(!doc || typeof doc !== 'object' || Array.isArray(doc)) return { ok:false, errors:['file must be a JSON object'], report };
   if(bytes > CONTRIB.MAX_BYTES) err(`file is ${bytes} bytes — keep isles under ${CONTRIB.MAX_BYTES}`);
-  for(const k of CONTRIB.REQUIRED) if(!(k in doc)) err(`missing required field "${k}"`);
-  for(const k of Object.keys(doc)) if(!CONTRIB.REQUIRED.includes(k) && !CONTRIB.OPTIONAL.includes(k)) err(`unknown field "${k}" (allowed: ${[...CONTRIB.REQUIRED, ...CONTRIB.OPTIONAL].join(', ')})`);
+  for(const k of spec.REQUIRED) if(!(k in doc)) err(`missing required field "${k}"`);
+  for(const k of Object.keys(doc)) if(!spec.REQUIRED.includes(k) && !spec.OPTIONAL.includes(k)) err(`unknown field "${k}" (allowed: ${[...spec.REQUIRED, ...spec.OPTIONAL].join(', ')})`);
   if(errors.length) return { ok:false, errors, report };
 
-  if(doc.schemaVersion !== ISLE_SCHEMA) err(`schemaVersion must be ${ISLE_SCHEMA}`);
+  // dailies accept every schema version the parser knows (5 now, 6 with storeys)
+  if(spec === CONTRIB ? doc.schemaVersion !== ISLE_SCHEMA : !(Number.isInteger(doc.schemaVersion) && doc.schemaVersion >= 5 && doc.schemaVersion <= ISLE_SCHEMA)) err(`schemaVersion must be ${ISLE_SCHEMA}`);
   if(typeof doc.id !== 'string' || !CONTRIB.ID.test(doc.id) || doc.id.length > 40) err('id must be lowercase-words-with-dashes, up to 40 chars');
   if(typeof doc.name !== 'string' || !CONTRIB.NAME.test(doc.name)) err('name must be 3–40 letters, numbers, spaces or simple punctuation');
-  if(typeof doc.author !== 'string' || !CONTRIB.AUTHOR.test(doc.author)) err('author must be your GitHub username');
+  if((spec.REQUIRED.includes('author') || 'author' in doc) && (typeof doc.author !== 'string' || !CONTRIB.AUTHOR.test(doc.author))) err('author must be your GitHub username');
   if(!THEMES.includes(doc.theme)) err(`theme must be one of: ${THEMES.join(', ')}`);
+  if('tier' in doc && !TIER_IDS.includes(doc.tier)) err(`tier must be one of: ${TIER_IDS.join(', ')}`);
   if('hint' in doc && !cleanText(doc.hint, 140)) err('hint must be plain text, up to 140 chars, no links');
   if('description' in doc && !cleanText(doc.description, 240)) err('description must be plain text, up to 240 chars, no links');
   if('credit' in doc && !cleanText(doc.credit, 40)) err('credit must be plain text, up to 40 chars, no links');
+  if('catch' in doc && !cleanText(doc.catch, 200)) err('catch must be plain text, up to 200 chars, no links');
+  if(spec.extra) spec.extra(doc, err);
   if(!Number.isInteger(doc.par)) err('par must be an integer');
   if(typeof doc.solution !== 'string' || !/^[UDLRX]*$/.test(doc.solution)) err('solution must be a string of U D L R X');
   if(errors.length) return { ok:false, errors, report };
@@ -89,5 +114,6 @@ export function toCommunityFile(doc, author){
   const out = { schemaVersion:ISLE_SCHEMA, id, name:doc.name, author, theme:doc.theme || 'jungle',
                 rows:doc.rows.map(r => r.trim().split(/\s+/).join(' ')), par:r.par || 0, solution:r.solution || '' };
   if(doc.hint) out.hint = doc.hint;
+  if(TIER_IDS.includes(doc.tier)) out.tier = doc.tier;    // the maker's gut call, if they made one
   return out;
 }

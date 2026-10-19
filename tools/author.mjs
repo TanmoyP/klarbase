@@ -41,9 +41,9 @@ CURATED_ISLES.forEach((isle, i) => {
   console.log(`${tag}  ${String(i + 1).padStart(2)} ${isle.name.padEnd(14)} ${isle.theme.padEnd(9)} par ${String(isle.par).padStart(2)}  ${errs.join('; ')}`);
   if(errs.length){ fail++; return; }
   const file = `${String(i + 1).padStart(2, '0')}-${isle.id}.json`;
-  const doc = { schemaVersion:5, id:isle.id, name:isle.name, theme:isle.theme, hint:isle.hint, rows:isle.rows.map(r => r.trim().split(/\s+/).join(' ')), par:isle.par, solution:isle.solution };
+  const doc = { schemaVersion:5, id:isle.id, name:isle.name, theme:isle.theme, tier:isle.tier, ...(isle.twist ? { twist:true } : {}), hint:isle.hint, rows:isle.rows.map(r => r.trim().split(/\s+/).join(' ')), par:isle.par, solution:isle.solution };
   fs.writeFileSync(path.join(OUT, file), JSON.stringify(doc, null, 2) + '\n');
-  manifest.isles.push({ order:i + 1, id:isle.id, name:isle.name, theme:isle.theme, par:isle.par, mechanics:used, hash:isleHash(isle), file });
+  manifest.isles.push({ order:i + 1, id:isle.id, name:isle.name, theme:isle.theme, tier:isle.tier, ...(isle.twist ? { twist:true } : {}), par:isle.par, mechanics:used, hash:isleHash(isle), file });
 });
 if(fail){ console.log(`\n${fail} official isle(s) FAILED`); process.exit(1); }
 fs.writeFileSync(path.join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
