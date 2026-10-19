@@ -8,7 +8,7 @@ isles/daily/2026-10-20.json
 
 On a date that has a file, everyone plays that isle. On a date without one, the game picks
 from a pool (Twist isles, Tricky-or-harder official isles, community isles) — the same pick
-for everyone. Dailies are numbered from the first dated file (`Klarbase Daily #1` = its date).
+for everyone. Dailies are numbered from 2026-10-19 (`Klarbase Daily #1`); adding a file never renumbers them.
 
 ## The file
 

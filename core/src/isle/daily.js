@@ -3,14 +3,15 @@
 // picks from a pool (Twist isles, Tricky+ official isles, community isles).
 // Pure: the date is passed in, so a test, a server and every browser agree.
 
-export const DAILY_EPOCH = '2026-10-19';   // Daily #1 when there are no dated files yet
+export const DAILY_EPOCH = '2026-10-19';   // Daily #1 (live from the pool since that day)
 const DAY = 86400000;
 
 export const utcDate = (d = new Date()) => d.toISOString().slice(0, 10);
-// Daily number: #1 is the epoch (the first dated file's date, if any).
+// Daily number: #1 is the epoch. Numbers already shared must never shift, so a
+// dated file can only move the epoch EARLIER (a backfilled date), never later.
 export const dailyNumber = (date, epoch = DAILY_EPOCH) =>
   Math.floor((Date.parse(date + 'T00:00:00Z') - Date.parse(epoch + 'T00:00:00Z')) / DAY) + 1;
-export const dailyEpoch = datedDates => [...datedDates].sort()[0] || DAILY_EPOCH;
+export const dailyEpoch = datedDates => [...datedDates, DAILY_EPOCH].sort()[0];
 
 // Deterministic shuffle of the pool (a fixed-seed LCG over the sorted keys),
 // walked one isle per day: no repeats until every isle has had its day.
