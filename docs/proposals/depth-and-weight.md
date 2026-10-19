@@ -1,8 +1,26 @@
 # Proposal — Depth, difficulty and one new physics: **Weight**
 
-> Status: **proposal, not built.** Every new tile here is a schema decision (CLAUDE.md rule 4).
-> Written 2026-10-19 after the first real-player feedback: *"not challenging enough, no new or
-> novel mechanic."* Data from `node tools/difficulty.mjs`; research sources at the end.
+> Status: **accepted 2026-10-19 — see [§0 Decisions](#0-decisions-2026-10-19).** Not built yet.
+> Every new tile here is a schema decision (CLAUDE.md rule 4). Written after the first
+> real-player feedback: *"not challenging enough, no new or novel mechanic."* Data from
+> `node tools/difficulty.mjs`; research sources at the end.
+
+---
+
+## 0. Decisions (2026-10-19)
+
+The founder approved the proposal with these decisions. They override anything below that disagrees.
+
+| # | decision | detail |
+|---|---|---|
+| **K1** | **Weight is the next physics** | Sky Scales → Balloon (weight 0 + glide) → Buoy (weight −1). §3. |
+| **K2** | **A catch is optional** | Simple isles stay valid; nothing in the PR gate asks for a catch. The builder shows the live difficulty score and **"make it harder" hints** from the audit (e.g. *walking toward the star wins — block the direct line*; *no move can go wrong — put a crate near water or a ledge*; *3 shortest routes — narrow it to one*). Designers of official Twist isles still write their catch down first. |
+| **K3** | **Every isle has a difficulty score, and it evolves** | §4. Starts from the maker's **gut call** (declared tier); real player results take over as plays accumulate. Never derived from tile counts or layout. Isles without a declared tier get a provisional estimate from the solver audit until players weigh in. |
+| **K4** | **Multi-storey isles (Archipelago maps)** | Up to 3 isles per map at different positions and altitudes — one can float directly above another — linked by **gateways**. §3.4. |
+| **K5** | **Danger = cozy hazards, no gore** | Turn-based hazards with visible timing; getting hit bonks Pip and rewinds that move. Optional dark **Night** theme for mood. §3.6. |
+| **K6** | **Wind = gust vents** | Optional vent tiles blow along a line and push only light things (weight ≤ 0). Ships with the balloon. §3.5. |
+| **K7** | **Anonymous per-isle stats** | Aggregate counters per isle (started, cleared, moves, hints, restarts, time buckets). No user IDs, no cookies, nothing per person. One line in the privacy note. Powers K3 and the moves histogram. |
+| **K8** | **Staged execution** | Phase 1 and Phase 2 run in parallel (separate worktrees and PRs); Phases 3 and 4 run one after another, since every rule edits the same engine files. Founder reviews and merges each phase. Drift (§3.7) moves to the backlog. |
 
 ---
 
@@ -33,7 +51,7 @@ hurts onboarding.
 | Easier on-ramps rescue bounced players | Snakebird's devs shipped *Snakebird Primer* for people who "bounced off" | our 24 isles become the Primer; label them honestly |
 | Being stuck is fine if you can go elsewhere | Primer and A Monster's Expedition: non-linear, several puzzles open at once | always ≥ 3 open isles; never a single blocking gate |
 | Great puzzles start from one intended action | Alan Hazelden: pick the action, build a draft, then "whack a mole" the shortcuts | our solver *is* the whack-a-mole: it lists every unintended route |
-| The "catch" is an apparent contradiction | GMTK: you need to stand on the button **and** be at the door | design each isle around one catch, written down before building |
+| The "catch" is an apparent contradiction | GMTK: you need to stand on the button **and** be at the door | official Twist isles are designed around a written catch; for everyone else it's an optional builder hint (K2) |
 | Optimising after solving doubles replay | Zachtronics histograms: "just solving the levels was only half the fun" | after a clear, show where your move count sits among all players |
 | One shared daily puzzle + spoiler-free share | Wordle: 90 players → 300k in two months, spread by shared result grids | **Daily Isle** with a shareable result (moves vs par, no route) |
 | Player-made levels sustain a game | Super Mario Maker: 7.2M courses, 600M plays in year one | we already have the builder + PR gate; feature community isles daily |
@@ -95,7 +113,38 @@ A crate tied to a balloon. It weighs **−1**.
 - **Catch:** *the bridge that drifts* — a buoy is a moving one-tile bridge; where you leave it
   decides which shore you can reach next.
 
-### 3.4 Not now: Drift (the big swing)
+### 3.4 Archipelago maps — multi-storey isles (K4)
+
+A map can hold **up to 3 isles** ("storeys"), each its own grid (≤ 14×14), placed at an offset and
+an altitude, so one isle can hang directly above another. **Gateways** link them: a paired arch
+that carries Pip from one storey to another, exactly like today's arches but across isles.
+
+- **Built on:** the existing arch rule; inside each storey every rule is unchanged.
+- **Format:** new `schemaVersion: 6` with `storeys: [{ rows, at:[x, z, altitude] }]`; v5 single-isle
+  files stay valid forever. Gateways pair across storeys.
+- **Engine:** storeys are flattened into one indexed cell list; movement never crosses a storey
+  edge except through a gateway. Solver state is unchanged in shape.
+- **With weight:** Sky Scales whose pans are on **different storeys** — load the lower isle to lift
+  the upper one — is the signature puzzle of the chapter.
+- **Camera:** frames the storey Pip is on; a toggle zooms out to the whole map.
+
+### 3.5 Gust vents — wind decides by weight (K6)
+
+A vent tile points one way and blows along its line until something solid or higher blocks it.
+After each move, every **light** thing in a gust (balloon-Pip, buoys) is pushed one tile downwind.
+Crates and normal Pip ignore it. Gusts stop at isle edges (they never blow anything off).
+Built on the push rule; no new state.
+
+### 3.6 Cozy hazards (K5)
+
+Deterministic, telegraphed, turn-based: e.g. a **thorn sweeper** that turns a quarter each move,
+a **rolling boulder** that travels its lane one tile per move. If a hazard would reach Pip, Pip
+bonks and the move is undone (it doesn't count). No injury is shown. Adds *avoid* and *timing*
+puzzles — goals stop being "walk toward the star". Solver state gains one turn counter (mod the
+hazards' shared cycle, capped at 12). An optional dark **Night** theme (lanterns, fireflies) gives
+mood without gore.
+
+### 3.7 Backlog: Drift (the big swing)
 
 Whole isles that sail one cell when Pip raises a sail, docking with others — you rearrange the
 archipelago while standing on it. No game found doing this, and it would be striking, but it
@@ -109,7 +158,28 @@ rotating the view to change gravity (Space Revolver, Flip My World). Weight fits
 
 ## 4. Difficulty: from super easy to "impossible" (always solvable)
 
-Rate every isle by the audit, not by gut feel. Proposed tiers, calibrated later with real data:
+### 4.1 The difficulty score (K3) — gut first, players decide
+
+Every isle shows a **score from 0 to 100** and its tier, always.
+
+1. **Prior = gut call.** Official isles: the designer's `tier` in `isles.js`. Community and shared
+   isles: the author picks a tier in the builder (stored as `tier` in the isle file). If no tier was
+   declared, the prior is a provisional estimate from the solver audit (table below).
+2. **Observed = what players did**, from the anonymous stats (K7): clear rate, hints per attempt,
+   median moves over par, median time to clear, restarts. Combined into 0–100.
+3. **Score = (K · prior + n · observed) / (K + n)**, with n = attempts and K = 20. The maker's gut
+   counts like 20 players; by a few hundred plays the crowd has decided. Recomputed as stats
+   arrive, so the score keeps evolving.
+4. Until n ≥ 20 the card says **"settling"** next to the tier. The builder warns (never blocks) when
+   the gut call and the audit disagree badly — e.g. declared Mythic but walking toward the star wins.
+5. One pure function in `@klar/core` (`difficulty.js`) computes it, so client, server and the
+   daily pick always agree.
+
+Tier bands on the score: Breeze 0–15 · Easy 15–35 · Tricky 35–55 · Hard 55–72 · Fiendish 72–88 · Mythic 88–100.
+
+### 4.2 Audit targets (designer guidance and provisional prior)
+
+Used to design official isles and as the provisional prior when no tier is declared:
 
 | tier | reachable states | traps | greedy wins? | shortest routes | where |
 |---|---|---|---|---|---|
@@ -139,22 +209,19 @@ Rate every isle by the audit, not by gut feel. Proposed tiers, calibrated later 
 
 ## 6. Plan
 
-| phase | what | new rules? | size |
+| phase | what | new rules? | runs |
 |---|---|---|---|
-| **1 · Depth with what we have** | tier badges from the audit; 5 **Twist** isles (one per chapter, Hard–Fiendish); Daily Isle + share card | no | S–M |
-| **2 · Weight I: Sky Scales** | rule + solver + tests + art (vine, pans) + builder tool + 8 isles, Tricky → Mythic | yes | M |
-| **3 · Weight II** | Balloon & glide, Buoy, seeds; 10 isles; histogram | yes | M–L |
-| **4 · Drift spike** | prototype only; decide from playtests | yes | L |
+| **1 · Depth with what we have** | `core/src/isle/difficulty.js` (audit + K3 score); anonymous stats (K7); tier + score on every card; `tier` field for isles; builder score + "make it harder" hints; 5 **Twist** isles (Hard–Fiendish, existing mechanics); **Daily Isle** + share card | no | parallel with 2 |
+| **2 · Archipelago + Sky Scales** | schema 6 storeys + gateways (K4); Sky Scales (K1) incl. pans across storeys; art, builder, tests; 8 isles Tricky → Mythic | yes | parallel with 1 |
+| **3 · Weight II** | Balloon & glide, Buoy, Gust vents (K6), seeds; moves histogram UI; 10 isles | yes | after 1 + 2 merge |
+| **4 · Danger** | cozy hazards (K5) + Night theme; 6 isles | yes | after 3 |
+| backlog | Drift | yes | — |
 
 Each phase ends with a check against real players: clear rate per tier, restarts, hint use.
 
-## 7. Decisions needed from you
+## 7. Decisions
 
-1. **Weight as the next physics** — Sky Scales first? (the rule-4 schema decision)
-2. **Phase 1 now** — Twist isles + tiers + Daily Isle, before any new rule?
-3. **Anonymous per-isle stats** (started / cleared / moves / hints, no user IDs) — for tiers and the
-   histogram. Needs a line in the privacy note.
-4. Balloon, Buoy and seeds in Phase 3, or cut?
+Settled 2026-10-19 — see [§0](#0-decisions-2026-10-19).
 
 ---
 
