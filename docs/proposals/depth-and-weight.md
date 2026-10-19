@@ -21,6 +21,8 @@ The founder approved the proposal with these decisions. They override anything b
 | **K6** | **Wind = gust vents** | Optional vent tiles blow along a line and push only light things (weight ≤ 0). Ships with the balloon. §3.5. |
 | **K7** | **Anonymous per-isle stats** | Aggregate counters per isle (started, cleared, moves, hints, restarts, time buckets). No user IDs, no cookies, nothing per person. One line in the privacy note. Powers K3 and the moves histogram. |
 | **K8** | **Staged execution** | Phase 1 and Phase 2 run in parallel (separate worktrees and PRs); Phases 3 and 4 run one after another, since every rule edits the same engine files. Founder reviews and merges each phase. Drift (§3.7) moves to the backlog. |
+| **K9** | **Stone + brace rule** | Pip carries one thing at a time: nothing = weight 1, balloon = 0, **stone = 2** (from a stone pile; put back only at a pile, so it is never a free counterweight). **Brace rule:** pushing *into* a gust needs weight greater than the gust's strength (normal gust = 1), so only stone-Pip can push a crate upwind. A pushed crate stays put (weight 1 isn't moved by strength 1). Strong gales (strength 2) deferred. §3.5. Phase 3. |
+| **K10** | **Daily isle agent** | A triggerable Claude Code agent (`/daily-isle`) that reads the project history, rules, past dailies and player stats, then designs one new solver-verified isle per day into `isles/daily/YYYY-MM-DD.json` and opens a PR. Phase 4; built as soon as Phase 1's daily folder exists. |
 
 ---
 
@@ -135,6 +137,19 @@ After each move, every **light** thing in a gust (balloon-Pip, buoys) is pushed 
 Crates and normal Pip ignore it. Gusts stop at isle edges (they never blow anything off).
 Built on the push rule; no new state.
 
+**Stone and the brace rule (K9).** Pip holds one thing at a time:
+
+| Pip holding | weight | scales | plates | in a gust | glide |
+|---|---|---|---|---|---|
+| nothing | 1 | counts 1 | presses | stands | no |
+| balloon | 0 | ignored | no | blown | yes |
+| stone | 2 | counts 2 | presses | stands firm | no |
+
+Pushing *into* a gust needs weight greater than the gust's strength (1 for a normal vent), so a
+crate can only be pushed upwind by stone-Pip. Stones come from a pile and go back only at a pile.
+The trade: the stone wins the wind and outweighs a crate on scales, but rules out the balloon.
+State adds one field (what Pip holds).
+
 ### 3.6 Cozy hazards (K5)
 
 Deterministic, telegraphed, turn-based: e.g. a **thorn sweeper** that turns a quarter each move,
@@ -213,8 +228,8 @@ Used to design official isles and as the provisional prior when no tier is decla
 |---|---|---|---|
 | **1 · Depth with what we have** | `core/src/isle/difficulty.js` (audit + K3 score); anonymous stats (K7); tier + score on every card; `tier` field for isles; builder score + "make it harder" hints; 5 **Twist** isles (Hard–Fiendish, existing mechanics); **Daily Isle** + share card | no | parallel with 2 |
 | **2 · Archipelago + Sky Scales** | schema 6 storeys + gateways (K4); Sky Scales (K1) incl. pans across storeys; art, builder, tests; 8 isles Tricky → Mythic | yes | parallel with 1 |
-| **3 · Weight II** | Balloon & glide, Buoy, Gust vents (K6), seeds; moves histogram UI; 10 isles | yes | after 1 + 2 merge |
-| **4 · Danger** | cozy hazards (K5) + Night theme; 6 isles | yes | after 3 |
+| **3 · Weight II** | Balloon & glide, Buoy, Gust vents (K6), **Stone + brace rule (K9)**, seeds; moves histogram UI; 10 isles | yes | after 1 + 2 merge |
+| **4 · Danger + daily** | cozy hazards (K5) + Night theme; 6 isles; **Daily isle agent (K10)** | yes | after 3 |
 | backlog | Drift | yes | — |
 
 Each phase ends with a check against real players: clear rate per tier, restarts, hint use.
