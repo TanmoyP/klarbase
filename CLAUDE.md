@@ -99,3 +99,4 @@ npm run check                    # syntax sanity
 
 - Feature branches → PR → green CI (`engine`, `isles`, `sanity`) → merge.
 - Update `ENGINEERING.md` at session end if anything structural changed.
+- Use Plan Mode before new features, significant design tradeoffs, and bugs that survive the first attempted fix.
