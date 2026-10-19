@@ -259,9 +259,13 @@ POST   /api/puzzles   {title, puzzle}      login; isle publish gate: parse → s
 DELETE /api/puzzles/:hash                  own only
 POST   /api/puzzles/:hash/report           login; ≥ 3 reports auto-hide
 /api/world/*                               legacy world lattice — deferred, hidden in the UI; isles are refused
+GET    /api/stats                          maintainer aggregates (counts only); 404 unless STATS_TOKEN is set and sent as Bearer
 ```
 No schema migration was needed: isles reuse `Puzzle` (`json` holds the canonical isle + `par`
 + `solution`; `portsJson` = `'{}'`). Rate limits unchanged (publish 20/h).
+
+**Stats (2026-10-19).** `/api/stats` returns `{users, users7d, isles, isles7d, sharers7d}`: counts
+only, no ids, names or emails, no new table. Plays and clears are **not** measured anywhere yet.
 
 ---
 
@@ -314,6 +318,14 @@ must move to a shared store before running more than one replica.
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-10-19 (n) — stats endpoint + link previews
+- **Added:** `GET /api/stats` (token-gated aggregate counts, off unless `STATS_TOKEN` is set;
+  async errors go to the error handler. The older async routes still don't, so a DB outage
+  there can crash the process). OG/Twitter meta tags in `client/index.html` (image = the README
+  screenshot served by GitHub, no art files in the client). `STATS_TOKEN` in `.env.example`.
+- **Note:** any path (e.g. `/go/<label>`) serves the game through the server's `*` fallback.
+- **Next:** set `STATS_TOKEN` in Railway after deploy.
 
 ### 2026-10-19 (m) — open source launch
 - **Decisions:** MIT for code and isles; repo goes public.
