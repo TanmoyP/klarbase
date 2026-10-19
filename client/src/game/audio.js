@@ -55,6 +55,7 @@ export const sfx = {
   toggle:() => { tone(160, { dur:0.12, type:'square', gain:0.04 }); [0, 2, 4].forEach((n, i) => tone(note(n), { dur:0.5, type:'triangle', gain:0.035, at:0.06 + i * 0.04 })); },
   gate:open => { tone(open ? 80 : 120, { dur:0.5, type:'sawtooth', gain:0.03, to:open ? 140 : 70 }); noise({ dur:0.4, gain:0.035, freq:200, type:'lowpass' }); },
   fall:() => { tone(300, { dur:0.35, gain:0.08, to:90 }); noise({ dur:0.3, gain:0.05, freq:600, at:0.15 }); },
+  scales:up => { tone(up ? 140 : 180, { dur:0.42, type:'triangle', gain:0.05, to:up ? 200 : 110 }); noise({ dur:0.3, gain:0.03, freq:700, type:'lowpass' }); },   // a woody creak as the vine settles
   bonk:() => { tone(260, { dur:0.12, type:'sine', gain:0.06, to:180 }); },
   undo:() => { tone(note(3) * 2, { dur:0.08, type:'sine', gain:0.04, to:note(1) * 2 }); },
   ui:() => { tone(note(5) * 2, { dur:0.06, type:'triangle', gain:0.035 }); },

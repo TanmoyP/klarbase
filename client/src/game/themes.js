@@ -69,5 +69,5 @@ export const THEMES = {
   },
 };
 
-export const PORTAL_COLORS = { p:'#4ff0ff', q:'#ff72d8' };
+export const PORTAL_COLORS = { p:'#4ff0ff', q:'#ff72d8', r:'#a6ff5c' };   // r = arch C (maps only)
 export const themeOf = name => THEMES[name] || THEMES.jungle;

@@ -424,6 +424,125 @@
       ],
       "hash": "7a7bf5be483ebc5bb06f05dc7ea69163ea5affa844f6b1d25643189e674fa760",
       "file": "29-frost-ferry.json"
+    },
+    {
+      "order": 30,
+      "id": "counterweight",
+      "name": "Counterweight",
+      "theme": "jungle",
+      "tier": "tricky",
+      "par": 15,
+      "mechanics": [
+        "push",
+        "scales"
+      ],
+      "hash": "d7a6849b3f20ed45e12973f19dda636245fa45d8c69e7943d2d7b804684840ac",
+      "file": "30-counterweight.json"
+    },
+    {
+      "order": 31,
+      "id": "high-arch",
+      "name": "High Arch",
+      "theme": "tropical",
+      "tier": "tricky",
+      "par": 31,
+      "mechanics": [
+        "push",
+        "scales",
+        "gateway"
+      ],
+      "hash": "f69e2de5eb43cf8085443cfd7c911d2356b286ddae86a6fdbef976ed7276cfec",
+      "file": "31-high-arch.json"
+    },
+    {
+      "order": 32,
+      "id": "three-storeys",
+      "name": "Three Storeys",
+      "theme": "tropical",
+      "tier": "hard",
+      "par": 46,
+      "mechanics": [
+        "push",
+        "scales",
+        "gateway"
+      ],
+      "hash": "7e377d1b04b1c1875720ca0efc98e05a8b2e0794618a6e0326c35c2f5252b402",
+      "file": "32-three-storeys.json"
+    },
+    {
+      "order": 33,
+      "id": "own-weight",
+      "name": "Own Weight",
+      "theme": "jungle",
+      "tier": "hard",
+      "par": 23,
+      "mechanics": [
+        "push",
+        "scales"
+      ],
+      "hash": "4b59c394390fb3cfab301d70d73c55a08f7fd6a983866895cb31f59529c683fd",
+      "file": "33-own-weight.json"
+    },
+    {
+      "order": 34,
+      "id": "the-crane",
+      "name": "The Crane",
+      "theme": "jungle",
+      "tier": "hard",
+      "par": 38,
+      "mechanics": [
+        "push",
+        "sink",
+        "scales",
+        "gateway"
+      ],
+      "hash": "c5a1f6ce0394494f07f810b873bb818f13dc7d8ef4f2969c1028d79ce09bb0df",
+      "file": "34-the-crane.json"
+    },
+    {
+      "order": 35,
+      "id": "spend-a-crate",
+      "name": "Spend a Crate",
+      "theme": "jungle",
+      "tier": "fiendish",
+      "par": 31,
+      "mechanics": [
+        "push",
+        "sink",
+        "scales"
+      ],
+      "hash": "cf42517922717c7eed8a6ebb8c8f39837f06a47ff5b8fdc25ebd172bf9211c2b",
+      "file": "35-spend-a-crate.json"
+    },
+    {
+      "order": 36,
+      "id": "garden-lift",
+      "name": "Garden Lift",
+      "theme": "tropical",
+      "tier": "fiendish",
+      "par": 27,
+      "mechanics": [
+        "push",
+        "scales",
+        "gateway"
+      ],
+      "hash": "6683f6f7abff97802b0243ea12505159c6aa8bcfd26a1438a3f8c0835317a357",
+      "file": "36-garden-lift.json"
+    },
+    {
+      "order": 37,
+      "id": "sky-scales",
+      "name": "Sky Scales",
+      "theme": "tropical",
+      "tier": "mythic",
+      "par": 43,
+      "mechanics": [
+        "push",
+        "scales",
+        "gateway"
+      ],
+      "hash": "61e28e8cece0d2b98a0042a5ef344cf09ef19491c1acaad772b2da2b5115f87e",
+      "file": "37-sky-scales.json"
     }
   ]
 }

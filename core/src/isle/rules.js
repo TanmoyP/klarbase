@@ -14,7 +14,13 @@
 //     '_' do the opposite. A crate on a sinking bridge drops in and stays as a
 //     permanent stepping block — the one way to keep a crossing through a flip.
 //  6. Keys open doors (one key per door). Stepping into a portal arch sends you
-//     to its twin.  7. Reach a goal to clear the isle.
+//     to its twin — on an archipelago map, an arch pair across storeys is a
+//     GATEWAY, the only way between storeys.  7. Reach a goal to clear the isle.
+//  Sky Scales (K1): two pans hang from one vine. After each move settles, the
+//     heavier pan sits one level below its base, the lighter one level above,
+//     equal = base. Whatever stands on a pan rides with it; no cascades. Pan
+//     heights follow from where Pip and the crates are, so the state never grows,
+//     and a move is judged with the heights at its START (like gates and plates).
 import { MOVE_DIRS, OPP } from './format.js';
 
 export function initialState(level){
@@ -26,12 +32,35 @@ const clone = s => ({ p:s.p, crates:s.crates.slice(), filled:s.filled.slice(), k
 const sorted = a => a.slice().sort((x,y) => x-y).join(',');
 export const stateKey = s => `${s.p}|${sorted(s.crates)}|${sorted(s.filled)}|${s.keys}|${sorted(s.got)}|${sorted(s.opened)}|${s.flip?1:0}`;
 
+// Next cell in direction m, or -1 off the grid. Never crosses a storey edge.
 export function neighbor(level, i, m){
   const x = i % level.w + MOVE_DIRS[m][0], z = ((i / level.w) | 0) + MOVE_DIRS[m][1];
-  return (x < 0 || z < 0 || x >= level.w || z >= level.h) ? -1 : z*level.w + x;
+  if(x < 0 || z < 0 || x >= level.w || z >= level.h) return -1;
+  const j = z*level.w + x;
+  return level.sid && level.sid[j] !== level.sid[i] ? -1 : j;
 }
 
 export const bridgeUp = (cell, s) => cell.on ? !s.flip : s.flip;
+
+// What things weigh (K1). Phase 3 adds balloon-Pip (0) and buoys (−1) here and
+// in panTilt's sum — heights, rules and the solver need nothing else.
+export const WEIGHT = { pip:1, crate:1 };
+
+// -1 | 0 | 1: which way the scales lean in state s. +1 = pan A is heavier
+// (A sits at base − 1, B at base + 1); 0 = balanced (both at base).
+export function panTilt(level, s){
+  if(!level.pans) return 0;
+  let a = 0, b = 0;
+  const load = (i, w) => { const p = level.cells[i].pan; if(p === 'a') a += w; else if(p === 'b') b += w; };
+  load(s.p, WEIGHT.pip);
+  for(const c of s.crates) load(c, WEIGHT.crate);
+  return Math.sign(a - b);
+}
+// Height of cell i with the scales leaning `tilt`. Pans move; nothing else does.
+export const heightAt = (level, i, tilt) => {
+  const c = level.cells[i];
+  return c.pan ? c.h + (c.pan === 'a' ? -tilt : tilt) : c.h;
+};
 
 // Gates read the occupancy at the START of a move: stand on the plate, step
 // into the gate. A gate that closes on you never traps you — leaving is free.
@@ -44,7 +73,7 @@ function walkable(level, s, i, gateOpen){
   const c = level.cells[i];
   switch(c.kind){
     case 'ground': case 'goal': case 'plate': case 'lever': case 'ice':
-    case 'portal': case 'ramp': return true;
+    case 'portal': case 'ramp': case 'pan': return true;
     case 'water':  return s.filled.includes(i);
     case 'bridge': return bridgeUp(c, s) || s.filled.includes(i);
     case 'gate':   return gateOpen || s.p === i;
@@ -53,34 +82,35 @@ function walkable(level, s, i, gateOpen){
   }
 }
 
-// Height the walker is at when LEAVING cell c in direction m / ENTERING it.
-// Ramps are one level tall and only usable along their slope.
-const exitH  = (c, m) => c.kind !== 'ramp' ? c.h : m === c.dir ? c.h + 1 : m === OPP[c.dir] ? c.h : null;
-const entryH = (c, m) => c.kind !== 'ramp' ? c.h : m === c.dir ? c.h : m === OPP[c.dir] ? c.h + 1 : null;
+// Height the walker is at when LEAVING cell c (standing height h) in direction
+// m / ENTERING it. Ramps are one level tall and only usable along their slope.
+const exitH  = (c, h, m) => c.kind !== 'ramp' ? h : m === c.dir ? h + 1 : m === OPP[c.dir] ? h : null;
+const entryH = (c, h, m) => c.kind !== 'ramp' ? h : m === c.dir ? h : m === OPP[c.dir] ? h + 1 : null;
 
-// -> 'flat' | 'ramp' | 'down' | null
-function heightStep(a, b, m){
-  const ea = exitH(a, m), eb = entryH(b, m);
+// -> 'flat' | 'ramp' | 'down' | null   (tilt = the scales at the start of the move)
+function heightStep(level, from, to, m, tilt){
+  const a = level.cells[from], b = level.cells[to];
+  const ea = exitH(a, heightAt(level, from, tilt), m), eb = entryH(b, heightAt(level, to, tilt), m);
   if(ea == null || eb == null) return null;
   if(ea === eb) return (a.kind === 'ramp' || b.kind === 'ramp') ? 'ramp' : 'flat';
   if(ea === eb + 1 && a.kind !== 'ramp' && b.kind !== 'ramp') return 'down';
   return null;
 }
 
-function playerCanEnter(level, s, from, to, m, gateOpen){
+function playerCanEnter(level, s, from, to, m, gateOpen, tilt){
   if(to < 0 || !walkable(level, s, to, gateOpen)) return null;
-  return heightStep(level.cells[from], level.cells[to], m);
+  return heightStep(level, from, to, m, tilt);
 }
 
 // Can a crate move from -> to? Crates never use ramps or portals, never cover
 // goals, levers or uncollected keys. Returns null, 'move' or 'sink'.
-function crateCanEnter(level, s, from, to, gateOpen){
+function crateCanEnter(level, s, from, to, gateOpen, tilt){
   if(to < 0 || to === s.p || s.crates.includes(to)) return null;
-  const a = level.cells[from], b = level.cells[to];
-  if(b.kind === 'ramp' || !(b.h === a.h || b.h === a.h - 1)) return null;
+  const b = level.cells[to], ha = heightAt(level, from, tilt), hb = heightAt(level, to, tilt);
+  if(b.kind === 'ramp' || !(hb === ha || hb === ha - 1)) return null;
   switch(b.kind){
     case 'ground': return level.keys.includes(to) && !s.got.includes(to) ? null : 'move';
-    case 'plate': case 'ice': return 'move';
+    case 'plate': case 'ice': case 'pan': return 'move';
     case 'water':  return s.filled.includes(to) ? 'move' : 'sink';
     case 'bridge': return (bridgeUp(b, s) || s.filled.includes(to)) ? 'move' : null;
     case 'gate':   return gateOpen ? 'move' : null;
@@ -91,10 +121,10 @@ function crateCanEnter(level, s, from, to, gateOpen){
 
 // One move. Returns { ok:false } for a blocked move (state untouched), else
 // { ok:true, state, events, won }. events drive animation, in play order:
-//   walk{from,to,kind} slide{from,to} tp{from,to} push{from,to} cslide{from,to}
-//   sink{at} fall{at} key{at} door{at} toggle{flip} gate{open} win
+//   walk{from,to,kind} slide{from,to} tp{from,to,gateway?} push{from,to} cslide{from,to}
+//   sink{at} fall{at} key{at} door{at} toggle{flip} scales{from,tilt} gate{open} win
 export function step(level, s0, move){
-  const before = gatesOpen(level, s0);
+  const before = gatesOpen(level, s0), tilt = panTilt(level, s0);
   const events = [];
   let s;
 
@@ -113,7 +143,7 @@ export function step(level, s0, move){
     const dir = MOVE_DIRS[move];
     if(!dir) return { ok:false };
     const to = neighbor(level, s0.p, move);
-    const kind = playerCanEnter(level, s0, s0.p, to, move, before);
+    const kind = playerCanEnter(level, s0, s0.p, to, move, before, tilt);
     if(!kind) return { ok:false };
     s = clone(s0);
 
@@ -121,7 +151,7 @@ export function step(level, s0, move){
     const cj = s.crates.indexOf(to);
     if(cj >= 0){
       const beyond = neighbor(level, to, move);
-      const r = crateCanEnter(level, s, to, beyond, before);
+      const r = crateCanEnter(level, s, to, beyond, before, tilt);
       if(!r) return { ok:false };
       events.push({ t:'push', from:to, to:beyond });
       s.p = to;                                   // player follows into the vacated tile
@@ -131,7 +161,7 @@ export function step(level, s0, move){
         let cur = beyond;                         // crates slide on ice too
         while(level.cells[cur].kind === 'ice'){
           const nx = neighbor(level, cur, move);
-          const rr = crateCanEnter(level, s, cur, nx, before);
+          const rr = crateCanEnter(level, s, cur, nx, before, tilt);
           if(!rr) break;
           events.push({ t:'cslide', from:cur, to:nx });
           if(rr === 'sink'){ s.crates.splice(cj, 1); s.filled.push(nx); events.push({ t:'sink', at:nx }); break; }
@@ -148,7 +178,7 @@ export function step(level, s0, move){
     while(level.cells[cur].kind === 'ice' && !events.some(e => e.t === 'tp')){
       const nx = neighbor(level, cur, move);
       if(nx < 0 || s.crates.includes(nx)) break;
-      if(!playerCanEnter(level, s, cur, nx, move, before)) break;
+      if(!playerCanEnter(level, s, cur, nx, move, before, tilt)) break;
       events.push({ t:'slide', from:cur, to:nx });
       s.p = nx; cur = nx;
       enter(level, s, nx, events);
@@ -156,6 +186,9 @@ export function step(level, s0, move){
     }
   }
 
+  // the move has settled: the scales find their new balance (pieces on a pan ride along)
+  const tilt2 = panTilt(level, s);
+  if(tilt2 !== tilt) events.push({ t:'scales', from:tilt, tilt:tilt2 });
   const after = gatesOpen(level, s);
   if(after !== before) events.push({ t:'gate', open:after });
   const won = level.goals.includes(s.p);
@@ -171,7 +204,7 @@ function enter(level, s, i, events){
   if(level.keys.includes(i) && !s.got.includes(i)){ s.got.push(i); s.keys++; events.push({ t:'key', at:i }); }
   if(c.kind === 'portal'){
     const tw = level.twin[i];
-    if(tw != null && !s.crates.includes(tw)){ s.p = tw; events.push({ t:'tp', from:i, to:tw }); }
+    if(tw != null && !s.crates.includes(tw)){ s.p = tw; events.push(c.gateway ? { t:'tp', from:i, to:tw, gateway:true } : { t:'tp', from:i, to:tw }); }
   }
 }
 

@@ -3,7 +3,7 @@
 // text format a person, a builder bot, or a GitHub PR uses — edit either side.
 import {
   parseIsle, solveIsle, initialState, THEMES as THEME_NAMES, MAX_W, MAX_H, MAX_LEVEL,
-  CURATED_ISLES, toCommunityFile, checkCommunityIsle, isleHash, ISLE_SCHEMA,
+  CURATED_ISLES, toCommunityFile, checkCommunityIsle, isleHash, ISLE_SCHEMA, MAP_SCHEMA, MAX_STOREYS, MAX_AT, MAX_ALT, TILES,
   TIERS, auditIsle, difficultyScore, provisionalTier, harderHints, gutMismatch,
 } from '@klar/core';
 import { themeOf, PORTAL_COLORS } from './game/themes.js';
@@ -14,9 +14,10 @@ const TOOLS = [
   ['ramp', '⬆', 'Ramp'], ['C', '📦', 'Crate'], ['o', '◎', 'Plate'], ['D', '▥', 'Gate'], ['L', '🕹', 'Lever'], ['=', '═', 'Bridge'],
   ['_', '┄', 'Sunk br.'], ['k', '🔑', 'Key'], ['K', '🚪', 'Door'], ['p', '⛩', 'Arch A'], ['q', '⛩', 'Arch B'], ['S', '🐣', 'Start'],
   ['G', '⭐', 'Goal'], ['-', '✕', 'Erase'], ['+', '▲', 'Raise'], ['^h', '▼', 'Lower'],
+  ['a', '⚖', 'Pan A'], ['b', '⚖', 'Pan B'], ['r', '⛩', 'Arch C'],     // maps only (schemaVersion 6)
 ];
 const RAMP_DIRS = ['^', '>', 'v', '<'], RAMP_ARROW = { '^':'⬆', '>':'➡', 'v':'⬇', '<':'⬅' };
-const GLYPH = { ',':'🌼', '#':'🪨', 'T':'🌳', 'C':'📦', 'o':'◎', 'D':'▥', 'L':'🕹', '=':'═', '_':'┄', 'k':'🔑', 'K':'🚪', 'p':'⛩', 'q':'⛩', 'S':'🐣', 'G':'⭐', '*':'' };
+const GLYPH = { ',':'🌼', '#':'🪨', 'T':'🌳', 'C':'📦', 'o':'◎', 'D':'▥', 'L':'🕹', '=':'═', '_':'┄', 'k':'🔑', 'K':'🚪', 'p':'⛩', 'q':'⛩', 'r':'⛩', 'S':'🐣', 'G':'⭐', '*':'', 'a':'A', 'b':'B' };
 const store = { get:(k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set:(k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
 const template = () => ({ name:'My isle', theme:'jungle', rows:[
@@ -28,8 +29,18 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
   let draft = store.get('klarbase.v2.draft', null) || template();
   let grid = [], tool = '.', rampDir = 0, painting = false, stroke = new Set(), last = null, verdict = null;
   const fromRows = rows => rows.map(r => r.trim().split(/\s+/).map(t => [t[0], t.length > 1 ? +t[1] : 0]));
-  const toRows = () => grid.map(r => r.map(([c, h]) => (h ? c + h : c).padEnd(2)).join(' ').trimEnd());
-  grid = fromRows(draft.rows);
+  const toRows = (g = grid) => g.map(r => r.map(([c, h]) => (h ? c + h : c).padEnd(2)).join(' ').trimEnd());
+  // Archipelago maps (K4): the draft holds 1–3 storeys; `grid` is the one being painted.
+  let storeys = [], cur = 0;
+  const loadDraft = d => { storeys = (d.storeys || [{ rows:d.rows, at:[0, 0, 0] }]).map(s => ({ grid:fromRows(s.rows), at:s.at.slice() })); cur = 0; grid = storeys[0].grid; };
+  // The isle document: a plain v5 isle unless it needs a map (several storeys, an offset, pans or arch C).
+  const docOf = () => {
+    const st = storeys.map(s => ({ rows:toRows(s.grid), at:s.at.slice() }));
+    const map = st.length > 1 || st[0].at.some(Boolean) || storeys.some(s => s.grid.some(r => r.some(([c]) => TILES[c] && TILES[c].v6)));
+    const tier = draft.tier ? { tier:draft.tier } : {};      // the maker's gut call — presentation, never hashed
+    return map ? { schemaVersion:MAP_SCHEMA, name:draft.name, theme:draft.theme, storeys:st, ...tier } : { schemaVersion:ISLE_SCHEMA, name:draft.name, theme:draft.theme, rows:st[0].rows, ...tier };
+  };
+  loadDraft(draft);
 
   root.innerHTML = `
     <div class="field"><label>Name</label><input id="bName" maxlength="40"></div>
@@ -41,6 +52,11 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
       <button data-size="w-">−</button><span id="bW"></span><button data-size="w+">+</button><span>×</span>
       <button data-size="h-">−</button><span id="bH"></span><button data-size="h+">+</button>
       <span class="erase-note" style="margin-left:auto;color:var(--ink-3);font-size:12px">right-click erases</span></div>
+    <div class="field"><label>Map — up to ${MAX_STOREYS} isles, linked by gateway arches</label><div class="chips" id="bStoreys"></div>
+      <div class="size" id="bAt" style="margin-top:6px"><span>at</span>
+        <label>x <input type="number" min="0" max="${MAX_AT}" data-at="0" style="width:52px"></label><label>z <input type="number" min="0" max="${MAX_AT}" data-at="1" style="width:52px"></label>
+        <label>altitude <input type="number" min="0" max="${MAX_ALT}" data-at="2" style="width:52px"></label></div>
+      <div class="note" id="bGates" style="display:none;margin-top:6px"></div></div>
     <div class="palette" id="bTools"></div>
     <canvas id="gridCanvas"></canvas>
     <div class="status" id="bStatus">…</div>
@@ -99,7 +115,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     if(erase || tool === '-'){ grid[z][x] = ['-', 0]; return; }
     if(tool === '+'){ if(cell[0] !== '-') cell[1] = Math.min(MAX_LEVEL, cell[1] + 1); return; }
     if(tool === '^h'){ if(cell[0] !== '-') cell[1] = Math.max(0, cell[1] - 1); return; }
-    if(tool === 'S') for(const row of grid) for(const c of row) if(c[0] === 'S') c[0] = '.';
+    if(tool === 'S') for(const s of storeys) for(const row of s.grid) for(const c of row) if(c[0] === 'S') c[0] = '.';
     grid[z][x] = [tool === 'ramp' ? RAMP_DIRS[rampDir] : tool, cell[0] === '-' ? 0 : cell[1]];
   };
   canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -124,7 +140,8 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
       const glyph = RAMP_ARROW[c] || GLYPH[c];
       if(glyph){
         g2.font = `${Math.floor(cs * 0.55)}px "Segoe UI Emoji","Apple Color Emoji",sans-serif`;
-        if(c === 'p' || c === 'q'){ g2.fillStyle = PORTAL_COLORS[c]; g2.beginPath(); g2.arc(px + cs / 2, pz + cs / 2, cs * 0.3, 0, Math.PI * 2); g2.fill(); g2.fillStyle = '#fff'; g2.font = `800 ${cs * 0.34}px Nunito`; g2.fillText(c === 'p' ? 'A' : 'B', px + cs / 2, pz + cs / 2 + 1); }
+        if(c === 'p' || c === 'q' || c === 'r'){ g2.fillStyle = PORTAL_COLORS[c]; g2.beginPath(); g2.arc(px + cs / 2, pz + cs / 2, cs * 0.3, 0, Math.PI * 2); g2.fill(); g2.fillStyle = '#fff'; g2.font = `800 ${cs * 0.34}px Nunito`; g2.fillText({ p:'A', q:'B', r:'C' }[c], px + cs / 2, pz + cs / 2 + 1); }
+        else if(c === 'a' || c === 'b'){ g2.fillStyle = T.woodDark; roundRect(g2, px + cs * 0.14, pz + cs * 0.14, cs * 0.72, cs * 0.72, 5); g2.fill(); g2.fillStyle = '#fff'; g2.font = `800 ${cs * 0.3}px Nunito`; g2.fillText('⚖' + glyph, px + cs / 2, pz + cs / 2 + 1); }
         else { g2.fillStyle = c === '_' ? 'rgba(255,255,255,.55)' : '#3a2a20'; g2.fillText(glyph, px + cs / 2, pz + cs / 2 + 1); }
       }
     }
@@ -135,23 +152,26 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
   // ---- change pipeline: grid -> draft -> code/preview/verdict ----
   let previewT = 0, verdictT = 0;
   function changed({ fromCode = false } = {}){
-    draft.rows = toRows(); draft.name = $('#bName').value.trim() || 'My isle';
+    draft.name = $('#bName').value.trim() || 'My isle';
+    const d = docOf(); delete draft.rows; delete draft.storeys;
+    if(d.storeys) draft.storeys = d.storeys; else draft.rows = d.rows;
     store.set('klarbase.v2.draft', draft);
+    syncStoreys();
     for(const c of themes.children) c.classList.toggle('on', c.dataset.theme === draft.theme); syncTiers();
     $('#bW').textContent = grid[0].length; $('#bH').textContent = grid.length;
-    if(!fromCode && document.activeElement !== $('#bCode')) $('#bCode').value = draft.rows.join('\n');
+    if(!fromCode && document.activeElement !== $('#bCode')) $('#bCode').value = toRows().join('\n');
     draw();
     clearTimeout(previewT); previewT = setTimeout(preview, 90);
     clearTimeout(verdictT); verdictT = setTimeout(() => judge(60000), 260);
   }
   function preview(){
-    const { level } = parseIsle(draft);
+    const { level } = parseIsle(docOf());
     if(!level) return;
-    world.load(level, draft.theme);
+    world.load(level, draft.theme, { storey:cur });
     if(level.start != null){ world.pip.group.visible = true; world.reset(initialState(level)); } else world.pip.group.visible = false;
   }
   function judge(budget){
-    const st = $('#bStatus'), { ok, errors, level } = parseIsle(draft);
+    const st = $('#bStatus'), { ok, errors, level } = parseIsle(docOf());
     if(!ok){ verdict = null; st.className = 'status bad'; st.textContent = '✗ ' + [...new Set(errors.map(e => e.text))].slice(0, 2).join(' · '); return; }
     const r = solveIsle(level, { maxStates:budget });
     verdict = r; audit = null; clearTimeout(auditT);
@@ -189,29 +209,30 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
   $('#bTemplate').onchange = e => {
     const v = e.target.value; if(!v) return;
     const src = v === 'blank' ? template() : CURATED_ISLES.find(i => i.id === v);
-    draft = { name:v === 'blank' ? 'My isle' : src.name + ' remix', theme:src.theme, rows:src.rows.slice() };
-    grid = fromRows(draft.rows); $('#bName').value = draft.name; e.target.value = ''; changed();
+    draft = { name:v === 'blank' ? 'My isle' : src.name + ' remix', theme:src.theme, ...(src.storeys ? { storeys:src.storeys } : { rows:src.rows.slice() }) };
+    loadDraft(draft); $('#bName').value = draft.name; e.target.value = ''; changed();
   };
   let codeT = 0;
   $('#bCode').addEventListener('input', () => {
     clearTimeout(codeT);
     codeT = setTimeout(() => {
       const rows = $('#bCode').value.split('\n').map(s => s.trim()).filter(Boolean);
-      const r = parseIsle({ rows, theme:draft.theme });
+      const d = docOf(); if(d.storeys) d.storeys[cur].rows = rows; else d.rows = rows;
+      const r = parseIsle(d);
       if(!r.level){ $('#bStatus').className = 'status bad'; $('#bStatus').textContent = '✗ ' + r.errors[0].text; return; }
-      grid = fromRows(rows); changed({ fromCode:true });
+      grid = storeys[cur].grid = fromRows(rows); changed({ fromCode:true });
     }, 350);
   });
   $('#bCheck').onclick = () => { $('#bStatus').textContent = 'checking…'; setTimeout(() => judge(300000), 30); };
   $('#bTest').onclick = () => {
-    const { ok, errors } = parseIsle(draft);
+    const doc = docOf(), { ok, errors } = parseIsle(doc);
     if(!ok) return toast(errors[0].text, true);
-    onTest({ ...draft, par:verdict && verdict.solvable ? verdict.par : 0, solution:verdict && verdict.solvable ? verdict.solution : '' });
+    onTest({ ...doc, par:verdict && verdict.solvable ? verdict.par : 0, solution:verdict && verdict.solvable ? verdict.solution : '' });
   };
   $('#bShare').onclick = async () => {
     if(!getSession()) return toast('Sign in (top right) to share online', true);
     try {
-      const r = await api('/puzzles', { method:'POST', body:{ title:draft.name, puzzle:{ schemaVersion:ISLE_SCHEMA, name:draft.name, theme:draft.theme, rows:draft.rows, ...(draft.tier ? { tier:draft.tier } : {}) } } });
+      const r = await api('/puzzles', { method:'POST', body:{ title:draft.name, puzzle:docOf() } });
       const url = `${location.origin}/i/${r.hash}`;
       await navigator.clipboard.writeText(url).catch(() => {});
       toast(r.deduped ? 'Already shared — link copied' : 'Shared! Link copied to clipboard');
@@ -222,7 +243,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     store.set('klarbase.v2.ghuser', author);
     const note = $('#bGithubNote'); note.style.display = 'block';
     if(!author){ note.innerHTML = 'Add your GitHub username — it becomes your credit on the isle.'; return; }
-    const file = toCommunityFile(draft, author);
+    const file = toCommunityFile(docOf(), author);
     const existing = new Map([...CURATED_ISLES.map(i => [isleHash(i), `official isle “${i.name}”`]), ...communityHashes()]);
     const v = checkCommunityIsle(file, { existing });
     if(!v.ok){ note.innerHTML = '<b>Not ready yet — the repo checks would reject it:</b><br>• ' + v.errors.map(esc).join('<br>• '); return; }
@@ -232,7 +253,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
       <a href="${repoUrl}/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">how to contribute</a>.`;
   };
   $('#bExport').onclick = () => download(`${(draft.name || 'isle').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`,
-    JSON.stringify({ schemaVersion:ISLE_SCHEMA, name:draft.name, theme:draft.theme, rows:draft.rows, ...(draft.tier ? { tier:draft.tier } : {}) }, null, 2) + '\n');
+    JSON.stringify(docOf(), null, 2) + '\n');
   $('#bImport').onclick = () => $('#bFile').click();
   $('#bFile').onchange = e => {
     const f = e.target.files[0]; if(!f) return;
@@ -240,7 +261,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
       try {
         const d = JSON.parse(t); const r = parseIsle(d);
         if(!r.level) throw new Error(r.errors[0].text);
-        draft = { name:d.name || 'Imported isle', theme:d.theme || 'jungle', rows:d.rows, ...(TIERS.some(t => t.id === d.tier) ? { tier:d.tier } : {}) }; grid = fromRows(d.rows);
+        draft = { name:d.name || 'Imported isle', theme:d.theme || 'jungle', ...(d.storeys ? { storeys:d.storeys } : { rows:d.rows }), ...(TIERS.some(t => t.id === d.tier) ? { tier:d.tier } : {}) }; loadDraft(draft);
         $('#bName').value = draft.name; changed(); toast('Isle imported');
       } catch(err){ toast('Could not import: ' + err.message, true); }
     });
@@ -249,6 +270,37 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
 
   function download(name, text){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type:'application/json' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+  // ---- storeys: tabs, add / remove, offset + altitude, gateway summary ----
+  function syncStoreys(){
+    const bar = $('#bStoreys');
+    bar.innerHTML = storeys.map((_, k) => `<button class="chip${k === cur ? ' on' : ''}" data-storey="${k}">Isle ${k + 1}</button>`).join('')
+      + (storeys.length < MAX_STOREYS ? '<button class="chip" data-storey="add">＋ Isle</button>' : '')
+      + (storeys.length > 1 ? `<button class="chip" data-storey="del">✕ Remove isle ${cur + 1}</button>` : '');
+    $('#bAt').style.display = storeys.length > 1 || storeys[0].at.some(Boolean) ? '' : 'none';
+    root.querySelectorAll('[data-at]').forEach(i => { if(document.activeElement !== i) i.value = storeys[cur].at[+i.dataset.at]; });
+    // gateways: an arch letter whose two arches sit on different isles
+    const { level } = parseIsle(docOf()), notes = [];
+    if(level) for(const [u, v] of Object.entries(level.twin)) if(+u < v && level.cells[u].gateway)
+      notes.push(`Arch ${{ p:'A', q:'B', r:'C' }[level.cells[u].ch]} is a gateway: isle ${level.sid[u] + 1} ↔ isle ${level.sid[v] + 1}`);
+    if(level && level.pans) notes.push(level.sid[level.pans.a[0]] === level.sid[level.pans.b[0]] ? 'Sky Scales: pans A and B share one vine' : `Sky Scales across isles ${level.sid[level.pans.a[0]] + 1} and ${level.sid[level.pans.b[0]] + 1}`);
+    $('#bGates').style.display = notes.length ? '' : 'none'; $('#bGates').textContent = notes.join(' · ');
+  }
+  $('#bStoreys').onclick = e => {
+    const b = e.target.closest('[data-storey]'); if(!b) return;
+    const v = b.dataset.storey;
+    if(v === 'add'){
+      const x = Math.min(MAX_AT, Math.max(...storeys.map(s => s.at[0] + s.grid[0].length)) + 1);
+      storeys.push({ grid:fromRows(['. . . . .', '. . . . .', '. . . . .', '. . . . .', '. . . . .']), at:[x, 0, Math.min(MAX_ALT, 4)] });
+      cur = storeys.length - 1;
+    } else if(v === 'del'){ storeys.splice(cur, 1); cur = Math.max(0, cur - 1); }
+    else cur = +v;
+    grid = storeys[cur].grid; sfx.ui(); changed();
+  };
+  root.querySelectorAll('[data-at]').forEach(i => i.addEventListener('input', () => {
+    const n = Math.round(+i.value), max = i.dataset.at === '2' ? MAX_ALT : MAX_AT;
+    if(Number.isFinite(n)){ storeys[cur].at[+i.dataset.at] = Math.max(0, Math.min(max, n)); changed(); }
+  }));
 
   addEventListener('keydown', e => {
     if(!root.closest('.screen').classList.contains('on') || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;

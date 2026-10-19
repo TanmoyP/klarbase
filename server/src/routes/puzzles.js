@@ -1,10 +1,10 @@
-// Isles API (schemaVersion 5). Internal names stay "puzzle" (table, route).
+// Isles API (schemaVersion 5 isles, 6 archipelago maps). Internal names stay "puzzle" (table, route).
 // THE PUBLISH GATE IS THE SECURITY BOUNDARY OF THE WHOLE PROJECT.
 // The client's checks exist for UX only; anything stored has passed the
 // @klar/core isle parser + solver HERE, on the server, from the same module
 // the client uses. Never trust the client; never fork the rules.
 import { Router } from 'express';
-import { ISLE_SCHEMA, parseIsle, solveIsle, canonicalIsle, isleHash, stableStringify, auditIsle, TIER_IDS } from '@klar/core';
+import { SCHEMAS, schemaOf, parseIsle, solveIsle, canonicalIsle, isleHash, stableStringify, auditIsle, TIER_IDS } from '@klar/core';
 import { prisma } from '../db.js';
 import { requireAuth, sessionUser } from '../auth.js';
 import { publishLimiter, reportLimiter } from '../middleware.js';
@@ -24,7 +24,7 @@ puzzles.get('/:hash', async (req, res) => {
   const p = await prisma.puzzle.findUnique({ where:{ hash:req.params.hash }, include:{ author:true } });
   if(!p || p.status === 'hidden') return res.status(404).json({ error:'not found' });
   const doc = docOf(p);
-  if(doc.schemaVersion === ISLE_SCHEMA && !(await sessionUser(req))) delete doc.solution;
+  if(SCHEMAS.includes(doc.schemaVersion) && !(await sessionUser(req))) delete doc.solution;
   res.json({ ...pub(p), puzzle:doc });
 });
 
@@ -45,7 +45,7 @@ puzzles.get('/', async (req, res) => {
   const page = rows.slice(0, limit);
   res.json({
     puzzles: page.map(p => { const d = docOf(p);
-      return { ...pub(p), isle:d.schemaVersion === ISLE_SCHEMA, theme:d.theme || null, par:d.par || null,
+      return { ...pub(p), isle:SCHEMAS.includes(d.schemaVersion), theme:d.theme || null, par:d.par || null,
                tier:d.tier || null, audit:d.audit || null, mine:!!user && p.authorId === user.id }; }),
     nextCursor: rows.length > limit ? page[page.length - 1].hash : null,
   });
@@ -54,14 +54,17 @@ puzzles.get('/', async (req, res) => {
 puzzles.use(requireAuth);   // ------- everything below requires login -------
 
 /* ---- publish ---------------------------------------------------------- */
-// POST /api/puzzles  { title, puzzle:{ schemaVersion:5, theme, rows } }
+// POST /api/puzzles  { title, puzzle:{ schemaVersion:5, theme, rows } | { schemaVersion:6, theme, storeys } }
 //   -> 201 { hash } | 200/409 { hash, deduped } | 422 { errors:[{code,text}] }
 puzzles.post('/', publishLimiter, async (req, res) => {
   const { title, puzzle } = req.body || {};
   if(!title || typeof title !== 'string' || title.trim().length > 60)
     return res.status(400).json({ error:'title required (max 60 chars)' });
-  if(!puzzle || puzzle.schemaVersion !== ISLE_SCHEMA || !Array.isArray(puzzle.rows))
-    return res.status(422).json({ errors:[{ code:'E_SHAPE', text:'not an isle document (schemaVersion 5)' }] });
+  // v5 = one isle ("rows"), v6 = an archipelago map ("storeys"); the version must match the shape.
+  // Body cap (express.json 512kb) dwarfs the largest legal map (3 storeys of 14×14 ≈ 2 KB).
+  if(!puzzle || typeof puzzle !== 'object' || !SCHEMAS.includes(puzzle.schemaVersion) || schemaOf(puzzle) !== puzzle.schemaVersion
+     || !Array.isArray(schemaOf(puzzle) === 5 ? puzzle.rows : puzzle.storeys))
+    return res.status(422).json({ errors:[{ code:'E_SHAPE', text:'not an isle document (schemaVersion 5 with rows, or 6 with storeys)' }] });
   // optional gut call (K3) — presentation, not geometry: it never changes the hash
   if(puzzle.tier != null && !TIER_IDS.includes(puzzle.tier))
     return res.status(422).json({ errors:[{ code:'E_TIER', text:`tier must be one of: ${TIER_IDS.join(', ')}` }] });

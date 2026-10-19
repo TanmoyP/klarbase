@@ -427,6 +427,36 @@ export function makePortal(T, pair){
   return g;
 }
 
+// Sky Scales (K1): a pan is a hanging basket of turf on four ropes that meet at a
+// hook (PAN_HOOK above the floor). The world strings the hooks of both pans to
+// one vine. Origin = the surface Pip stands on.
+export const PAN_HOOK = 1.5;
+export function makePan(T){
+  const g = new THREE.Group();
+  const slab = mesh(new THREE.BoxGeometry(0.92, 0.24, 0.92), flat(T.wood)); slab.position.y = -0.18; g.add(slab);
+  const turf = mesh(new THREE.BoxGeometry(0.86, 0.07, 0.86), flat(T.top)); turf.position.y = -0.035; g.add(turf);
+  const dark = flat(T.woodDark);
+  for(const s of [-1, 1]){
+    const a = mesh(new THREE.BoxGeometry(0.96, 0.06, 0.06), dark); a.position.set(0, -0.04, s * 0.45); g.add(a);
+    const b = mesh(new THREE.BoxGeometry(0.06, 0.06, 0.96), dark); b.position.set(s * 0.45, -0.04, 0); g.add(b);
+  }
+  const root = new THREE.ConeGeometry(0.34, 0.55, 6); root.rotateX(Math.PI); root.translate(0, -0.57, 0);
+  g.add(mesh(root, flat(T.keel)));
+  const rope = flat(T.leaf, { roughness:1 });
+  const strand = (a, b) => {                       // a thin rope between two points
+    const d = new THREE.Vector3().subVectors(b, a), m = mesh(new THREE.CylinderGeometry(0.016, 0.016, d.length(), 4), rope, false);
+    m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); g.add(m);
+  };
+  const hook = new THREE.Vector3(0, PAN_HOOK, 0);
+  for(const [x, z] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]){
+    const low = new THREE.Vector3(x * 0.44, -0.02, z * 0.44), high = new THREE.Vector3(x * 0.44, 0.95, z * 0.44);
+    strand(low, high); strand(high, hook);        // straight up past Pip and crates, then to the hook
+  }
+  const ring = mesh(new THREE.TorusGeometry(0.06, 0.018, 6, 12), flat(T.metal, { metalness:0.6, roughness:0.35 }), false);
+  ring.position.y = PAN_HOOK; g.add(ring);
+  return g;
+}
+
 export function makeGoal(T){
   const g = new THREE.Group();
   const ped = mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.2, 8), flat(T.rock)); ped.position.y = 0.1; g.add(ped);

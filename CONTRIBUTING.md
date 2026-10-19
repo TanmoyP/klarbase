@@ -71,6 +71,13 @@ Optional fields: `hint`, `description`, `credit` (a display name if you'd like o
 0 to 100: it starts from your tier (or the solver's estimate if you leave it out) and settles as
 people play. `tier` never changes the isle's identity, and a hard isle is never required —
 simple isles are welcome. The builder's **"make it harder"** hints are optional suggestions.
+
+**Maps (schemaVersion 6).** An isle can also be an *archipelago map*: up to 3 isles linked by
+gateway arches, optionally with Sky Scales pans. Such a file has `"schemaVersion": 6` and
+`"storeys": [{ "rows": [...], "at": [x, z, altitude] }, ...]` instead of `rows` — the builder
+writes it for you when you add a second isle or a pan. Same checks, same limits. Format and
+rules: [`isles/README.md`](isles/README.md#archipelago-maps-schemaversion-6).
+
 Themes: `jungle`, `oasis`, `tropical`, `urban`, `mountain`.
 
 Daily Isles (`isles/daily/YYYY-MM-DD.json`) use the same format with a required `tier`; see

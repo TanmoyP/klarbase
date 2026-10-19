@@ -169,5 +169,20 @@ t('daily: numbered from the first dated file', dailyEpoch(['2026-10-25', '2026-1
 t('daily: utc date', utcDate(new Date(Date.UTC(2026, 9, 19, 23, 59))) === '2026-10-19');
 t('daily: share text', dailyShareText({ no:42, moves:18, par:17, stars:2 }) === 'Klarbase Daily #42 · 18 moves (par 17) · ★★☆');
 
+/* ---------------- archipelago maps (schemaVersion 6) score like any isle ---------------- */
+{ const map = { storeys:[{ rows:['S1 C1 b1', 'p1 .1 .1'], at:[0, 0, 0] }, { rows:['p3 a2 .2 G2'], at:[0, 0, 10] }] };
+  const a = auditIsle(parseIsle(map).level);
+  t('audit maps a v6 map (storeys, gateway, scales)', !a.capped && a.par === 6 && a.routes >= 1 && a.states > 0);
+  t('a map gets a provisional tier and a score', !!provisionalTier(a) && difficultyScore({ audit:a }).score >= 0);
+  const gardens = CURATED_ISLES.filter(i => i.chapter === 'gardens');
+  t('Hanging Gardens: eight map isles with a gut tier', gardens.length === 8 && gardens.every(i => Array.isArray(i.storeys) && TIER_IDS.includes(i.tier)));
+  for(const isle of gardens){
+    const g = auditIsle(parseIsle(isle).level);
+    t(`${isle.id}: gut call and audit agree within a tier (${isle.tier} vs ${provisionalTier(g).id})`, !g.capped && gutMismatch(isle.tier, g) === null);
+  }
+  const daily6 = { schemaVersion:6, id:'daily-2026-10-21', name:'Vine Lift', theme:'jungle', storeys:map.storeys, par:6, solution:'RDLRRR', tier:'tricky' };
+  t('daily: a v6 map passes', checkDailyIsle(daily6, { date:'2026-10-21' }).ok);
+  t('daily: a map must say schemaVersion 6', !checkDailyIsle({ ...daily6, schemaVersion:5 }, { date:'2026-10-21' }).ok); }
+
 console.log(`\nDIFFICULTY pass=${pass} fail=${fail}`);
 process.exit(fail ? 1 : 0);

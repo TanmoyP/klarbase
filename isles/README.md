@@ -40,9 +40,41 @@ Each token is **one tile character + an optional height digit** (`0`–`5`, defa
 | `K` | door (uses one key) |
 | `p` `p` | a pair of portal arches |
 | `q` `q` | a second pair of arches |
+| `r` `r` | a third pair of arches (maps only) |
+| `a` | Sky Scales pan A (maps only) — the height digit is its base, 1–4 |
+| `b` | Sky Scales pan B (maps only) — the height digit is its base, 1–4 |
 | `-` | empty sky (no tile) |
 
 Moves in a `solution`: `U` `D` `L` `R` = north / south / west / east, `X` = use (pull a lever).
+
+## Archipelago maps (schemaVersion 6)
+
+A map holds **1 to 3 isles** ("storeys"), each its own grid (≤ 14×14), placed at
+`at: [x, z, altitude]` — `x`/`z` in map tiles (0–40), `altitude` in height levels (0–24),
+the same unit as the height digit. One storey can float directly above another; storeys
+that share map tiles must be at least **8 levels** apart so the lower one stays readable.
+
+```json
+{
+  "schemaVersion": 6,
+  "theme": "jungle",
+  "storeys": [
+    { "at": [0, 0, 0],  "rows": ["S1 C1 b1", "p1 .1 .1"] },
+    { "at": [0, 0, 10], "rows": ["p3 a2 .2 G2"] }
+  ]
+}
+```
+
+- Exactly one `S` and at least one `G` across the whole map; at most 8 crates in all.
+- Movement never crosses a storey's edge. The only way between storeys is a **gateway**:
+  an arch pair (`p`, `q` or `r`) whose two arches stand on different storeys. A pair on
+  one storey is an ordinary arch. Crates never ride arches, so they never change storey.
+- Pans (`a`, `b`) and arch C (`r`) exist only in maps. A one-storey map at `[0, 0, 0]` is
+  fine when you want scales on a single isle.
+- A v5 isle (`"rows"`) is valid forever and keeps its exact content hash.
+- A pan is plain ground: one token can't be a pan and water, ice, a plate, a crate, a
+  start, a goal or a key at once (`a~`, `Ca` … are rejected with a clear error).
+- If one pan exists the other must too. Each pan can span several tiles.
 
 ### Difficulty: the `tier` field
 
@@ -80,6 +112,13 @@ Details: [`daily/README.md`](daily/README.md).
 5. A **lever** flips every bridge. A crate on a sinking bridge drops in and stays as a block.
 6. **Keys** open doors, one key each. Stepping into an **arch** sends you to its twin.
 7. Reach a **goal** to clear the isle.
+
+**Sky Scales** (maps only). Pans `a` and `b` hang from one vine. Pip weighs 1, a crate
+weighs 1. After each move settles, add up what stands on each pan: the **heavier pan sits
+one level below its base, the lighter one level above, equal = both at base**. Pip and
+crates on a pan ride with it. There are no cascades, and a move is judged with the pan
+heights at its **start** (like gates reading plates) — so you board a pan at the height it
+had before you stepped on. The pans may be on different storeys.
 
 These rules are implemented once, in `core/src/isle/rules.js`, and used by the game, the
 solver, the PR checks and the server.

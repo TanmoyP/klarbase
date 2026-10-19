@@ -52,7 +52,7 @@ a stored isle a `Puzzle` (table, `/api/puzzles`) — don't rename in passing.
 ```
 klarbase/
 ├── core/                 @klar/core — pure, zero-dep, isomorphic. THE rules.
-│   ├── src/isle/         format.js · rules.js · solve.js · contrib.js · isles.js (24 + 5 Twist)
+│   ├── src/isle/         format.js · rules.js · solve.js · contrib.js · isles.js (24 + 5 Twist + 8 Hanging Gardens)
 │   │                     difficulty.js (audit + K3 score + tiers) · daily.js (Daily Isle pick/number/share)
 │   ├── src/*.js          legacy voxel engine — kept only for the deferred world API
 │   └── test/             isles.mjs · difficulty.mjs · run.mjs (legacy, 57)
@@ -131,6 +131,21 @@ gate needs a plate. **Identity:** `isleHash` = SHA-256 of `{schemaVersion, theme
 whitespace normalized — name, author, par, hints never change it. Same isle ⇒ same hash in
 browser, Node and DB.
 
+**Archipelago maps (schemaVersion 6, K4, Phase 2):** `{schemaVersion:6, theme, storeys:[{rows, at:[x, z, altitude]}]}` —
+1–3 storeys, each ≤ 14×14, `x`/`z` 0–40 map tiles, `altitude` 0–24 height levels; storeys that
+share map tiles must float ≥ 8 levels apart (`E_OVERLAP`). New tokens, **map-only** (`E_V6` in a v5
+file): `a` / `b` Sky Scales pans (height digit = base, 1–4, `E_PAN_H`; both or neither, `E_PANS`),
+`r` a third arch pair. A pan is its own token, so it can't also be water/ice/plate/crate/start/
+goal/key (`E_PAN_PLAIN` names the mistake). `parseIsle` flattens storeys side by side (one void
+column between) into ONE cell list: `level.storeys = [{w, h, at, x0}]`, `level.sid[i]` = storey of
+cell i, `cellPlace(level, i)` → storey/local/map coordinates. `neighbor()` returns -1 across a
+storey edge, so no rule ever crosses one; an arch pair whose arches sit on different storeys is a
+**gateway** (`cell.gateway`, `tp` event with `gateway:true`, mechanic `gateway`).
+**Identity:** a v5 doc (`rows`) hashes exactly as before — `canonicalIsle`'s v5 branch is frozen;
+`core/test/isles.mjs` pins all 24 pre-map official hashes + `isles/community/**` and re-derives the
+v5 formula independently. A map hashes `{schemaVersion:6, theme, storeys:[{rows, at}]}`.
+The builder writes v5 unless the isle needs a map (2+ storeys, an offset, pans or arch C).
+
 **`tier` (2026-10-19, K3):** optional gut call — `breeze · easy · tricky · hard · fiendish · mythic`
 — on official isles (all 29 declare one), community files, daily files (required there) and online
 shares (publish payload). Presentation only: never part of the hash (`core/test/difficulty.mjs`
@@ -164,13 +179,22 @@ The seven rules (also in `rules.js` header and `isles/README.md`):
 3. **Ice** slides you (and crates) until something stops you.
 4. **Gates** are open while every **plate** is pressed (read at the start of the move).
 5. A **lever** (Use / `X`) flips every bridge; a crate on a sinking bridge drops in as a block.
-6. **Keys** open **doors** one each; an **arch** sends you to its twin.
+6. **Keys** open **doors** one each; an **arch** sends you to its twin (across storeys: a gateway).
 7. Reach a **goal**.
+
+**Sky Scales (K1, Phase 2):** pans `a` and `b` hang from one vine. `WEIGHT = {pip:1, crate:1}`;
+`panTilt(level, s)` = sign(load A − load B); `heightAt(level, i, tilt)` = base − tilt on A, base +
+tilt on B, everything else unchanged. A move is judged entirely with the tilt at its **start**
+(walking, pushes, crate drops, ice slides — like gates reading plates); after it settles the tilt is
+recomputed (`scales{from,tilt}` event) and whatever stands on a pan rides with it. No cascades.
+Pans may sit on different storeys. Heights are derived from positions, so **the solver state does
+not grow** (test asserts the same state shape and `stateKey` fields). Phase 3 adds balloon-Pip (0)
+and buoys (−1) by extending `WEIGHT` and the sum in `panTilt` only.
 
 **State:** `{p, crates[], filled[], keys, got[], opened[], flip}` — everything that can change.
 `step(level, state, move)` is pure and total: it returns `{ok:false}` for a blocked move or
 `{ok, state, events, won}` where `events` (`walk/slide/tp/push/cslide/sink/fall/key/door/toggle/gate/win`)
-drive animation in order. **Solver:** BFS over `stateKey(state)` from any state (`solveFrom`) —
+(+ `scales`, and `tp` may carry `gateway:true`) drive animation in order. **Solver:** BFS over `stateKey(state)` from any state (`solveFrom`) —
 the first win found is a shortest solution, so `par` is exact. Budgets: 300k states (core
 default), 200k (PR checks + server), 150k (in-game hints). **Stars:** ≤ par → 3, ≤ ⌈1.5·par⌉ → 2, else 1.
 
@@ -239,6 +263,23 @@ in `isles.js`). Main-path numbering, Continue and "Next isle" skip them. Targets
 Designed with a scratch solver harness: write the catch and a draft around it, then hill-climb the
 filler tiles (crate, plate, gate and key cells pinned) until the solver shows the catch is the only
 route (Hazelden's "whack-a-mole" with the audit doing the whacking).
+
+**Hanging Gardens (Phase 2, 2026-10-19)** — chapter `gardens` (keyed by id, not theme: isles say
+`chapter:'gardens'`), jungle + tropical, all schemaVersion 6. Each built around a written catch
+(comment above it in `isles.js`), then the filler tiles hill-climbed with the solver toward the §4.2
+targets; scales must be load-bearing (freezing the pans to ground must make the isle unsolvable or
+shorter). Audit = `provisionalTier` (main's rule: Mythic-by-traps needs ≥ 30k states).
+
+| # | Isle | Storeys | Gut | Par | States | Traps | Greedy | Routes | Audit | Catch (short) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 30 | Counterweight | 1 | Tricky | 15 | 565 | 2 | fails | 1 | Tricky | the near pan sinks under you; weigh the far pan, board from the high ledge, ride down |
+| 31 | High Arch | 2 | Tricky | 31 | 332 | 3 | fails | 1 | Tricky | far pan is downstairs; crates can't take the arch; a spring guards the short lane |
+| 32 | Three Storeys | 3 | Hard | 46 | 401 | 8 | fails | 1 | Tricky | start mid-map; going up first strands you on the sinking top pan |
+| 33 | Own Weight | 1 | Hard | 23 | 3,065 | 7 | fails | 3 | Hard | the bridge pan must stay high under you: one crate isn't enough, it takes two |
+| 34 | The Crane | 2 | Hard | 38 | 6,210 | 8 | fails | 3 | Hard | park the crate on the upper pan, THEN weigh the lower one; it rides up to the spring |
+| 35 | Spend a Crate | 1 | Fiendish | 31 | 32,182 | 4 | fails | 2 | Fiendish | the first crate down the lane fills the spring so the next can reach the pan |
+| 36 | Garden Lift | 2 | Fiendish | 27 | 37,361 | 4 | fails | 2 | Fiendish | one lower crate can reach the pan; clear the upper crates without parking one on the bridge |
+| 37 | Sky Scales | 2 | Mythic | 43 | 46,440 | 11 | fails | 1 | Mythic | the signature: load the lower isle to lift the upper one |
 
 **How they were made:** designed in-loop with the solver — a harness flags any isle whose
 solution doesn't use its featured mechanic, and the two glacier mazes were found by a
@@ -357,8 +398,8 @@ must move to a shared store before running more than one replica.
 
 ## 10. Current state & numbers
 
-- ✅ Engine: 225 isle assertions + 137 difficulty/daily + 57 legacy, green. 29 official isles
-  (24 + 5 Twist) verified; artifacts deterministic. (CI's `engine` job does not run
+- ✅ Engine: 341 isle assertions + 150 difficulty/daily + 57 legacy, green. 37 official isles
+  (24 + 5 Twist + 8 Hanging Gardens maps) verified; artifacts deterministic. (CI's `engine` job does not run
   `core/test/difficulty.mjs` yet — add one line to `.github/workflows/ci.yml`; `npm test` runs it.)
 - ✅ Client: all screens verified in the browser (title, picker with real mini-map thumbnails,
   play, replay, win, lock modal, builder with live verdict, community tab). Phone-width layout done; the phone builder is a bottom sheet (paint tools first) and the 3D isle is framed above it (`World.setInsetBottom`).
@@ -404,6 +445,30 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-10-19 (p) — Phase 2 · Archipelago maps + Sky Scales (K1, K4)
+- **Schema decision (CLAUDE.md rule 4):** schemaVersion 6 maps (§3) and the Sky Scales rule (§4),
+  shipped together with solver, tests, art, builder tools, docs and 8 re-verified-with-everything isles.
+  Tokens: `a`/`b` pans, `r` third arch pair — all map-only. Gateways reuse the arch rule: any arch
+  pair across storeys. v5 files and hashes untouched (pinned in tests).
+- **Engine:** `format.js` flattens storeys (`sid`, `storeys`, `cellPlace`), `neighbor()` stops at
+  storey edges; `rules.js` threads the start-of-move tilt through every height check; solver and
+  `stateKey` unchanged. `contrib.js`: `storeys` instead of `rows` for v6, `schemaVersion` must match
+  the shape (community and daily), mechanics `scales` + `gateway` (`eventMechanic`). `tools/
+  check-isles.mjs`, `tools/author.mjs` and the server publish gate accept v6 via the same core
+  functions (payloads ≈ 2 KB max, body cap 512 KB unchanged). No migration.
+- **Client:** storeys rendered at their offsets/altitudes (each its own floating isle), pans as
+  hanging baskets on a vine over a sky branch, pans + riders animate when the scales settle, a
+  faint light thread links gateway arches; camera frames Pip's storey (glides between storeys),
+  **M** / 🗺 toggles the whole map, storeys floating over the framed one fade. Builder: storey
+  chips (add/remove, x/z/altitude), pan A/B + arch C tools, gateway + scales summary, map-aware
+  test/share/export/import. Picker thumbnails draw maps.
+- **Content:** Hanging Gardens chapter (table in §5); artifacts regenerated (30–37).
+- **Verified in the browser** (Vite :5182): Counterweight, Three Storeys (3 storeys) and Sky
+  Scales (cross-storey scales) cleared at par by their solutions; map toggle; builder made a
+  2-storey map with cross-isle scales and cleared it via Test.
+- **Next:** Phase 3 (balloon + glide, buoy, gust vents) extends `WEIGHT` / `panTilt`; Phase 1's
+  greedy/away metrics use flattened-grid distances on maps (approximate across storeys).
 
 ### 2026-10-19 (o) — Phase 1 · Depth with what we have (K2, K3, K7)
 - **Core:** `difficulty.js` — `auditIsle` (moved from `tools/difficulty.mjs`, same numbers), `TIERS`,
