@@ -11,3 +11,7 @@ server/prisma/migrations/dev*
 .claude/*
 !.claude/settings.json
 !.claude/agents/
+!.claude/skills/
+
+# growth agents' live state (queue, feedback, reports, metrics) — local only, see marketing/README.md
+marketing/state/

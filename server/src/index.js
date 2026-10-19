@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { authHandler } from './auth.js';
 import { puzzles } from './routes/puzzles.js';
 import { world } from './routes/world.js';
+import { stats } from './routes/stats.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -22,6 +23,7 @@ app.use(express.json({ limit:'512kb' }));   // puzzles are small; cap the body
 app.get('/api/health', (_req, res) => res.json({ ok:true }));
 app.use('/api/puzzles', puzzles);
 app.use('/api/world', world);
+app.use('/api/stats', stats);
 
 // ---- static client (production build) ----
 const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');

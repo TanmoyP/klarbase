@@ -71,7 +71,9 @@ klarbase/
 ├── content/isles/        generated artifacts for the official isles (deterministic)
 ├── tools/
 │   ├── check-isles.mjs   the PR gate for community isles (zero-dep, data-only)
-│   └── author.mjs        verifies official isles, writes content/isles, --seed to DB
+│   ├── author.mjs        verifies official isles, writes content/isles, --seed to DB
+│   └── growth-metrics.mjs  read-only growth snapshot (GitHub, /api/stats, Cloudflare)
+├── marketing/            growth plan + templates; state/ is local and git-ignored
 └── .github/              ci.yml · CODEOWNERS · PR template · ruleset-main.json
 ```
 
@@ -259,9 +261,17 @@ POST   /api/puzzles   {title, puzzle}      login; isle publish gate: parse → s
 DELETE /api/puzzles/:hash                  own only
 POST   /api/puzzles/:hash/report           login; ≥ 3 reports auto-hide
 /api/world/*                               legacy world lattice — deferred, hidden in the UI; isles are refused
+GET    /api/stats                          growth aggregates (counts only); 404 unless STATS_TOKEN is set and sent as Bearer
 ```
 No schema migration was needed: isles reuse `Puzzle` (`json` holds the canonical isle + `par`
 + `solution`; `portsJson` = `'{}'`). Rate limits unchanged (publish 20/h).
+
+**Growth stats (2026-10-19).** `/api/stats` returns `{users, users7d, isles, isles7d, sharers7d}`
+— counts only, no ids, names or emails, no new table. It feeds `tools/growth-metrics.mjs`
+(also GitHub API + optional Cloudflare Web Analytics, all read-only) for the North Star in
+`marketing/PLAN.md` §5. **Not measured yet:** plays and clears — see roadmap R1 (an
+anonymous per-isle-per-day counter table; it holds no user data, so needs no cascade, but
+its migration would run on prod at the next deploy via the Dockerfile's `prisma migrate deploy`).
 
 ---
 
@@ -294,6 +304,15 @@ must move to a shared store before running more than one replica.
 | **World (v1 idea)** | stitch isles into a walkable archipelago | strong demand |
 | **Accessibility** | colour-blind-safe arch/plate markers, reduced motion, screen-reader isle summary | — |
 
+**Growth-driven proposals (CMO, 2026-10-19)** — full table with constitution checks in
+[`marketing/PLAN.md`](marketing/PLAN.md) §6. Recommended order:
+R1 anonymous play/clear counters (migration = maker's call) → R2 share-a-result card (moves +
+stars, **never the route**) → R5 makers page → R6 isle of the week (`isles/featured.json`,
+CI-validated) → R4 daily isle v1 (`dailyIsle()` in core) → R3 per-isle link previews (OG image
+rendered from the grid) → R7 Sokoban XSB importer (plates + gate, no new tile) → R9 `@klar/core`
+on npm → R8 embeddable isle → R11 remix lineage (format field = schema decision) → R10 builder bot.
+Done now: R0 OG meta tags, R0b `/api/stats` + `tools/growth-metrics.mjs`.
+
 **Open questions for the leadership table:**
 1. ~~License~~ — decided 2026-10-19: **MIT for everything**, code and isles (founder call; credit stays in-game).
 2. Seed the official isles into prod, or keep them bundled-only?
@@ -314,6 +333,36 @@ must move to a shared store before running more than one replica.
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-10-19 (n) — growth system
+- **Founder brief:** automated marketing with no manual content work, €10/week for
+  Claude-drafted ads, genuine maker voice, Klarbase positioned as **a base for development**;
+  daily one-click review, weekly metrics vs goals, rethink when missed. Growth may steer the roadmap.
+- **Decisions:** nothing is posted/sent/spent without the maker's approval in the morning
+  session; Reddit/HN/lobste.rs/Discords are always posted by hand (unattended posting breaks
+  their rules and a dev project's credibility); no personas or vote asks. North Star = **Weekly
+  Isle Makers** (distinct non-maker people who shared an isle online or got an isle PR merged).
+  Paid: €0 until the funnel is measured, then Reddit Ads pulses (~$5/day ad-group floor per
+  third-party sources — verify in the UI). Live marketing state is git-ignored (`marketing/state/`)
+  because the repo is public.
+- **Added:** `marketing/PLAN.md` (positioning, ICP, channels incl. nerdy ones, budget with
+  researched minimums, targets/thresholds, roadmap R0–R12), `marketing/README.md`,
+  `marketing/templates/`; agents `growth-strategist`, `-trend-scout`, `-community-scout`,
+  `-content-drafter`, `-ads-drafter`, `-metrics-analyst`, `-publisher`; skills
+  `/growth-morning`, `/growth-weekly` (`.gitignore` now keeps `.claude/skills/`).
+- **Code:** OG/Twitter meta tags in `client/index.html` (image = README screenshot on GitHub);
+  `GET /api/stats` (token-gated counts, async errors passed to the error handler — note the
+  older async routes still don't, so a DB outage there can crash the process);
+  `tools/growth-metrics.mjs` (zero-dep snapshot → `marketing/state/metrics.csv`). `STATS_TOKEN`
+  documented in `.env.example`. Baseline 2026-10-19: 1 star, 1 community isle (maker's), 0 external isle makers.
+- **Landing paths:** any `/go/<channel>` path serves the game (the server's `*` fallback), so
+  Cloudflare Web Analytics attributes channels without cookies or code.
+- **Setup answers:** accounts = Bluesky, Mastodon, dev.to, itch.io (no Reddit/HN/lobste.rs
+  yet); auto-post = `gh` + the maker's Bluesky/Mastodon via `tools/growth-post.mjs` (zero-dep,
+  one approved post per call, credentials only in the local env, `--dry-run`); targets as in
+  PLAN §5. Morning cycle scheduled weekdays 07:00 (desktop scheduled task `klarbase-growth-morning`).
+- **Next:** set `STATS_TOKEN` (Railway + local) and Bluesky/Mastodon tokens locally, enable
+  Cloudflare Web Analytics, decide R1's migration, Hacktoberfest topic before Oct 31.
 
 ### 2026-10-19 (m) — open source launch
 - **Decisions:** MIT for code and isles; repo goes public.
