@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 6,
+  "id": "daily-2026-10-20",
+  "name": "Tipping Pass",
+  "theme": "mountain",
+  "tier": "tricky",
+  "hint": "To ride a pan up, its partner has to end up heavier than you.",
+  "catch": "Load the near pan first, so the deep pan rises within a crate's reach. Then stand on the near pan and shove its crate across: the weight swings both ways at once and lifts you to the star.",
+  "storeys": [
+    { "at": [0, 0, 0], "rows": [
+      "-  -  -  G4 -  -",
+      "S3 .3 b3 b3 a1 -",
+      ".3 C3 .3 .3 a1 .3",
+      "-  T3 .3 C3 .3 ,3",
+      "-  -  .3 .3 .3 -"
+    ] }
+  ],
+  "par": 16,
+  "solution": "DRRDRUDDRULULURU"
+}
