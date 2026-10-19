@@ -184,7 +184,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     if(!getSession()) return toast('Sign in (top right) to share online', true);
     try {
       const r = await api('/puzzles', { method:'POST', body:{ title:draft.name, puzzle:{ schemaVersion:ISLE_SCHEMA, name:draft.name, theme:draft.theme, rows:draft.rows } } });
-      const url = `${location.origin}/#/i/${r.hash}`;
+      const url = `${location.origin}/i/${r.hash}`;
       await navigator.clipboard.writeText(url).catch(() => {});
       toast(r.deduped ? 'Already shared — link copied' : 'Shared! Link copied to clipboard');
     } catch(e){ toast(e.validation ? e.validation[0].text : e.message, true); }

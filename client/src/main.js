@@ -3,7 +3,7 @@
 //   official   — the 24 curated isles in @klar/core
 //   community  — isles merged on GitHub (isles/community/<author>/<id>.json),
 //                bundled at build time with credit to their author
-//   online     — isles shared in-game and stored on the server (/#/i/<hash>)
+//   online     — isles shared in-game and stored on the server (/i/<hash>)
 import { CURATED_ISLES, CHAPTERS, parseIsle, solveIsle, starsFor, isleHash, initialState } from '@klar/core';
 import { World } from './game/world.js';
 import { Session } from './game/session.js';
@@ -84,7 +84,7 @@ async function refreshAuth(){
 }
 document.addEventListener('click', e => {
   if(e.target.id === 'siGh') signIn('github'); if(e.target.id === 'siGo') signIn('google');
-  const go = e.target.closest('[data-go]'); if(go){ sfx.ui(); location.hash = go.dataset.go; }
+  const go = e.target.closest('[data-go]'); if(go){ e.preventDefault(); sfx.ui(); nav(go.dataset.go); }
 });
 
 function helpModal(){
@@ -172,7 +172,7 @@ function selectScreen(which){
   } else {
     list.innerHTML = `<div class="chapter"><div class="chapter-head"><h3>Made by players</h3><span>merged on GitHub · every one checked solvable</span></div>
       <div class="grid">${community.map(e => cardHtml(e)).join('') || '<div class="empty">No community isles yet — yours could be first.</div>'}</div>
-      <p class="note" style="margin-top:14px">Build an isle in <a href="#/create">Create</a>, press <b>Export for GitHub</b>, and open a pull request.
+      <p class="note" style="margin-top:14px">Build an isle in <a href="/create" data-go="/create">Create</a>, press <b>Export for GitHub</b>, and open a pull request.
         Automated checks make sure it's solvable and fair, and you're credited by name. <a href="${REPO_URL}/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing guide →</a></p></div>
       <div class="chapter"><div class="chapter-head"><h3>Shared online</h3><span>fresh isles shared from the builder</span></div><div class="grid" id="onlineGrid"><div class="empty">Loading…</div></div></div>`;
     loadOnline();
@@ -192,17 +192,17 @@ $('#selectList').addEventListener('click', e => {
   const c = e.target.closest('.card'); if(!c) return;
   sfx.ui();
   const k = c.dataset.key;
-  if(k.startsWith('o:')) location.hash = '#/isle/' + k.slice(2);
-  else if(k.startsWith('c:')) location.hash = '#/c/' + k.slice(2);
-  else location.hash = '#/i/' + k.slice(2);
+  if(k.startsWith('o:')) nav('/isle/' + k.slice(2));
+  else if(k.startsWith('c:')) nav('/c/' + k.slice(2));
+  else nav('/i/' + k.slice(2));
 });
-document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { location.hash = b.dataset.tab === 'official' ? '#/play' : '#/community'; });
-$('#btnContinue').onclick = () => { const next = official.find(e => !progress[e.key]) || official[0]; location.hash = '#/isle/' + next.doc.id; };
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { nav(b.dataset.tab === 'official' ? '/play' : '/community'); });
+$('#btnContinue').onclick = () => { const next = official.find(e => !progress[e.key]) || official[0]; nav('/isle/' + next.doc.id); };
 
 /* ---------------- play ---------------- */
 function play(entry){
   const { ok, errors, level } = parseIsle(entry.doc);
-  if(!ok){ toast('This isle is broken: ' + errors[0].text, true); location.hash = '#/play'; return; }
+  if(!ok){ toast('This isle is broken: ' + errors[0].text, true); nav('/play', true); return; }
   stopGame();
   current = entry;
   world.setShowcase(false); world.view = 0; world.turn(0);
@@ -253,12 +253,12 @@ function won(s){
       ${e.online ? `<button class="btn" id="wShare">🔗 Copy link</button>` : ''}
       ${!e.draft ? `<button class="btn ghost" id="wList">All isles</button>` : ''}
     </div>`);
-  $('#wNext') && ($('#wNext').onclick = () => { location.hash = '#/isle/' + next.doc.id; });
-  $('#wBuild') && ($('#wBuild').onclick = () => { location.hash = '#/create'; });
+  $('#wNext') && ($('#wNext').onclick = () => { nav('/isle/' + next.doc.id); });
+  $('#wBuild') && ($('#wBuild').onclick = () => { nav('/create'); });
   $('#wAgain').onclick = () => { modal.close(); game.restart(); };
   $('#wWatch') && ($('#wWatch').onclick = () => { modal.close(); watch(); });
   $('#wShare') && ($('#wShare').onclick = () => navigator.clipboard.writeText(location.href).then(() => toast('Link copied')));
-  $('#wList') && ($('#wList').onclick = () => { location.hash = e.author ? '#/community' : '#/play'; });
+  $('#wList') && ($('#wList').onclick = () => { nav(e.author ? '/community' : '/play'); });
 }
 
 // screen arrow for a world move in the current view — keeps hints & replays readable after turning
@@ -328,7 +328,7 @@ function hint(){
   if(h.stuck) toast('Hmm — this spot can’t reach the goal any more. Undo or restart.', true);
   else toast((h.move === 'X' ? `Best next move: pull the lever (Space) · ${h.left} to go` : `Best next move: ${glyphFor(h.move)} · ${h.left} to go`) + (unlocked(current) ? '' : ' · that was your free hint'));
 }
-$('#btnBack').onclick = () => { location.hash = current?.draft ? '#/create' : current?.author ? '#/community' : current?.online ? '#/community' : '#/play'; };
+$('#btnBack').onclick = () => { nav(current?.draft ? '/create' : current?.author ? '/community' : current?.online ? '/community' : '/play'); };
 $('#btnUndo').onclick = () => game && game.undo();
 $('#btnRestart').onclick = () => game && game.restart();
 $('#btnHint').onclick = hint;
@@ -370,25 +370,33 @@ const builder = mountBuilder({ world, api, toast, repoUrl:REPO_URL, communityHas
   onTest:doc => { play({ key:'draft', doc, name:doc.name, theme:doc.theme, par:doc.par, solution:doc.solution, sub:'testing your isle', draft:true }); } });
 
 /* ---------------- routing ---------------- */
+// Real paths (/isle/root-bridge), not #/ hashes. The server answers every path with
+// index.html; old #/ links (shared before the switch) are rewritten on arrival.
+function nav(path, replace = false){
+  if(path === location.pathname) return route();
+  history[replace ? 'replaceState' : 'pushState'](null, '', path);
+  route();
+}
 async function route(){
-  const h = location.hash || '#/';
+  if(location.hash.startsWith('#/')) history.replaceState(null, '', location.hash.slice(1));
+  const h = location.pathname.replace(/\/+$/, '') || '/';
   let m;
-  if(h === '#/' || h === '#') return titleScreen();
-  if(h === '#/play') return selectScreen('official');
-  if(h === '#/community') return selectScreen('community');
-  if(h === '#/create'){ stopGame(); world.setShowcase(false); show('create'); builder.show(); setAccent(builder.draft.theme); return; }
-  if((m = /^#\/isle\/([\w-]+)$/.exec(h))){ const e = official.find(x => x.doc.id === m[1]); return e ? play(e) : (location.hash = '#/play'); }
-  if((m = /^#\/c\/([\w-]+)\/([\w-]+)$/.exec(h))){ const e = community.find(x => x.author === m[1] && x.doc.id === m[2]); return e ? play(e) : (location.hash = '#/community'); }
-  if((m = /^#\/(?:i|p)\/([0-9a-f]{64})$/.exec(h))){
+  if(h === '/') return titleScreen();
+  if(h === '/play') return selectScreen('official');
+  if(h === '/community') return selectScreen('community');
+  if(h === '/create'){ stopGame(); world.setShowcase(false); show('create'); builder.show(); setAccent(builder.draft.theme); return; }
+  if((m = /^\/isle\/([\w-]+)$/.exec(h))){ const e = official.find(x => x.doc.id === m[1]); return e ? play(e) : nav('/play', true); }
+  if((m = /^\/c\/([\w-]+)\/([\w-]+)$/.exec(h))){ const e = community.find(x => x.author === m[1] && x.doc.id === m[2]); return e ? play(e) : nav('/community', true); }
+  if((m = /^\/(?:i|p)\/([0-9a-f]{64})$/.exec(h))){
     try {
       const r = await api('/puzzles/' + m[1]);
-      if(r.puzzle.schemaVersion !== 5){ toast('That link is from an older version of Klarbase', true); location.hash = '#/community'; return; }
+      if(r.puzzle.schemaVersion !== 5){ toast('That link is from an older version of Klarbase', true); nav('/community', true); return; }
       return play({ key:'i:' + m[1], doc:{ ...r.puzzle, name:r.title }, name:r.title, theme:r.puzzle.theme, par:r.puzzle.par, solution:r.puzzle.solution, sub:'shared by ' + r.author.name, online:true });
-    } catch { toast('That isle could not be found', true); location.hash = '#/community'; return; }
+    } catch { toast('That isle could not be found', true); nav('/community', true); return; }
   }
-  location.hash = '#/';
+  nav('/', true);
 }
-addEventListener('hashchange', route);
+addEventListener('popstate', route);
 syncTopbar();
 refreshAuth();
 route();

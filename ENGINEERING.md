@@ -109,7 +109,7 @@ module — so a player, a reviewer and the server can never disagree about an is
   `isles/community/<me>/<id>.json` → CI `isles` job → required check → merge → next build bundles
   it via `import.meta.glob` → Community tab, credited.
 - *An online share:* builder **Share online** (signed in) → `POST /api/puzzles` → server parses +
-  solves (budget 200k) → stores canonical isle + par + solution under its content hash → `/#/i/<hash>`.
+  solves (budget 200k) → stores canonical isle + par + solution under its content hash → `/i/<hash>`.
 
 ---
 
@@ -338,7 +338,13 @@ must move to a shared store before running more than one replica.
   Phone builder: bottom sheet, tool strip → grid → verdict → actions first; isle framed above
   the sheet via `camera.setViewOffset`.
 - **README:** screenshot gallery of the real game in `docs/screenshots/` (one per theme + builder).
-- **Next:** feedback from the launch posts; builder bot; desktop-width layout pass.
+- **Clean URLs** (Reddit feedback): routes are real paths — `/play`, `/community`, `/create`,
+  `/isle/<id>`, `/c/<author>/<id>`, `/i/<hash>` — via History API (`nav()` + `popstate` in
+  `main.js`); the server already answers any path with `index.html`. Old `#/…` links are
+  rewritten on arrival, so shared links keep working. Sign-in returns to the page you were on.
+- **www:** `www.klarbase.dev` registered on the Railway service; the server 301s any `www.`
+  host to the apex (one origin, so auth cookies/OAuth callbacks stay valid).
+- **Next:** feedback from the launch posts; builder bot.
 
 ### 2026-10-18 (l) — v2: the Isles revamp
 - **Founder brief:** replace "maquette" (3–4 letter name → **Isle**); loop = create or play;
