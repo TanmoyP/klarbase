@@ -7,7 +7,7 @@
 > cozy, turn-based **Isles**. The v1 document (voxel engine, illusion maths, the first deploy
 > day, sessions a–k) is preserved in [`docs/archive/v1/ENGINEERING-v1.md`](docs/archive/v1/ENGINEERING-v1.md).
 >
-> **Last updated:** 2026-10-18 · **Owner:** CTO · **Repo:** `TanmoyP/klarbase` (private → going open source)
+> **Last updated:** 2026-10-19 · **Owner:** CTO · **Repo:** `TanmoyP/klarbase` (public, MIT)
 
 ## 0. How to use this document
 - It is **living**. Every session that changes rules, data, infra or the roadmap updates the
@@ -213,7 +213,7 @@ hand-checking puzzles.
 | `core/src/isle/contrib.js` | the rules: schema & allowed fields, size ≤ 8 KB, plain-text fields with no links, valid grid, solvable within 200k states, `par` exact, `solution` is a shortest winning route, ≥ 6 moves, ≥ 1 real mechanic, unique hash |
 | `tools/check-isles.mjs` | the gate: runs the rules on every file, plus **location** (`isles/community/<author>/<id>.json`) and, in PRs, **credit** — the PR author may only add/change/delete files in their own folder (or be in `isles/MAINTAINERS`). Duplicates are blamed on the newcomer. Writes a job summary with each isle's map, par and solution. |
 | `.github/workflows/ci.yml` | jobs `engine`, `isles`, `sanity` on every push/PR. `pull_request` event (read-only token, no secrets), no installs, no contributor code executed. |
-| Branch ruleset (enable when public) | required checks `engine`/`isles`/`sanity`; Code Owner review for code paths only (`.github/CODEOWNERS`), so isle-only PRs merge on green. Ready to apply: `.github/ruleset-main.json`. |
+| Branch ruleset (enable when public) | required checks `engine`/`isles`/`sanity`; Code Owner review for everything except `isles/community/` (`.github/CODEOWNERS`), so isle-only PRs merge on green. Source: `.github/ruleset-main.json`. |
 
 Verified with 11 simulated stranger-PR scenarios (honest isle ✓; edit/delete someone else's
 isle ✗; claimed author ✗; wrong filename ✗; official copy ✗; community copy ✗ blamed on the
@@ -277,10 +277,9 @@ must move to a shared store before running more than one replica.
 
 - ✅ Engine: 192 isle assertions + 57 legacy, green. 24 official isles verified; artifacts deterministic.
 - ✅ Client: all screens verified in the browser (title, picker with real mini-map thumbnails,
-  play, replay, win, lock modal, builder with live verdict, community tab). Phone-width layout done.
+  play, replay, win, lock modal, builder with live verdict, community tab). Phone-width layout done; the phone builder is a bottom sheet (paint tools first) and the 3D isle is framed above it (`World.setInsetBottom`).
 - ✅ Contribution pipeline: checker + CI + docs + 11 PR scenarios.
-- 🟡 **Not yet deployed.** klarbase.dev still runs v1 until this branch is merged and deployed.
-- 🟡 Branch ruleset not applied (repo is private; apply when public).
+- ✅ v2 live on klarbase.dev. Repo public under MIT (`LICENSE`, `SECURITY.md`); branch ruleset applied.
 - 🟡 Official isles not seeded into prod DB (optional — they're bundled anyway).
 
 ## 11. Roadmap — placeholders for CEO / CMO / CTO
@@ -296,7 +295,7 @@ must move to a shared store before running more than one replica.
 | **Accessibility** | colour-blind-safe arch/plate markers, reduced motion, screen-reader isle summary | — |
 
 **Open questions for the leadership table:**
-1. **License** before going public — recommended: MIT for code, CC BY 4.0 for isle content (credit is then a legal requirement, matching the in-game credit).
+1. ~~License~~ — decided 2026-10-19: **MIT for everything**, code and isles (founder call; credit stays in-game).
 2. Seed the official isles into prod, or keep them bundled-only?
 3. Moderation for online shares: auto-hide at 3 reports today — enough?
 
@@ -308,13 +307,26 @@ must move to a shared store before running more than one replica.
 - **New rules or tiles:** change `core/src/isle/*`, run `node core/test/isles.mjs` — it re-solves every official isle and reports any par that moved; then `node tools/author.mjs` and commit `content/isles/`.
 - **New official isle:** add it to `isles.js`, run the tests — they print the true par and solution to paste in.
 - **Browser pane:** this Claude session was started from the byte-mvp folder, so the preview launcher reads `byte-mvp/.claude/launch.json`; start future klarbase sessions from the klarbase folder. Viewport emulation at custom sizes misreports layout — trust the pane's natural size.
-- **Secrets:** OAuth secrets and the Neon password were pasted in chat on 2026-08-19 — rotate them.
+- **Secrets** live only in Railway variables — never in the repo, CI or chat. If one is ever exposed, rotate it.
 
 ---
 
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-10-19 (m) — open source launch
+- **Decisions:** MIT for code and isles; repo goes public.
+- **Pre-public audit:** full git history (18 commits) scanned for tokens, keys, DB URLs with
+  passwords, Neon hosts, emails, account IDs — clean. Only `.env.example` (placeholders) is tracked.
+- **Added:** `LICENSE` (MIT), `SECURITY.md` (private vulnerability reporting), license
+  sections in README/CONTRIBUTING, `"license": "MIT"`. CODEOWNERS now owns everything by
+  default (root files like `railway.json` were unowned) and exempts only `isles/community/`.
+- **UI:** round icon buttons were off-centre (`.btn` padding inside a 40px circle) → `padding:0`.
+  Phone builder: bottom sheet, tool strip → grid → verdict → actions first; isle framed above
+  the sheet via `camera.setViewOffset`.
+- **README:** screenshot gallery of the real game in `docs/screenshots/` (one per theme + builder).
+- **Next:** feedback from the launch posts; builder bot; desktop-width layout pass.
 
 ### 2026-10-18 (l) — v2: the Isles revamp
 - **Founder brief:** replace "maquette" (3–4 letter name → **Isle**); loop = create or play;

@@ -45,7 +45,8 @@
   #topbar{ position:absolute; top:max(12px, env(safe-area-inset-top)); right:14px; display:flex; gap:8px; align-items:center; z-index:30; }
   #authchip{ display:flex; gap:6px; align-items:center; }
   #authchip .who{ font-weight:800; font-size:13px; padding:7px 12px; }
-  .icon-btn{ width:40px; height:40px; border-radius:50%; display:grid; place-items:center; font-size:18px; }
+  /* padding:0 — .btn's 10px/16px padding squeezed the glyph off-centre (bottom-right) */
+  .icon-btn{ width:40px; height:40px; padding:0; border-radius:50%; display:grid; place-items:center; font-size:18px; line-height:1; }
 
   /* ---------- title ---------- */
   #scr-title .hero{ position:absolute; left:50%; top:50%; transform:translate(-50%, -54%); text-align:center; width:min(560px, 92vw); padding:34px 30px 28px; }
@@ -180,7 +181,17 @@
     .dpad{ right:10px; bottom:max(74px, calc(env(safe-area-inset-bottom) + 68px)); grid-template-columns:repeat(3, 48px); grid-template-rows:repeat(3, 48px); }
   }
   @media (max-width:760px){
-    #scr-create .side{ top:auto; height:56vh; }
+    /* phone builder = bottom sheet; the isle is framed above it (World.setInsetBottom).
+       Paint first: tool strip → grid → verdict → actions, then settings and code. */
+    #scr-create .side{ top:auto; left:8px; right:8px; bottom:max(8px, env(safe-area-inset-bottom)); width:auto; height:54vh; }
+    #scr-create .side .scroll{ gap:10px; padding:10px 12px 12px; overflow-y:auto; }
+    #builderPanel > *{ order:5; }
+    #builderPanel > .palette{ order:1; display:flex; overflow-x:auto; gap:5px; padding-bottom:4px; scrollbar-width:none; flex-shrink:0; }
+    #builderPanel > .palette .tool{ flex:0 0 52px; height:52px; }
+    #builderPanel > #gridCanvas{ order:2; max-width:min(100%, 34vh); margin:0 auto; }
+    #builderPanel > .status{ order:3; }
+    #builderPanel > .row-btns{ order:4; }
+    #builderPanel > .row-btns .btn{ flex:1; justify-content:center; padding:9px 10px; font-size:14px; }
     #scr-select .panel{ top:60px; }
     .hud-stats{ top:auto; bottom:max(76px, calc(env(safe-area-inset-bottom) + 70px)); right:auto; left:14px; }
   }
