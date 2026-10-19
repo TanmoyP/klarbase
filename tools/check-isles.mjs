@@ -16,20 +16,24 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CURATED_ISLES, checkCommunityIsle, isleHash } from '../core/src/isle/index.js';
+import { CURATED_ISLES, checkCommunityIsle, checkDailyIsle, isleHash } from '../core/src/isle/index.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const COMMUNITY = path.join(ROOT, 'isles', 'community');
+// Dated Daily Isles (isles/daily/YYYY-MM-DD.json) go through the same gate with
+// the daily rules (checkDailyIsle): no author folder, id = daily-<date>, tier required.
+const DAILY_DIR = path.join(ROOT, 'isles', 'daily');
 const rel = p => path.relative(ROOT, p).split(path.sep).join('/');
+const isDaily = p => p.startsWith('isles/daily/');
 
 function listIsles(){
-  if(!fs.existsSync(COMMUNITY)) return [];
   const out = [];
-  for(const owner of fs.readdirSync(COMMUNITY)){
+  if(fs.existsSync(COMMUNITY)) for(const owner of fs.readdirSync(COMMUNITY)){
     const dir = path.join(COMMUNITY, owner);
     if(!fs.statSync(dir).isDirectory()) continue;
     for(const f of fs.readdirSync(dir)) out.push(path.join(dir, f));
   }
+  if(fs.existsSync(DAILY_DIR)) for(const f of fs.readdirSync(DAILY_DIR)) if(f !== 'README.md') out.push(path.join(DAILY_DIR, f));
   return out;
 }
 
@@ -41,7 +45,7 @@ let failed = 0;
 // pass 1: read + parse everything so duplicates are detected across files
 const docs = files.map(f => {
   const r = { file:f, path:rel(f), errors:[], doc:null, bytes:0 };
-  if(!/\.json$/.test(f)){ r.errors.push('only .json isle files belong in isles/community/'); return r; }
+  if(!/\.json$/.test(f)){ r.errors.push(`only .json isle files belong in ${isDaily(r.path) ? 'isles/daily/' : 'isles/community/'}`); return r; }
   try {
     const text = fs.readFileSync(f, 'utf8'); r.bytes = Buffer.byteLength(text);
     r.doc = JSON.parse(text);
@@ -57,9 +61,10 @@ const firstOwner = paths => [...paths].sort((a, b) => (changedSet.has(a) - chang
 
 for(const r of docs){
   if(r.doc){
-    // location rule: isles/community/<author>/<id>.json
-    const parts = r.path.split('/');
-    if(parts.length !== 4 || parts[0] !== 'isles' || parts[1] !== 'community') r.errors.push('isle files live at isles/community/<your-github-username>/<id>.json');
+    // location rule: isles/community/<author>/<id>.json  ·  isles/daily/<YYYY-MM-DD>.json
+    const parts = r.path.split('/'), daily = isDaily(r.path);
+    if(daily){ if(parts.length !== 3) r.errors.push('daily isles live at isles/daily/<YYYY-MM-DD>.json'); }
+    else if(parts.length !== 4 || parts[0] !== 'isles' || parts[1] !== 'community') r.errors.push('isle files live at isles/community/<your-github-username>/<id>.json');
     else {
       if(r.doc.author !== parts[2]) r.errors.push(`"author" is "${r.doc.author}" but the file is in isles/community/${parts[2]}/ — they must match`);
       if(`${r.doc.id}.json` !== parts[3]) r.errors.push(`file name must be "${r.doc.id}.json" to match its "id"`);
@@ -69,7 +74,8 @@ for(const r of docs){
       const h = isleHash(r.doc), group = hashes.get(h) || [];
       if(group.length > 1 && firstOwner(group) !== r.path) others.set(h, firstOwner(group));
     } catch {} }
-    const v = checkCommunityIsle(r.doc, { existing:others, bytes:r.bytes });
+    const v = daily ? checkDailyIsle(r.doc, { date:parts.at(-1).replace(/\.json$/, ''), existing:others, bytes:r.bytes })
+                    : checkCommunityIsle(r.doc, { existing:others, bytes:r.bytes });
     r.errors.push(...v.errors); r.report = v.report;
   }
   if(r.errors.length) failed++;
@@ -99,7 +105,7 @@ for(const r of results){
   for(const e of r.errors) console.log(`      ✗ ${e}`);
 }
 for(const e of creditErrors) console.log(`FAIL  credit: ${e}`);
-console.log(`\n${results.length} community isle(s) checked — ${failed ? failed + ' problem(s)' : 'all good'}`);
+console.log(`\n${results.length} community/daily isle(s) checked — ${failed ? failed + ' problem(s)' : 'all good'}`);
 
 if(process.env.GITHUB_STEP_SUMMARY){
   const shown = changed.length ? results.filter(r => changed.includes(r.path)) : results;

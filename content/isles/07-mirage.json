@@ -3,6 +3,7 @@
   "id": "mirage",
   "name": "Mirage",
   "theme": "oasis",
+  "tier": "breeze",
   "hint": "Step into an arch to appear at its twin.",
   "rows": [
     "- - - , G .",

@@ -30,13 +30,18 @@ dioramas — push crates into the water to make bridges, slide across ice, pull 
 bridges, step through arches — one hop per key, to the glowing star.
 
 - **24 hand-made isles** in five themed chapters: Canopy (jungle), Mirage (oasis), Lagoon
-  (tropical), Rooftops (urban), Summit (mountain).
+  (tropical), Rooftops (urban), Summit (mountain) — plus an optional, much harder **Twist** isle
+  per chapter, and a **Daily Isle** (`/daily`) with a spoiler-free result to share.
+- **Every isle shows its difficulty** (Breeze → Mythic, 0–100): it starts as the maker's gut call
+  and settles as people play.
 - **Every isle is solver-verified** — solvable, with an exact par and a replayable smart
   solution (earn it by signing in, clearing the isle, or putting in the time).
 - **Build your own** in the in-game builder, share it online, or **contribute it here by pull
   request** — automated checks make sure it's solvable and fair, and you're credited by name.
 
 Play at **[klarbase.dev](https://klarbase.dev)**. No account needed to play or build.
+Privacy: to rate difficulty the game counts plays, clears, hints, restarts, moves and time per
+isle — anonymous totals only; no account, cookie or IP address is stored.
 
 ## Make an isle
 

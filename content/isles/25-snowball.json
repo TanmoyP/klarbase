@@ -3,6 +3,7 @@
   "id": "snowball",
   "name": "Snowball",
   "theme": "mountain",
+  "tier": "easy",
   "hint": "No rock where you need one? Bring a crate.",
   "rows": [
     "# # G # # #",

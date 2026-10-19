@@ -3,6 +3,7 @@
   "id": "night-market",
   "name": "Night Market",
   "theme": "urban",
+  "tier": "easy",
   "hint": "One plate here, one across the arches. The crate cannot travel — you can.",
   "rows": [
     "# G # - . .",

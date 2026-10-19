@@ -8,6 +8,6 @@
     ".": "./src/index.js"
   },
   "scripts": {
-    "test": "node test/isles.mjs && node test/run.mjs"
+    "test": "node test/isles.mjs && node test/difficulty.mjs && node test/run.mjs"
   }
 }

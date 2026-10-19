@@ -3,6 +3,7 @@
   "id": "sunken-well",
   "name": "Sunken Well",
   "theme": "oasis",
+  "tier": "easy",
   "hint": "Arrive through the arch, then build your own way across.",
   "rows": [
     "- - - G -",

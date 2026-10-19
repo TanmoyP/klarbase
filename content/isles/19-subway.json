@@ -3,6 +3,7 @@
   "id": "subway",
   "name": "Subway",
   "theme": "urban",
+  "tier": "easy",
   "hint": "Ride the arches out for the key, then ride them home.",
   "rows": [
     "G K . - q .",

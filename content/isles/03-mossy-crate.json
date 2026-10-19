@@ -3,6 +3,7 @@
   "id": "mossy-crate",
   "name": "Mossy Crate",
   "theme": "jungle",
+  "tier": "breeze",
   "hint": "A crate pushed into water sinks and becomes a stepping stone. Line it up first.",
   "rows": [
     "- G # -",

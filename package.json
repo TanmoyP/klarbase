@@ -10,7 +10,7 @@
     "client"
   ],
   "scripts": {
-    "test": "node core/test/isles.mjs && node core/test/run.mjs",
+    "test": "node core/test/isles.mjs && node core/test/difficulty.mjs && node core/test/run.mjs",
     "dev:server": "npm run dev -w @klar/server",
     "dev:client": "npm run dev -w @klar/client",
     "build": "npm run build -w @klar/client",

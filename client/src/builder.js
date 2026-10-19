@@ -4,6 +4,7 @@
 import {
   parseIsle, solveIsle, initialState, THEMES as THEME_NAMES, MAX_W, MAX_H, MAX_LEVEL,
   CURATED_ISLES, toCommunityFile, checkCommunityIsle, isleHash, ISLE_SCHEMA,
+  TIERS, auditIsle, difficultyScore, provisionalTier, harderHints, gutMismatch,
 } from '@klar/core';
 import { themeOf, PORTAL_COLORS } from './game/themes.js';
 import { sfx } from './game/audio.js';
@@ -33,6 +34,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
   root.innerHTML = `
     <div class="field"><label>Name</label><input id="bName" maxlength="40"></div>
     <div class="field"><label>Theme</label><div class="chips" id="bThemes"></div></div>
+    <div class="field"><label>Difficulty — your gut call</label><div class="chips" id="bTiers"></div></div>
     <div class="field"><label>Start from</label><select id="bTemplate"><option value="">— keep my isle —</option><option value="blank">Fresh 7×7 meadow</option>
       ${CURATED_ISLES.map(i => `<option value="${i.id}">Remix: ${i.name}</option>`).join('')}</select></div>
     <div class="size"><span>Size</span>
@@ -42,6 +44,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     <div class="palette" id="bTools"></div>
     <canvas id="gridCanvas"></canvas>
     <div class="status" id="bStatus">…</div>
+    <div class="diff" id="bDiff" style="display:none"></div>
     <div class="row-btns">
       <button class="btn primary" id="bTest">▶ Test it</button>
       <button class="btn" id="bCheck">✓ Deep check</button>
@@ -75,6 +78,14 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
   };
   const themes = $('#bThemes');
   for(const t of THEME_NAMES){ const c = document.createElement('button'); c.className = 'chip'; c.dataset.theme = t; c.textContent = themeOf(t).label; c.onclick = () => { draft.theme = t; changed(); }; themes.appendChild(c); }
+  // The gut call (K3): saved in the isle file as `tier`; players' results take over as plays come in.
+  const tiers = $('#bTiers');
+  for(const t of [{ id:'', name:'Not sure' }, ...TIERS]){
+    const c = document.createElement('button'); c.className = 'chip'; c.dataset.tier = t.id; c.textContent = t.name;
+    c.onclick = () => { if(t.id) draft.tier = t.id; else delete draft.tier; store.set('klarbase.v2.draft', draft); syncTiers(); showDifficulty(); sfx.ui(); };
+    tiers.appendChild(c);
+  }
+  const syncTiers = () => { for(const c of tiers.children) c.classList.toggle('on', c.dataset.tier === (draft.tier || '')); };
 
   // ---- painting ----
   const cellAt = ev => {
@@ -126,7 +137,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
   function changed({ fromCode = false } = {}){
     draft.rows = toRows(); draft.name = $('#bName').value.trim() || 'My isle';
     store.set('klarbase.v2.draft', draft);
-    for(const c of themes.children) c.classList.toggle('on', c.dataset.theme === draft.theme);
+    for(const c of themes.children) c.classList.toggle('on', c.dataset.theme === draft.theme); syncTiers();
     $('#bW').textContent = grid[0].length; $('#bH').textContent = grid.length;
     if(!fromCode && document.activeElement !== $('#bCode')) $('#bCode').value = draft.rows.join('\n');
     draw();
@@ -143,10 +154,27 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     const st = $('#bStatus'), { ok, errors, level } = parseIsle(draft);
     if(!ok){ verdict = null; st.className = 'status bad'; st.textContent = '✗ ' + [...new Set(errors.map(e => e.text))].slice(0, 2).join(' · '); return; }
     const r = solveIsle(level, { maxStates:budget });
-    verdict = r;
-    if(r.solvable){ st.className = 'status ok'; st.textContent = `✓ Solvable in ${r.par} moves` + (canSeeSolutions() ? ` · ${r.solution.length > 28 ? r.solution.slice(0, 28) + '…' : r.solution}` : ' · sign in to see the route'); }
+    verdict = r; audit = null; clearTimeout(auditT);
+    if(r.solvable){ st.className = 'status ok'; st.textContent = `✓ Solvable in ${r.par} moves` + (canSeeSolutions() ? ` · ${r.solution.length > 28 ? r.solution.slice(0, 28) + '…' : r.solution}` : ' · sign in to see the route');
+      auditT = setTimeout(() => { audit = auditIsle(level, { maxStates:Math.min(budget, 200000) }); showDifficulty(); }, 60); }
     else if(r.capped){ st.className = 'status'; st.textContent = '… big isle — press “Deep check” to verify'; }
     else { st.className = 'status bad'; st.textContent = '✗ Not solvable yet — no path reaches a goal'; }
+    showDifficulty();
+  }
+
+  // Live difficulty (K3) + optional "make it harder" hints (K2). A catch is never required.
+  let audit = null, auditT = 0;
+  function showDifficulty(){
+    const box = $('#bDiff');
+    if(!verdict || !verdict.solvable || !audit){ box.style.display = 'none'; return; }
+    box.style.display = '';
+    if(audit.capped){ box.innerHTML = `<div>Difficulty: too many positions to map live — press “Deep check”.</div>`; return; }
+    const d = difficultyScore({ tier:draft.tier, audit }), a = provisionalTier(audit);
+    const warn = gutMismatch(draft.tier, audit), hints = harderHints(audit);
+    box.innerHTML = `<div><span class="tier t-${d.tier.id}">${d.tier.name} ${d.score}</span> · ${d.declared ? 'your gut call' : 'estimated from the solver'} · settles as people play</div>
+      <div style="font-weight:600">Solver audit: ${audit.states.toLocaleString()} positions · ${audit.traps} trap${audit.traps === 1 ? '' : 's'} · ${audit.routes > 999 ? 'many' : audit.routes} shortest route${audit.routes === 1 ? '' : 's'} · walking straight at the star ${audit.greedy ? 'wins' : 'fails'} → reads <b>${a.name}</b></div>
+      ${warn ? `<div class="warn">⚠ ${esc(warn)}</div>` : ''}
+      ${hints.length ? `<div>Make it harder (optional):<ul>${hints.map(h => `<li>${esc(h)}</li>`).join('')}</ul></div>` : ''}`;
   }
 
   // ---- controls ----
@@ -183,7 +211,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
   $('#bShare').onclick = async () => {
     if(!getSession()) return toast('Sign in (top right) to share online', true);
     try {
-      const r = await api('/puzzles', { method:'POST', body:{ title:draft.name, puzzle:{ schemaVersion:ISLE_SCHEMA, name:draft.name, theme:draft.theme, rows:draft.rows } } });
+      const r = await api('/puzzles', { method:'POST', body:{ title:draft.name, puzzle:{ schemaVersion:ISLE_SCHEMA, name:draft.name, theme:draft.theme, rows:draft.rows, ...(draft.tier ? { tier:draft.tier } : {}) } } });
       const url = `${location.origin}/i/${r.hash}`;
       await navigator.clipboard.writeText(url).catch(() => {});
       toast(r.deduped ? 'Already shared — link copied' : 'Shared! Link copied to clipboard');
@@ -204,7 +232,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
       <a href="${repoUrl}/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">how to contribute</a>.`;
   };
   $('#bExport').onclick = () => download(`${(draft.name || 'isle').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`,
-    JSON.stringify({ schemaVersion:ISLE_SCHEMA, name:draft.name, theme:draft.theme, rows:draft.rows }, null, 2) + '\n');
+    JSON.stringify({ schemaVersion:ISLE_SCHEMA, name:draft.name, theme:draft.theme, rows:draft.rows, ...(draft.tier ? { tier:draft.tier } : {}) }, null, 2) + '\n');
   $('#bImport').onclick = () => $('#bFile').click();
   $('#bFile').onchange = e => {
     const f = e.target.files[0]; if(!f) return;
@@ -212,7 +240,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
       try {
         const d = JSON.parse(t); const r = parseIsle(d);
         if(!r.level) throw new Error(r.errors[0].text);
-        draft = { name:d.name || 'Imported isle', theme:d.theme || 'jungle', rows:d.rows }; grid = fromRows(d.rows);
+        draft = { name:d.name || 'Imported isle', theme:d.theme || 'jungle', rows:d.rows, ...(TIERS.some(t => t.id === d.tier) ? { tier:d.tier } : {}) }; grid = fromRows(d.rows);
         $('#bName').value = draft.name; changed(); toast('Isle imported');
       } catch(err){ toast('Could not import: ' + err.message, true); }
     });

@@ -4,3 +4,5 @@ export * from './rules.js';
 export * from './solve.js';
 export * from './isles.js';
 export * from './contrib.js';
+export * from './difficulty.js';
+export * from './daily.js';

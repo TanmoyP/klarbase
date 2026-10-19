@@ -3,6 +3,7 @@
   "id": "rooftops",
   "name": "Rooftops",
   "theme": "urban",
+  "tier": "easy",
   "hint": "Clear the walkway — but never push the crate where you still need to walk.",
   "rows": [
     "G3 <2 .2 .2 .2",

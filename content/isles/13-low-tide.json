@@ -3,6 +3,7 @@
   "id": "low-tide",
   "name": "Low Tide",
   "theme": "tropical",
+  "tier": "easy",
   "hint": "Each flip raises one bridge and sinks another. Think two flips ahead.",
   "rows": [
     "G , = . L",

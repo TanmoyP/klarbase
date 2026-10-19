@@ -3,6 +3,7 @@
   "id": "coconut-key",
   "name": "Coconut Key",
   "theme": "tropical",
+  "tier": "easy",
   "hint": "Every door wants a key. Some keys want a bridge first.",
   "rows": [
     ", G , - -",
