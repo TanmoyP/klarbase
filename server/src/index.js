@@ -15,6 +15,11 @@ const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);   // behind Railway/Fly edge proxies
 
+// www.klarbase.dev → klarbase.dev. One origin only: sign-in cookies and OAuth
+// callbacks are bound to BETTER_AUTH_URL, so a second hostname would break login.
+app.use((req, res, next) => req.hostname.startsWith('www.')
+  ? res.redirect(301, `https://${req.hostname.slice(4)}${req.originalUrl}`) : next());
+
 // better-auth needs the RAW body — mount it before express.json()
 app.all('/api/auth/*', authHandler);
 

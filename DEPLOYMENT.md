@@ -108,7 +108,7 @@ curl https://klarbase.dev/api/health          # → {"ok":true}
 Then the **milestone loop** by hand (this is the real acceptance test — see ENGINEERING.md §5.2):
 
 1. Sign in with GitHub on `klarbase.dev`.
-2. Build a puzzle → **Publish** → confirm you get a `/#/p/:hash` link.
+2. Build a puzzle → **Publish** → confirm you get a `/i/:hash` link.
 3. Open that link in an **incognito window / second account** → it plays to the win.
 4. Claim `(0,0)` → place the puzzle → enter **World** and walk it → see it on the **Map**.
 

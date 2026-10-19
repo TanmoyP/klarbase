@@ -11,5 +11,5 @@ export async function getSession(){
   } catch { return null; }
 }
 
-export const signIn  = provider => authClient.signIn.social({ provider, callbackURL: '/' });
+export const signIn  = provider => authClient.signIn.social({ provider, callbackURL: location.pathname });
 export const signOut = () => authClient.signOut();
