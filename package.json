@@ -1,6 +1,7 @@
 {
   "name": "klarbase",
   "version": "0.3.0",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "workspaces": [

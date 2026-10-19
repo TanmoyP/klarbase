@@ -1,11 +1,6 @@
-# Code needs a maintainer's review. Community isles do NOT appear here on purpose:
-# an isle-only PR becomes mergeable as soon as the automated `isles` check passes.
-/core/      @TanmoyP
-/client/    @TanmoyP
-/server/    @TanmoyP
-/tools/     @TanmoyP
-/.github/   @TanmoyP
-/isles/MAINTAINERS  @TanmoyP
-/isles/README.md    @TanmoyP
-/package.json       @TanmoyP
-/package-lock.json  @TanmoyP
+# Everything needs a maintainer's review by default — code, infra, docs, license.
+* @TanmoyP
+
+# Community isles are the exception, on purpose: an isle-only PR becomes mergeable as soon as
+# the automated `isles` check passes. (Last match wins; a pattern with no owner = unowned.)
+/isles/community/

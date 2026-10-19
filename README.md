@@ -1,6 +1,29 @@
+<div align="center">
+
 # Klarbase 🏝️
 
 **Tiny floating isles · clever little paths.**
+
+[**▶ Play at klarbase.dev**](https://klarbase.dev) · [Make an isle](#make-an-isle) · [Contribute](CONTRIBUTING.md) · MIT licensed
+
+<img src="docs/screenshots/title.png" alt="Klarbase title screen: a sandy oasis isle floating in an orange sky" width="900">
+
+</div>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/jungle.png" alt="Root Bridge, a jungle isle with a crate, stairs and a spring"><br><sub><b>Canopy</b> · jungle — push the crate into the spring, climb the stairs</sub></td>
+    <td width="50%"><img src="docs/screenshots/oasis.png" alt="Twin Mirages, two sandy isles linked by portal arches"><br><sub><b>Mirage</b> · oasis — ride the arches in the right order</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/tropical.png" alt="Lagoon Locks, a grassy isle with keys and doors"><br><sub><b>Lagoon</b> · tropical — two keys, three doors, one trap</sub></td>
+    <td width="50%"><img src="docs/screenshots/urban.png" alt="Night Market, rooftops with plates, a gate and lit windows"><br><sub><b>Rooftops</b> · urban — plates, gates and a crate that can't travel</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/mountain.png" alt="The Peak, a snowy mountain isle with ice, stairs and a door"><br><sub><b>Summit</b> · mountain — everything you've learned, on one peak</sub></td>
+    <td width="50%"><img src="docs/screenshots/picker.png" alt="The isle picker with mini-map thumbnails for every isle"><br><sub>24 hand-made isles, each with a par and up to three stars</sub></td>
+  </tr>
+</table>
 
 A cozy browser puzzle game. Guide **Pip**, a round little sprout spirit, across floating
 dioramas — push crates into the water to make bridges, slide across ice, pull levers that flip
@@ -24,6 +47,8 @@ Play at **[klarbase.dev](https://klarbase.dev)**. No account needed to play or b
 ~  ~  ~  ~  .  .
 S  ,  p  -  .  p
 ```
+
+<img src="docs/screenshots/builder.png" alt="The isle builder: paint tiles on a grid and watch the 3D isle update live" width="900">
 
 Build it in the game (**Create**), press **Export for GitHub**, and open a PR that adds
 `isles/community/<your-username>/<id>.json`. Full guide: **[CONTRIBUTING.md](CONTRIBUTING.md)** ·
@@ -55,3 +80,8 @@ tools/    check-isles.mjs (the PR gate) · author.mjs (official isle artifacts)
 The rules live in exactly one place (`core/src/isle/`). The game, the builder, the solver, the
 PR checks and the server all use it, so they can never disagree. Engineering notes:
 [ENGINEERING.md](ENGINEERING.md).
+
+## License
+
+[MIT](LICENSE) — code and isles alike. Isles you contribute are released under the same
+license, and the game always shows who made them. Security reports: [SECURITY.md](SECURITY.md).

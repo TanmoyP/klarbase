@@ -41,6 +41,7 @@ export class World {
     this.camera = new THREE.PerspectiveCamera(30, 1, 0.1, 400);
     this.target = new THREE.Vector3();
     this.view = 0; this.yaw = YAW0; this.yawTo = YAW0; this.dist = 16; this.spin = 0;
+    this.insetB = 0; this.visFrac = 1;   // px of canvas covered by a bottom sheet (phone builder)
 
     this.hemi = new THREE.HemisphereLight('#ffffff', '#333333', 1);
     this.sun = new THREE.DirectionalLight('#ffffff', 2.4);
@@ -83,9 +84,14 @@ export class World {
   resize(){
     const w = this.container.clientWidth || innerWidth, h = this.container.clientHeight || innerHeight;
     this.renderer.setSize(w, h);
-    this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
+    this.camera.aspect = w / h;
+    // Shift the projection so the isle centres in the part NOT under the bottom sheet.
+    const ib = Math.min(this.insetB, h * 0.7); this.visFrac = (h - ib) / h;
+    if(ib > 0) this.camera.setViewOffset(w, h, 0, ib / 2, w, h); else this.camera.clearViewOffset();
+    this.camera.updateProjectionMatrix();
     this.frameIsle();
   }
+  setInsetBottom(px){ px = Math.max(0, Math.round(px)); if(px !== this.insetB){ this.insetB = px; this.resize(); } }
 
   /* ---------------- controls mapping ---------------- */
   // Screen arrow -> world move, for the current camera view. ↑ always means
@@ -170,7 +176,8 @@ export class World {
     const L = this.level;
     let maxH = 0; for(const c of L.cells) if(c.kind !== 'void') maxH = Math.max(maxH, c.h);
     const radius = Math.hypot(L.w, L.h) / 2 + 0.8 + maxH * LV * 0.4;
-    const fov = this.camera.fov * Math.PI / 180, aspect = Math.max(0.5, this.camera.aspect);
+    // Fit to the visible window only (smaller than the canvas when a bottom sheet covers it).
+    const vf = this.visFrac, fov = 2 * Math.atan(Math.tan(this.camera.fov * Math.PI / 360) * vf), aspect = Math.max(0.5, this.camera.aspect / vf);
     const fit = radius / Math.sin(fov / 2) / Math.min(1, aspect * 0.95);
     this.dist = fit * (this.compact ? 1.25 : 1.02);
     this.target.set(0, maxH * LV * 0.35 - 0.4, 0);

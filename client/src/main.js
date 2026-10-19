@@ -46,7 +46,14 @@ function setAccent(theme){
   const T = themeOf(theme);
   document.documentElement.style.setProperty('--accent', T.accent);
 }
-function show(id){ document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'scr-' + id)); document.body.classList.toggle('in-game', id === 'game'); }
+function show(id){ document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'scr-' + id)); document.body.classList.toggle('in-game', id === 'game'); syncInset(); }
+// Phone builder: the panel is a bottom sheet — keep the isle framed in the space above it.
+const sheet = document.querySelector('#scr-create .side');
+function syncInset(){
+  const on = document.getElementById('scr-create').classList.contains('on') && innerWidth <= 760;
+  world.setInsetBottom(on ? innerHeight - sheet.getBoundingClientRect().top : 0);
+}
+new ResizeObserver(syncInset).observe(sheet);
 const modal = { open(html){ $('#modalBody').innerHTML = html; $('#modal').classList.add('on'); }, close(){ $('#modal').classList.remove('on'); } };
 $('#modal').addEventListener('click', e => { if(e.target.id === 'modal') modal.close(); });
 

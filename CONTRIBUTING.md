@@ -109,3 +109,8 @@ gh api -X POST repos/TanmoyP/klarbase/rulesets --input .github/ruleset-main.json
 
 People listed in [`isles/MAINTAINERS`](isles/MAINTAINERS) may edit any community folder
 (e.g. to fix a broken isle).
+
+## License
+
+By opening a pull request you agree that your contribution — code or isle — is released under
+the project's [MIT License](LICENSE). Your isle keeps your name on it in the game.
