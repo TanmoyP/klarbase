@@ -298,6 +298,10 @@ must move to a shared store before running more than one replica.
 | **World (v1 idea)** | stitch isles into a walkable archipelago | strong demand |
 | **Accessibility** | colour-blind-safe arch/plate markers, reduced motion, screen-reader isle summary | — |
 
+**Depth proposal (2026-10-19):** [`docs/proposals/depth-and-weight.md`](docs/proposals/depth-and-weight.md) —
+difficulty audit (`tools/difficulty.mjs`), tiers Breeze → Mythic, Twist isles, Daily Isle, and
+**Weight** as the next physics (Sky Scales → Balloon/glide → Buoy). Awaiting founder decisions.
+
 **Open questions for the leadership table:**
 1. ~~License~~ — decided 2026-10-19: **MIT for everything**, code and isles (founder call; credit stays in-game).
 2. Seed the official isles into prod, or keep them bundled-only?
