@@ -8,4 +8,6 @@ dist/
 server/prisma/migrations/dev*
 
 # local Claude Code / editor settings
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/agents/
