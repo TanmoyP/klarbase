@@ -52,7 +52,8 @@ const docs = files.map(f => {
 // this PR's changes) keeps its place; among equals, the first path wins.
 const changedSet = new Set((process.env.ISLE_CHANGED || '').split('\n').map(s => s.trim()).filter(Boolean));
 const hashes = new Map();
-for(const r of docs) if(r.doc && Array.isArray(r.doc.rows)){ try { const h = isleHash(r.doc); (hashes.get(h) || hashes.set(h, []).get(h)).push(r.path); } catch {} }
+const hasGrid = d => Array.isArray(d.rows) || Array.isArray(d.storeys);   // v5 isle or v6 map
+for(const r of docs) if(r.doc && hasGrid(r.doc)){ try { const h = isleHash(r.doc); (hashes.get(h) || hashes.set(h, []).get(h)).push(r.path); } catch {} }
 const firstOwner = paths => [...paths].sort((a, b) => (changedSet.has(a) - changedSet.has(b)) || a.localeCompare(b))[0];
 
 for(const r of docs){
@@ -65,7 +66,7 @@ for(const r of docs){
       if(`${r.doc.id}.json` !== parts[3]) r.errors.push(`file name must be "${r.doc.id}.json" to match its "id"`);
     }
     const others = new Map(existing);
-    if(Array.isArray(r.doc.rows)){ try {
+    if(hasGrid(r.doc)){ try {
       const h = isleHash(r.doc), group = hashes.get(h) || [];
       if(group.length > 1 && firstOwner(group) !== r.path) others.set(h, firstOwner(group));
     } catch {} }
@@ -110,8 +111,11 @@ if(process.env.GITHUB_STEP_SUMMARY){
     const d = r.doc || {};
     md += `| ${d.name || r.path} | ${d.author ? '@' + d.author : '—'} | ${d.theme || '—'} | ${r.report?.par ?? '—'} | ${(r.report?.mechanics || []).join(', ') || '—'} | ${r.errors.length ? '❌ ' + r.errors.join('<br>') : '✅'} |\n`;
   }
-  for(const r of shown) if(r.doc && Array.isArray(r.doc.rows)){
-    md += `\n<details><summary>${r.doc.name || r.path} — map${r.report?.solution ? ` · solution <code>${r.report.solution}</code>` : ''}</summary>\n\n\`\`\`\n${r.doc.rows.join('\n')}\n\`\`\`\n</details>\n`;
+  for(const r of shown) if(r.doc && hasGrid(r.doc)){
+    const grid = Array.isArray(r.doc.storeys)
+      ? r.doc.storeys.map((s, k) => `storey ${k + 1} at [${(s?.at || []).join(', ')}]\n${(Array.isArray(s?.rows) ? s.rows : []).join('\n')}`).join('\n\n')
+      : r.doc.rows.join('\n');
+    md += `\n<details><summary>${r.doc.name || r.path} — map${r.report?.solution ? ` · solution <code>${r.report.solution}</code>` : ''}</summary>\n\n\`\`\`\n${grid}\n\`\`\`\n</details>\n`;
   }
   fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
 }

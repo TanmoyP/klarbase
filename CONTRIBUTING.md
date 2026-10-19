@@ -65,6 +65,12 @@ it only reads your JSON and judges it with the game engine. A PR can't be merged
 The full tile table and the rules of the game are in [`isles/README.md`](isles/README.md).
 
 Optional fields: `hint`, `description`, `credit` (a display name if you'd like one).
+
+**Maps (schemaVersion 6).** An isle can also be an *archipelago map*: up to 3 isles linked by
+gateway arches, optionally with Sky Scales pans. Such a file has `"schemaVersion": 6` and
+`"storeys": [{ "rows": [...], "at": [x, z, altitude] }, ...]` instead of `rows` — the builder
+writes it for you when you add a second isle or a pan. Same checks, same limits. Format and
+rules: [`isles/README.md`](isles/README.md#archipelago-maps-schemaversion-6).
 Themes: `jungle`, `oasis`, `tropical`, `urban`, `mountain`.
 
 ## What makes a great isle

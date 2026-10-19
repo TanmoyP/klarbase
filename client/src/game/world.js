@@ -2,12 +2,12 @@
 // visual that mirrors engine state. The engine (@klar/core) decides what
 // happens; this file only shows it — beautifully, and never differently.
 import * as THREE from 'three';
-import { bridgeUp, gatesOpen } from '@klar/core';
-import { themeOf } from './themes.js';
+import { bridgeUp, gatesOpen, panTilt, heightAt, cellPlace } from '@klar/core';
+import { themeOf, PORTAL_COLORS } from './themes.js';
 import {
-  LV, surfaceY, rng, hashStr, buildTerrain, makeRock, makeTree, makeFlora, makeTufts,
+  LV, rng, hashStr, buildTerrain, makeRock, makeTree, makeFlora, makeTufts,
   makeCrate, makePlate, makeGate, makeLever, makeBridge, makeKey, makeDoor, makePortal,
-  makeGoal, makeStart, makeCloud, makeFlyer,
+  makeGoal, makeStart, makeCloud, makeFlyer, makePan, PAN_HOOK,
 } from './props.js';
 import { Pip } from './pip.js';
 import { sfx, setScale, ambient } from './audio.js';
@@ -39,8 +39,9 @@ export class World {
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(30, 1, 0.1, 400);
-    this.target = new THREE.Vector3();
-    this.view = 0; this.yaw = YAW0; this.yawTo = YAW0; this.dist = 16; this.spin = 0;
+    this.target = new THREE.Vector3(); this.targetTo = new THREE.Vector3();   // eased: the camera glides between storeys
+    this.view = 0; this.yaw = YAW0; this.yawTo = YAW0; this.dist = this.distTo = 16; this.spin = 0;
+    this.mapView = false;               // archipelago maps: false = frame Pip's storey, true = the whole map
     this.insetB = 0; this.visFrac = 1;   // px of canvas covered by a bottom sheet (phone builder)
 
     this.hemi = new THREE.HemisphereLight('#ffffff', '#333333', 1);
@@ -89,7 +90,7 @@ export class World {
     const ib = Math.min(this.insetB, h * 0.7); this.visFrac = (h - ib) / h;
     if(ib > 0) this.camera.setViewOffset(w, h, 0, ib / 2, w, h); else this.camera.clearViewOffset();
     this.camera.updateProjectionMatrix();
-    this.frameIsle();
+    this.frameIsle(true);
   }
   setInsetBottom(px){ px = Math.max(0, Math.round(px)); if(px !== this.insetB){ this.insetB = px; this.resize(); } }
 
@@ -101,13 +102,16 @@ export class World {
     return { up:F, right:CW[F], down:OPPD[F], left:CW[OPPD[F]] }[arrow];
   }
   turn(d){ this.view = (this.view + d + 4) % 4; this.yawTo = YAW0 - this.view * Math.PI / 2; this.spin = 0; }
-  setShowcase(on){ this.showcase = on; }
+  setShowcase(on){ this.showcase = on; this.frameIsle(); }
+  get storeyCount(){ return this.level ? this.level.storeys.length : 1; }
+  setMapView(on){ this.mapView = !!on; this.frameIsle(); }
 
   /* ---------------- isle construction ---------------- */
-  load(level, themeName, { showcase = false } = {}){
+  // storey: the builder frames the storey being edited instead of Pip's.
+  load(level, themeName, { showcase = false, storey = null } = {}){
     this.level = level;
     const T = this.T = themeOf(themeName);
-    this.showcase = showcase;
+    this.showcase = showcase; this.editStorey = storey;
     this.disposeGroup(this.isle); this.disposeGroup(this.atmos);
     this.fx = [];
     this.hintMesh.visible = false;
@@ -122,20 +126,41 @@ export class World {
     if(this.themeName !== themeName){ ambient(T); this.themeName = themeName; }   // no pad restart while editing
     this.pip.setScarf(T.accent);
 
-    // terrain
-    const terr = buildTerrain(level, T);
-    this.centre = terr.centre;
-    this.isle.add(terr.group);
-    this.animated = [...terr.animated];
-    const tufts = makeTufts(level, T, this.centre); if(tufts) this.isle.add(tufts);
+    // terrain: every storey is its own floating isle, placed at its map offset and
+    // altitude (K4). A v5 isle is one storey at [0,0,0] — exactly the old scene.
+    const S = level.storeys;
+    const minX = Math.min(...S.map(s => s.at[0])), maxX = Math.max(...S.map(s => s.at[0] + s.w - 1));
+    const minZ = Math.min(...S.map(s => s.at[1])), maxZ = Math.max(...S.map(s => s.at[1] + s.h - 1));
+    this.centre = [(minX + maxX) / 2, (minZ + maxZ) / 2];
+    this.mapSpan = Math.max(maxX - minX + 1, maxZ - minZ + 1);
+    this.tiltShown = 0; this.mapView = false;
+    this.pipStorey = Math.max(0, level.sid[level.start] ?? 0);
+    this.storeyGroups =S.map(() => { const g = new THREE.Group(); g.userData = { fade:1, fadeTo:1 }; this.isle.add(g); return g; });
+    this.storeyTop = S.map(() => 0);
+    this.animated = [];
+    S.forEach((s, k) => {
+      // the storey as a plain grid; pans are cut out (they hang in their own baskets)
+      const cells = [];
+      for(let z = 0; z < s.h; z++) for(let x = 0; x < s.w; x++){
+        const c = level.cells[z*level.w + s.x0 + x];
+        cells.push(c.kind === 'pan' ? { kind:'void', h:0, ch:'-' } : c);
+        if(c.kind !== 'void') this.storeyTop[k] = Math.max(this.storeyTop[k], c.h);
+      }
+      const sub = { w:s.w, h:s.h, cells }, terr = buildTerrain(sub, T);
+      const off = new THREE.Vector3(s.at[0] + terr.centre[0] - this.centre[0], s.at[2] * LV, s.at[1] + terr.centre[1] - this.centre[1]);
+      terr.group.position.copy(off); this.storeyGroups[k].add(terr.group);
+      this.animated.push(...terr.animated);
+      const tufts = makeTufts(sub, T, terr.centre); if(tufts){ tufts.position.copy(off); this.storeyGroups[k].add(tufts); }
+    });
 
     // props and pieces
     const r = rng(hashStr(level.cells.map(c => c.ch + c.h).join('|')));
     this.sway = []; this.keys = new Map(); this.doors = new Map(); this.bridges = new Map();
-    this.levers = []; this.gates = []; this.plates = new Map(); this.portals = []; this.goals = [];
+    this.levers = []; this.gates = []; this.plates = new Map(); this.portals = []; this.goals = []; this.pans = new Map();
     for(let i = 0; i < level.cells.length; i++){
-      const c = level.cells[i], p = this.cellPos(i, false);
-      const put = obj => { obj.position.copy(p); this.isle.add(obj); return obj; };
+      if(level.sid[i] < 0) continue;              // padding between storeys
+      const c = level.cells[i], p = this.cellPos(i, false), home = this.groupOf(i);
+      const put = obj => { obj.position.copy(p); home.add(obj); return obj; };
       switch(c.kind){
         case 'rock': put(makeRock(T, r)); break;
         case 'tree': { const t = put(makeTree(T, r)); if(t.userData.sway) this.sway.push([t.userData.sway, r() * 6]); break; }
@@ -145,16 +170,95 @@ export class World {
         case 'lever': this.levers.push(put(makeLever(T))); break;
         case 'door': { const d = put(makeDoor(T)); d.rotation.y = this.sideways(i) ? Math.PI / 2 : 0; this.doors.set(i, d); break; }
         case 'portal': { const pr = put(makePortal(T, c.ch)); pr.rotation.y = this.sideways(i) ? Math.PI / 2 : 0; this.portals.push(pr); break; }
-        case 'bridge': { const b = put(makeBridge(T)); b.rotation.y = this.sideways(i) ? 0 : Math.PI / 2; b.userData.baseY = b.position.y; this.bridges.set(i, b); break; }
+        case 'bridge': { const b = put(makeBridge(T)); b.rotation.y = this.sideways(i) ? 0 : Math.PI / 2; b.userData.baseY = b.position.y; b.userData.storey = level.sid[i]; this.bridges.set(i, b); break; }
+        case 'pan': this.pans.set(i, put(makePan(T))); break;
       }
       if(c.flora) put(makeFlora(T, r));
       if(level.start === i) put(makeStart(T));
       if(level.keys.includes(i)) this.keys.set(i, put(makeKey(T)));
     }
+    this.buildVine(T);
+    this.buildThreads();
 
     this.buildAtmosphere(T, r);
-    this.frameIsle();
+    this.frameIsle(true);
     this.yaw = this.yawTo = YAW0 - this.view * Math.PI / 2;
+  }
+
+  groupOf(i){ return this.storeyGroups[Math.max(0, this.level.sid[i])]; }
+  fadeOf(obj){ return obj.parent ? obj.parent.userData.fade ?? 1 : 1; }
+
+  // Sky Scales: one vine over a sky branch, a rope down to every pan tile's hook.
+  // Rope lengths follow the pans; the branch stays put at a height clear of both.
+  buildVine(T){
+    this.vine = null;
+    const L = this.level;
+    if(!L.pans) return;
+    const tiles = [...L.pans.a, ...L.pans.b];
+    const top = Math.max(...tiles.map(i => (L.storeys[L.sid[i]].at[2] + L.cells[i].h + 1) * LV)) + PAN_HOOK + 0.7;
+    const pts = tiles.map(i => { const p = this.cellPos(i, false); return new THREE.Vector3(p.x, top, p.z); });
+    if(pts.length === 2) pts.splice(1, 0, pts[0].clone().lerp(pts[1], 0.5).add(new THREE.Vector3(0, 0.35, 0)));
+    const curve = new THREE.CatmullRomCurve3(pts);
+    const wood = new THREE.MeshStandardMaterial({ color:T.trunk, flatShading:true, roughness:0.9 });
+    const branch = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.075, 6, false), wood); branch.castShadow = true;
+    this.isle.add(branch);
+    const leaf = new THREE.MeshStandardMaterial({ color:T.leafAlt, flatShading:true, roughness:0.8 });
+    for(let k = 1; k < 9; k++){
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 4), leaf);
+      m.scale.set(1.4, 0.45, 0.8); m.position.copy(curve.getPoint(k / 9)); m.position.y += 0.06; m.rotation.y = k * 1.9; this.isle.add(m);
+    }
+    const vineMat = new THREE.MeshStandardMaterial({ color:T.leaf, roughness:1 }), knot = new THREE.MeshStandardMaterial({ color:T.woodDark, flatShading:true });
+    const ropes = new Map();
+    for(const i of tiles){
+      const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 5), vineMat); rope.castShadow = true;
+      const k = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 6, 14), knot);
+      const p = this.cellPos(i, false); k.position.set(p.x, top, p.z); k.rotation.y = Math.PI / 4;
+      this.isle.add(rope, k); ropes.set(i, rope);
+    }
+    this.vine = { top, ropes };
+  }
+  updateVine(){
+    if(!this.vine) return;
+    for(const [i, rope] of this.vine.ropes){
+      const pan = this.pans.get(i), y0 = pan.position.y + PAN_HOOK, len = Math.max(0.01, this.vine.top - y0);
+      rope.position.set(pan.position.x, y0 + len / 2, pan.position.z); rope.scale.set(1, len, 1);
+    }
+  }
+  // Pans (and whatever rides them) for a scales lean f — fractional while settling.
+  setPans(f, state){
+    for(const [i, m] of this.pans){
+      const c = this.level.cells[i], y = (this.level.storeys[this.level.sid[i]].at[2] + c.h + (c.pan === 'a' ? -f : f)) * LV;
+      m.position.y = y;
+      if(state && state.p === i) this.pip.group.position.y = y;
+      const cm = this.crateMeshes && this.crateMeshes.get(i); if(cm) cm.position.y = y;
+    }
+    this.updateVine();
+  }
+  settleScales(from, to, state){
+    return new Promise(res => {
+      let t = 0;
+      this.fx.push({ update:dt => {
+        t = Math.min(1, t + dt / 0.45);
+        this.setPans(from + (to - from) * easeIO(t), state);
+        if(t >= 1){ this.tiltShown = to; res(); return false; }
+        return true;
+      } });
+    });
+  }
+  // Gateways: a faint thread of light between the two arches of a pair that links storeys.
+  buildThreads(){
+    this.threads = [];
+    const L = this.level, done = new Set();
+    for(const [a, b] of Object.entries(L.twin).map(([u, v]) => [+u, v])){
+      if(!L.cells[a].gateway || done.has(a)) continue;
+      done.add(a); done.add(b);
+      const p = this.cellPos(a, false).add(new THREE.Vector3(0, 0.5, 0)), q = this.cellPos(b, false).add(new THREE.Vector3(0, 0.5, 0));
+      const d = new THREE.Vector3().subVectors(q, p);
+      const mat = new THREE.MeshBasicMaterial({ color:PORTAL_COLORS[L.cells[a].ch], transparent:true, opacity:0.2, blending:THREE.AdditiveBlending, depthWrite:false });
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, d.length(), 6, 1, true), mat);
+      m.position.copy(p).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+      this.isle.add(m); this.threads.push(mat);
+    }
   }
 
   // Doors, gates, portals and bridges face along the walkway they sit in.
@@ -165,31 +269,59 @@ export class World {
     return ew && !ns;
   }
 
+  // World position of cell i: its map tile, its storey's altitude, and its height
+  // (a pan's height follows the scales as currently shown).
   cellPos(i, standing = true){
-    const L = this.level, c = L.cells[i];
-    const x = i % L.w - this.centre[0], z = ((i / L.w) | 0) - this.centre[1];
-    return new THREE.Vector3(x, standing ? surfaceY(c) : c.h * LV, z);
+    const L = this.level, c = L.cells[i], { storey, mx, mz } = cellPlace(L, i);
+    const h = (L.storeys[storey].at[2] + heightAt(L, i, this.tiltShown || 0)) * LV;
+    return new THREE.Vector3(mx - this.centre[0], h + (standing && c.kind === 'ramp' ? LV / 2 : 0), mz - this.centre[1]);
   }
 
-  frameIsle(){
+  // Frame the storey Pip is on (or the one being edited); the map view and the
+  // title showcase frame every storey. snap = jump there instead of gliding.
+  frameIsle(snap = false){
     if(!this.level) return;
-    const L = this.level;
-    let maxH = 0; for(const c of L.cells) if(c.kind !== 'void') maxH = Math.max(maxH, c.h);
-    const radius = Math.hypot(L.w, L.h) / 2 + 0.8 + maxH * LV * 0.4;
+    const L = this.level, S = L.storeys;
+    const focus = this.editStorey ?? this.pipStorey ?? 0, all = this.mapView || this.showcase || S.length === 1;
+    const ks = all ? S.map((_, k) => k) : [focus];
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for(const k of ks){
+      const s = S[k];
+      x0 = Math.min(x0, s.at[0]); x1 = Math.max(x1, s.at[0] + s.w - 1); z0 = Math.min(z0, s.at[1]); z1 = Math.max(z1, s.at[1] + s.h - 1);
+      y0 = Math.min(y0, s.at[2]); y1 = Math.max(y1, s.at[2] + this.storeyTop[k]);
+    }
+    const radius = Math.hypot(x1 - x0 + 1, z1 - z0 + 1) / 2 + 0.8 + (y1 - y0) * LV * 0.4;
     // Fit to the visible window only (smaller than the canvas when a bottom sheet covers it).
     const vf = this.visFrac, fov = 2 * Math.atan(Math.tan(this.camera.fov * Math.PI / 360) * vf), aspect = Math.max(0.5, this.camera.aspect / vf);
     const fit = radius / Math.sin(fov / 2) / Math.min(1, aspect * 0.95);
-    this.dist = fit * (this.compact ? 1.25 : 1.02);
-    this.target.set(0, maxH * LV * 0.35 - 0.4, 0);
-    this.scene.fog.near = this.dist * 1.4; this.scene.fog.far = this.dist * 4.5;
-    const s = this.sun.shadow.camera, ext = radius + 1.5;
-    s.left = -ext; s.right = ext; s.top = ext; s.bottom = -ext; s.near = 0.5; s.far = 60; s.updateProjectionMatrix();
+    this.distTo = fit * (this.compact ? 1.25 : 1.02);
+    this.targetTo.set((x0 + x1) / 2 - this.centre[0], (y0 + (y1 - y0) * 0.35) * LV - 0.4, (z0 + z1) / 2 - this.centre[1]);
+    if(snap){ this.dist = this.distTo; this.target.copy(this.targetTo); }
+    this.scene.fog.near = this.distTo * 1.4; this.scene.fog.far = this.distTo * 4.5;
+    // shadows cover the whole map, wherever the camera looks
+    const s = this.sun.shadow.camera, ext = this.mapSpan * 0.75 + 0.8 + this.targetTo.length() + 1.5;
+    s.left = -ext; s.right = ext; s.top = ext; s.bottom = -ext; s.near = 0.5; s.far = 60 + ext; s.updateProjectionMatrix();
+    // a storey floating over the framed one fades, so the lower isle stays readable
+    for(let k = 0; k < S.length; k++){
+      const a = S[k], b = S[focus], over = !all && k !== focus && a.at[2] > b.at[2]
+        && a.at[0] < b.at[0] + b.w && b.at[0] < a.at[0] + a.w && a.at[1] < b.at[1] + b.h && b.at[1] < a.at[1] + a.h;
+      this.storeyGroups[k].userData.fadeTo = over ? 0.22 : 1;
+    }
+  }
+  fadeStorey(g, f){
+    g.userData.fade = f;
+    g.traverse(o => { if(!o.material) return; for(const m of Array.isArray(o.material) ? o.material : [o.material]){
+      const b = m.userData.fb || (m.userData.fb = { o:m.opacity, t:m.transparent, d:m.depthWrite });
+      const t = b.t || f < 0.999;
+      if(t !== m.transparent){ m.transparent = t; m.needsUpdate = true; }
+      m.opacity = b.o * f; m.depthWrite = b.d && f > 0.98;
+    } });
   }
 
   buildAtmosphere(T, r){
     // clouds drifting around and below the isle
     this.clouds = [];
-    const isleSpan = Math.max(this.level.w, this.level.h);
+    const isleSpan = this.mapSpan;
     for(let i = 0; i < 12; i++){
       const c = makeCloud(r);
       // a sea of cloud BELOW the isle, plus a few far-off puffs on the horizon —
@@ -206,7 +338,7 @@ export class World {
     const n = { fireflies:70, dust:90, petals:60, lanterns:46, snow:170 }[T.particles] || 60;
     const pos = new Float32Array(n * 3), colors = new Float32Array(n * 3), seeds = [];
     const base = new THREE.Color({ fireflies:'#eaff8a', dust:'#ffe3b0', petals:'#ffc0d4', lanterns:'#ffcf7a', snow:'#ffffff' }[T.particles]);
-    const span = Math.max(this.level.w, this.level.h) * 0.8 + 2;
+    const span = this.mapSpan * 0.8 + 2;
     for(let i = 0; i < n; i++){
       seeds.push({ x:(r() - 0.5) * span * 2, y:-1 + r() * 5, z:(r() - 0.5) * span * 2, ph:r() * 6, sp:0.3 + r() * 0.7 });
       const c = T.particles === 'lanterns' && r() < 0.35 ? new THREE.Color(T.crystal) : base;
@@ -238,14 +370,19 @@ export class World {
   /* ---------------- state mirror ---------------- */
   // Snap every dynamic piece to a state (load, undo, restart, replay start).
   reset(state){
-    for(const m of this.crateMeshes?.values() || []) this.isle.remove(m);
-    for(const m of this.fillers || []) this.isle.remove(m);
+    for(const m of this.crateMeshes?.values() || []) m.removeFromParent();
+    for(const m of this.fillers || []) m.removeFromParent();
+    this.tiltShown = panTilt(this.level, state);       // heights first: crates and Pip stand on them
+    this.pipStorey = this.level.sid[state.p];
     this.crateMeshes = new Map(); this.fillers = [];
-    for(const i of state.crates){ const m = makeCrate(this.T); m.position.copy(this.cellPos(i)); m.userData.cell = i; this.isle.add(m); this.crateMeshes.set(i, m); }
+    for(const i of state.crates){ const m = makeCrate(this.T); m.position.copy(this.cellPos(i)); m.userData.cell = i; this.groupOf(i).add(m); this.crateMeshes.set(i, m); }
     for(const i of state.filled){ this.addFiller(i, true); }
     for(const [i, k] of this.keys) k.visible = !state.got.includes(i);
     this.applyState(state, true);
     this.pip.placeAt(this.cellPos(state.p)); this.pip.group.visible = true;
+    this.setPans(this.tiltShown);
+    this.frameIsle();
+    for(const g of this.storeyGroups) if(g.userData.fade < 1) this.fadeStorey(g, g.userData.fade);   // new crates join a faded storey
   }
   addFiller(i, instant, mesh){
     const m = mesh || makeCrate(this.T);
@@ -253,7 +390,7 @@ export class World {
     const y = c.h * LV - 0.78;
     m.traverse(o => { if(o.material && !o.userData.mossy){ o.material = o.material.clone(); o.material.color.lerp(new THREE.Color(this.T.waterDeep), 0.35); o.userData.mossy = true; } });
     m.userData.cell = i;
-    if(!mesh) this.isle.add(m);
+    if(!mesh) this.groupOf(i).add(m);
     const p = this.cellPos(i, false); p.y = y;
     if(instant) m.position.copy(p);
     else this.tweenObj(m, m.position.clone(), p, 0.35);
@@ -311,7 +448,11 @@ export class World {
     let slid = false;
     for(const e of ev){
       if(e.t === 'slide'){ if(!slid){ sfx.slide(); slid = true; } await this.pip.glide(this.cellPos(e.from), this.cellPos(e.to), 0.085 * speed); }
-      if(e.t === 'tp'){ sfx.tp(); this.sparkle(e.from, '#ffffff'); await this.pip.teleport(this.cellPos(e.from), this.cellPos(e.to)); this.sparkle(e.to, '#ffffff'); }
+      if(e.t === 'tp'){
+        sfx.tp(); this.sparkle(e.from, '#ffffff');
+        if(e.gateway){ this.pipStorey = this.level.sid[e.to]; this.frameIsle(); }   // the camera follows Pip to the new storey
+        await this.pip.teleport(this.cellPos(e.from), this.cellPos(e.to)); this.sparkle(e.to, '#ffffff');
+      }
       if(e.t === 'key'){ sfx.key(); this.collectKey(e.at); }
       if(e.t === 'toggle'){ sfx.toggle(); }
       if(e.t === 'fall'){
@@ -320,6 +461,8 @@ export class World {
       }
     }
     await crateJobs;
+    const sc = ev.find(e => e.t === 'scales');
+    if(sc){ sfx.scales(sc.tilt > sc.from); await this.settleScales(sc.from, sc.tilt, res.state); }
     this.applyState(res.state);
     if(ev.some(e => e.t === 'gate')) sfx.gate(ev.find(e => e.t === 'gate').open);
   }
@@ -383,6 +526,8 @@ export class World {
     // camera: eased 90° turns, or a slow orbit in showcase mode
     if(this.showcase) this.yawTo -= dt * 0.12;
     this.yaw += (this.yawTo - this.yaw) * Math.min(1, dt * 6);
+    const ease = Math.min(1, dt * 3.5);
+    this.dist += (this.distTo - this.dist) * ease; this.target.lerp(this.targetTo, ease);
     const d = this.dist;
     const breathe = this.showcase ? 0 : Math.sin(t * 0.35) * 0.06;
     this.camera.position.set(
@@ -399,12 +544,14 @@ export class World {
       for(const a of this.animated) a.update(t);
       for(const [crown, ph] of this.sway){ crown.rotation.z = Math.sin(t * 1.2 + ph) * 0.05; crown.rotation.x = Math.sin(t * 0.9 + ph) * 0.03; }
       for(const g of this.goals){ const u = g.userData; u.gem.rotation.y = t * 1.4; u.gem.position.y = 0.75 + Math.sin(t * 2) * 0.06; u.ring.rotation.z = t; u.ring.scale.setScalar(1 + Math.sin(t * 2.4) * 0.08); u.beamMat.opacity = 0.11 + Math.sin(t * 1.7) * 0.04; }
-      for(const p of this.portals){ const u = p.userData; u.swirl.rotation.z = -t * 3; u.glowMat.opacity = 0.45 + Math.sin(t * 3) * 0.12; u.gem.rotation.y = t * 2; }
+      for(const p of this.portals){ const u = p.userData; u.swirl.rotation.z = -t * 3; u.glowMat.opacity = (0.45 + Math.sin(t * 3) * 0.12) * this.fadeOf(p); u.gem.rotation.y = t * 2; }
+      for(const m of this.threads) m.opacity = 0.16 + Math.sin(t * 2.2) * 0.07;
+      for(const g of this.storeyGroups){ const u = g.userData; if(Math.abs(u.fade - u.fadeTo) > 0.002) this.fadeStorey(g, u.fade + (u.fadeTo - u.fade) * Math.min(1, dt * 5)); }
       for(const k of this.keys.values()){ if(k.visible){ k.userData.spin.rotation.y = t * 2; k.userData.spin.position.y = 0.55 + Math.sin(t * 2.5) * 0.07; } }
       const lerp = (o, key, rate) => { o.userData[key] += (o.userData.target - o.userData[key]) * Math.min(1, dt * rate); return o.userData[key]; };
       for(const g of this.gates){ if(g.userData.target == null) continue; const o = lerp(g, 'open', 6); g.userData.bars.position.y = -o * 0.86; }
       for(const p of this.plates.values()){ if(p.userData.target == null) continue; const v = lerp(p, 'pressed', 10); p.userData.base.position.y = 0.02 - v * 0.04; p.userData.ringMat.emissiveIntensity = 0.15 + v * 1.6; }
-      for(const b of this.bridges.values()){ if(b.userData.target == null) continue; const v = lerp(b, 'up', 5); b.position.y = b.userData.baseY - (1 - v) * 0.42; b.userData.mats.forEach(m => m.opacity = 0.35 + v * 0.65); }
+      for(const b of this.bridges.values()){ if(b.userData.target == null) continue; const v = lerp(b, 'up', 5); b.position.y = b.userData.baseY - (1 - v) * 0.42; b.userData.mats.forEach(m => m.opacity = (0.35 + v * 0.65) * this.fadeOf(b)); }
       for(const l of this.levers){ if(l.userData.target == null) continue; l.userData.pivot.rotation.z = lerp(l, 'angle', 9); }
       for(const dr of this.doors.values()){ if(dr.userData.target == null) continue; dr.userData.hinge.rotation.y = -lerp(dr, 'open', 5) * 1.7; }
       if(this.hintMesh.visible){ const u = this.hintMesh.userData; this.hintMesh.position.copy(u.at); this.hintMesh.position.y += 0.75 + Math.sin(t * 5) * 0.08; }

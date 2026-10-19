@@ -4,7 +4,7 @@
 //   community  — isles merged on GitHub (isles/community/<author>/<id>.json),
 //                bundled at build time with credit to their author
 //   online     — isles shared in-game and stored on the server (/i/<hash>)
-import { CURATED_ISLES, CHAPTERS, parseIsle, solveIsle, starsFor, isleHash, initialState } from '@klar/core';
+import { CURATED_ISLES, CHAPTERS, SCHEMAS, parseIsle, solveIsle, starsFor, isleHash, initialState } from '@klar/core';
 import { World } from './game/world.js';
 import { Session } from './game/session.js';
 import { THEMES, themeOf } from './game/themes.js';
@@ -23,10 +23,12 @@ const store = {
 
 /* ---------------- isle catalogue ---------------- */
 const COMMUNITY = Object.values(import.meta.glob('../../isles/community/*/*.json', { eager:true, import:'default' }))
-  .filter(d => d && Array.isArray(d.rows))
+  .filter(d => d && (Array.isArray(d.rows) || Array.isArray(d.storeys)))
   .sort((a, b) => a.name.localeCompare(b.name));
+// A chapter is keyed by its id, or by its theme for the original five (one theme each).
+const chapterKey = c => c.id || c.theme, chapterOf = d => CHAPTERS.find(c => chapterKey(c) === (d.chapter || d.theme));
 const official = CURATED_ISLES.map((d, i) => ({ key:'o:' + d.id, doc:d, name:d.name, theme:d.theme, par:d.par, solution:d.solution,
-  hint:d.hint, index:i, sub:`${themeOf(d.theme).chapter} · isle ${i + 1} of ${CURATED_ISLES.length}` }));
+  hint:d.hint, index:i, sub:`${chapterOf(d)?.title || themeOf(d.theme).chapter} · isle ${i + 1} of ${CURATED_ISLES.length}` }));
 const community = COMMUNITY.map(d => ({ key:`c:${d.author}/${d.id}`, doc:d, name:d.name, theme:d.theme, par:d.par, solution:d.solution,
   hint:d.hint, author:d.author, sub:`by @${d.author}` }));
 const communityHashes = () => COMMUNITY.map(d => [isleHash(d), `community isle “${d.name}” by @${d.author}`]);
@@ -97,6 +99,8 @@ function helpModal(){
       <div><span class="ico">◎</span><span>Gates open while <b>every</b> plate is pressed, by you or a crate.</span></div>
       <div><span class="ico">🕹</span><span>Stand on a lever and press <b>Space</b>: every bridge flips. A crate on a sinking bridge stays as a block.</span></div>
       <div><span class="ico">🔑</span><span>Keys open doors — one key each. Step into an arch ⛩ to appear at its twin.</span></div>
+      <div><span class="ico">⚖</span><span>Sky Scales: two pans hang from one vine. The heavier pan sinks a level, the lighter rises one — and you ride along. You and crates weigh 1.</span></div>
+      <div><span class="ico">🗺</span><span>Some maps have several isles. A gateway arch carries you between them; press <b>M</b> to see the whole map.</span></div>
       <div><span class="ico">⭐</span><span>Reach the glowing star. Match par for ★★★. Stuck? <b>H</b> shows your best next move.</span></div>
     </div>
     <div class="row"><button class="btn primary" onclick="document.getElementById('modal').classList.remove('on')">Got it</button></div>`);
@@ -121,18 +125,22 @@ function starsHtml(n){ return `<span class="stars">${'<b>★</b>'.repeat(n)}${'�
 // from its rows in the theme's colours, so every card previews its puzzle.
 const thumbCache = new Map();
 function thumb(doc){
-  if(!doc || !Array.isArray(doc.rows)) return null;
-  const key = doc.theme + doc.rows.join('|');
+  if(!doc || !(Array.isArray(doc.rows) || Array.isArray(doc.storeys))) return null;
+  // a map draws every storey at its offset, higher storeys lifted and drawn last
+  const parts = (doc.storeys || [{ rows:doc.rows, at:[0, 0, 0] }]).map(s => ({ grid:s.rows.map(r => r.trim().split(/\s+/)), at:s.at })).sort((a, b) => a.at[2] - b.at[2]);
+  const key = doc.theme + JSON.stringify(doc.storeys || doc.rows);
   if(thumbCache.has(key)) return thumbCache.get(key);
-  const T = themeOf(doc.theme), grid = doc.rows.map(r => r.trim().split(/\s+/));
-  const h = grid.length, w = grid[0].length, W = 240, H = 148, cs = Math.min((W - 24) / w, (H - 20) / h);
+  const T = themeOf(doc.theme), lift = k => parts[k].at[2] * 0.5;
+  const w = Math.max(...parts.map(p => p.at[0] + p.grid[0].length)), h = Math.max(...parts.map((p, k) => p.at[1] + p.grid.length + lift(k)));
+  const W = 240, H = 148, cs = Math.min((W - 24) / w, (H - 20) / h);
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d'), sky = g.createLinearGradient(0, 0, 0, H);
   sky.addColorStop(0, T.sky[0]); sky.addColorStop(0.75, T.sky[1]); sky.addColorStop(1, T.sky[2]);
   g.fillStyle = sky; g.fillRect(0, 0, W, H);
-  const ox = (W - cs * w) / 2, oy = (H - cs * h) / 2 + 2;
+  const ox0 = (W - cs * w) / 2, oy0 = (H - cs * h) / 2 + 2 + Math.max(...parts.map((p, k) => lift(k))) * cs;
   const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); const f = v => Math.max(0, Math.min(255, Math.round(v * k))); return `rgb(${f(n >> 16)},${f(n >> 8 & 255)},${f(n & 255)})`; };
-  for(let z = 0; z < h; z++) for(let x = 0; x < w; x++){
+  parts.forEach(({ grid, at }, k) => { const ox = ox0 + at[0] * cs, oy = oy0 + at[1] * cs - lift(k) * cs;
+  for(let z = 0; z < grid.length; z++) for(let x = 0; x < grid[0].length; x++){
     const t = grid[z][x], ch = t[0], lv = +(t[1] || 0);
     if(ch === '-') continue;
     const px = ox + x * cs, py = oy + z * cs - lv * cs * 0.18;
@@ -143,9 +151,10 @@ function thumb(doc){
     const dot = (col, r) => { g.fillStyle = col; g.beginPath(); g.arc(px + cs / 2, py + cs * 0.43, cs * r, 0, Math.PI * 2); g.fill(); };
     if(ch === 'T') dot(T.leaf, 0.38); else if(ch === 'G') dot(T.accent, 0.3); else if(ch === 'S') dot('#fff4e2', 0.26);
     else if(ch === 'C') { g.fillStyle = T.wood; g.fillRect(px + cs * 0.2, py + cs * 0.12, cs * 0.6, cs * 0.6); }
-    else if(ch === 'p' || ch === 'q') dot(ch === 'p' ? '#4ff0ff' : '#ff72d8', 0.28);
+    else if(ch === 'p' || ch === 'q' || ch === 'r') dot({ p:'#4ff0ff', q:'#ff72d8', r:'#a6ff5c' }[ch], 0.28);
+    else if(ch === 'a' || ch === 'b'){ g.fillStyle = T.woodDark; g.fillRect(px + cs * 0.1, py + cs * 0.1, cs * 0.8, cs * 0.66); g.fillStyle = T.top; g.fillRect(px + cs * 0.2, py + cs * 0.18, cs * 0.6, cs * 0.5); }
     else if(ch === 'k') dot('#ffd35c', 0.2); else if(ch === ',') dot(T.flora[0], 0.12);
-  }
+  } });
   const url = c.toDataURL();
   thumbCache.set(key, url); return url;
 }
@@ -164,9 +173,9 @@ function selectScreen(which){
   const list = $('#selectList');
   if(tab === 'official'){
     list.innerHTML = CHAPTERS.map(ch => {
-      const T = THEMES[ch.theme], isles = official.filter(e => e.theme === ch.theme);
+      const T = THEMES[ch.theme], isles = official.filter(e => chapterOf(e.doc) === ch);
       const got = isles.reduce((s, e) => s + (progress[e.key]?.stars || 0), 0);
-      return `<div class="chapter"><div class="chapter-head"><h3>${ch.title}</h3><span>${T.label} · ${T.blurb} · ${got}/${isles.length * 3} ★</span></div>
+      return `<div class="chapter"><div class="chapter-head"><h3>${ch.title}</h3><span>${T.label} · ${ch.blurb || T.blurb} · ${got}/${isles.length * 3} ★</span></div>
         <div class="grid">${isles.map(e => cardHtml(e, e.index + 1)).join('')}</div></div>`;
     }).join('');
   } else {
@@ -207,6 +216,7 @@ function play(entry){
   current = entry;
   world.setShowcase(false); world.view = 0; world.turn(0);
   world.load(level, entry.doc.theme); world.pip.group.visible = true;
+  $('#btnMap').style.display = world.storeyCount > 1 ? '' : 'none'; syncMap();
   setAccent(entry.doc.theme);
   if(!entry.par){ const r = solveIsle(level, { maxStates:200000 }); entry.par = r.solvable ? r.par : 0; entry.solution = r.solution || ''; }
   game = new Session(world, level, entry, { onChange:hud, onWin:won, onEffort:addEffort });
@@ -334,6 +344,10 @@ $('#btnRestart').onclick = () => game && game.restart();
 $('#btnHint').onclick = hint;
 $('#btnSolution').onclick = watch;
 $('#btnTurn').onclick = () => { world.turn(1); sfx.ui(); };
+// Archipelago maps: the camera frames Pip's storey; M (or the button) shows the whole map.
+const syncMap = () => $('#btnMap').classList.toggle('primary', world.mapView);
+function toggleMap(){ if(world.storeyCount < 2) return; world.setMapView(!world.mapView); syncMap(); sfx.ui(); }
+$('#btnMap').onclick = toggleMap;
 
 /* ---------------- input ---------------- */
 const KEYS = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right', w:'up', s:'down', a:'left', d:'right', W:'up', S:'down', A:'left', D:'right' };
@@ -350,6 +364,7 @@ addEventListener('keydown', e => {
     case 'h': case 'H': hint(); break;
     case 'q': case 'Q': world.turn(-1); break;
     case 'e': case 'E': world.turn(1); break;
+    case 'm': case 'M': toggleMap(); break;
   }
 });
 document.querySelectorAll('.dpad [data-arrow]').forEach(b => b.addEventListener('pointerdown', e => {
@@ -391,7 +406,7 @@ async function route(){
   if((m = /^\/(?:i|p)\/([0-9a-f]{64})$/.exec(h))){
     try {
       const r = await api('/puzzles/' + m[1]);
-      if(r.puzzle.schemaVersion !== 5){ toast('That link is from an older version of Klarbase', true); nav('/community'); return; }
+      if(!SCHEMAS.includes(r.puzzle.schemaVersion)){ toast('That link is from an older version of Klarbase', true); nav('/community'); return; }
       return play({ key:'i:' + m[1], doc:{ ...r.puzzle, name:r.title }, name:r.title, theme:r.puzzle.theme, par:r.puzzle.par, solution:r.puzzle.solution, sub:'shared by ' + r.author.name, online:true });
     } catch { toast('That isle could not be found', true); nav('/community'); return; }
   }

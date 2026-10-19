@@ -3,7 +3,7 @@
 // required CI check on every pull request. If a stranger's isle passes here,
 // it is valid, solvable, uses real mechanics, is credited, and is unique.
 // Pure: data in, verdict out. No contributor code is ever executed.
-import { THEMES, ISLE_SCHEMA, parseIsle, isleHash } from './format.js';
+import { THEMES, ISLE_SCHEMA, MAP_SCHEMA, schemaOf, parseIsle, isleHash } from './format.js';
 import { solveIsle } from './solve.js';
 import { simulate, initialState, step } from './rules.js';
 
@@ -11,23 +11,26 @@ export const CONTRIB = {
   MIN_PAR: 6,                       // shorter than this is a walk, not a puzzle
   MAX_STATES: 200000,               // solver budget — keeps CI fast and fair
   MAX_BYTES: 8192,
-  REQUIRED: ['schemaVersion', 'id', 'name', 'author', 'theme', 'rows', 'par', 'solution'],
+  REQUIRED: ['schemaVersion', 'id', 'name', 'author', 'theme', 'rows', 'par', 'solution'],   // a v6 map has 'storeys' instead of 'rows'
   OPTIONAL: ['hint', 'description', 'credit'],
   ID: /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
   AUTHOR: /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/,   // a GitHub login
   NAME: /^[\p{L}\p{N}][\p{L}\p{N} '’&.,!?:-]{1,38}[\p{L}\p{N}!?.]$/u,
   // events that count as a real mechanic (plain flat walking does not)
-  MECHANICS: ['walk:ramp', 'walk:down', 'push', 'sink', 'slide', 'cslide', 'tp', 'toggle', 'fall', 'key', 'door', 'gate'],
+  MECHANICS: ['walk:ramp', 'walk:down', 'push', 'sink', 'slide', 'cslide', 'tp', 'toggle', 'fall', 'key', 'door', 'gate', 'scales', 'gateway'],
 };
 
 const cleanText = (s, max) => typeof s === 'string' && s.length <= max && !/[\u0000-\u001f]/.test(s) && !/https?:|www\./i.test(s);
+
+// The mechanic an engine event stands for (an arch ride between storeys is a gateway).
+export const eventMechanic = e => e.t === 'walk' ? 'walk:' + e.kind : e.t === 'tp' && e.gateway ? 'gateway' : e.t;
 
 // Which mechanics a move string actually exercises.
 export function mechanicsUsed(level, moves){
   let s = initialState(level); const used = new Set();
   for(const m of moves){
     const r = step(level, s, m); if(!r.ok) break;
-    for(const e of r.events) used.add(e.t === 'walk' ? 'walk:' + e.kind : e.t);
+    for(const e of r.events) used.add(eventMechanic(e));
     s = r.state;
   }
   return CONTRIB.MECHANICS.filter(m => used.has(m));
@@ -41,11 +44,12 @@ export function checkCommunityIsle(doc, { existing = new Map(), bytes = 0 } = {}
   const err = m => errors.push(m);
   if(!doc || typeof doc !== 'object' || Array.isArray(doc)) return { ok:false, errors:['file must be a JSON object'], report };
   if(bytes > CONTRIB.MAX_BYTES) err(`file is ${bytes} bytes — keep isles under ${CONTRIB.MAX_BYTES}`);
-  for(const k of CONTRIB.REQUIRED) if(!(k in doc)) err(`missing required field "${k}"`);
-  for(const k of Object.keys(doc)) if(!CONTRIB.REQUIRED.includes(k) && !CONTRIB.OPTIONAL.includes(k)) err(`unknown field "${k}" (allowed: ${[...CONTRIB.REQUIRED, ...CONTRIB.OPTIONAL].join(', ')})`);
+  const required = schemaOf(doc) === MAP_SCHEMA ? CONTRIB.REQUIRED.map(k => k === 'rows' ? 'storeys' : k) : CONTRIB.REQUIRED;
+  for(const k of required) if(!(k in doc)) err(`missing required field "${k}"`);
+  for(const k of Object.keys(doc)) if(!required.includes(k) && !CONTRIB.OPTIONAL.includes(k)) err(`unknown field "${k}" (allowed: ${[...required, ...CONTRIB.OPTIONAL].join(', ')})`);
   if(errors.length) return { ok:false, errors, report };
 
-  if(doc.schemaVersion !== ISLE_SCHEMA) err(`schemaVersion must be ${ISLE_SCHEMA}`);
+  if(doc.schemaVersion !== schemaOf(doc)) err(`schemaVersion must be ${ISLE_SCHEMA} (one isle, "rows") or ${MAP_SCHEMA} (a map, "storeys")`);
   if(typeof doc.id !== 'string' || !CONTRIB.ID.test(doc.id) || doc.id.length > 40) err('id must be lowercase-words-with-dashes, up to 40 chars');
   if(typeof doc.name !== 'string' || !CONTRIB.NAME.test(doc.name)) err('name must be 3–40 letters, numbers, spaces or simple punctuation');
   if(typeof doc.author !== 'string' || !CONTRIB.AUTHOR.test(doc.author)) err('author must be your GitHub username');
@@ -58,7 +62,7 @@ export function checkCommunityIsle(doc, { existing = new Map(), bytes = 0 } = {}
   if(errors.length) return { ok:false, errors, report };
 
   const { ok, errors:perr, level } = parseIsle(doc);
-  if(!ok) return { ok:false, errors:perr.map(e => `${e.text}${e.at ? ` (column ${e.at[0] + 1}, row ${e.at[1] + 1})` : ''}`), report };
+  if(!ok) return { ok:false, errors:perr.map(e => `${e.text}${e.at ? ` (${e.at.length > 2 ? `storey ${e.at[2] + 1}, ` : ''}column ${e.at[0] + 1}, row ${e.at[1] + 1})` : ''}`), report };
 
   report.hash = isleHash(doc);
   if(existing.has(report.hash)) err(`identical to an existing isle: ${existing.get(report.hash)}`);
@@ -77,7 +81,7 @@ export function checkCommunityIsle(doc, { existing = new Map(), bytes = 0 } = {}
   else if(sim.applied !== doc.solution.length) err('solution has extra moves after the goal is reached');
   else if(doc.solution.length !== r.par) err(`solution is ${doc.solution.length} moves but par is ${r.par} — submit a shortest solution (e.g. "${r.solution}")`);
   report.mechanics = mechanicsUsed(level, sim.won ? doc.solution : r.solution);
-  if(!report.mechanics.length) err('the solution is plain flat walking — use at least one mechanic (ramps, ledges, crates, ice, plates, levers, keys or portals)');
+  if(!report.mechanics.length) err('the solution is plain flat walking — use at least one mechanic (ramps, ledges, crates, ice, plates, levers, keys, portals, gateways or scales)');
   return { ok:errors.length === 0, errors, report };
 }
 
@@ -86,8 +90,11 @@ export function toCommunityFile(doc, author){
   const { level } = parseIsle(doc);
   const r = level ? solveIsle(level, { maxStates:CONTRIB.MAX_STATES }) : { solvable:false };
   const id = String(doc.name || 'my-isle').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'my-isle';
-  const out = { schemaVersion:ISLE_SCHEMA, id, name:doc.name, author, theme:doc.theme || 'jungle',
-                rows:doc.rows.map(r => r.trim().split(/\s+/).join(' ')), par:r.par || 0, solution:r.solution || '' };
+  const norm = rows => rows.map(r => r.trim().split(/\s+/).join(' '));
+  const out = { schemaVersion:schemaOf(doc), id, name:doc.name, author, theme:doc.theme || 'jungle' };
+  if(out.schemaVersion === MAP_SCHEMA) out.storeys = doc.storeys.map(s => ({ rows:norm(s.rows), at:s.at.slice() }));
+  else out.rows = norm(doc.rows);
+  out.par = r.par || 0; out.solution = r.solution || '';
   if(doc.hint) out.hint = doc.hint;
   return out;
 }

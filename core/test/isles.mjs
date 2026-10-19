@@ -6,7 +6,12 @@ import {
   parseIsle, solveIsle, simulate, step, initialState, starsFor,
   canonicalIsle, isleHash, CURATED_ISLES, CHAPTERS, MAX_W,
   checkCommunityIsle, toCommunityFile,
+  panTilt, heightAt, stateKey, mechanicsUsed, eventMechanic, neighbor, cellPlace,
 } from '../src/isle/index.js';
+import { sha256hex, stableStringify } from '../src/schema.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 let pass = 0, fail = 0;
 const t = (name, cond) => { if(cond) pass++; else { fail++; console.error('FAIL:', name); } };
@@ -85,10 +90,109 @@ t('portal sends you to its twin', run(L(['S p - p G']), 'RR').won);
 t('solver reports unsolvable', !solveIsle(L(['S # G'])).solvable);
 t('stars', starsFor(10, 10) === 3 && starsFor(15, 10) === 2 && starsFor(16, 10) === 1);
 
+/* ---------------- archipelago maps (schemaVersion 6, K4) ---------------- */
+const M = storeys => { const r = parseIsle({ storeys }); if(!r.ok) throw new Error(JSON.stringify(r.errors)); return r.level; };
+const code = (doc, c) => parseIsle(doc).errors.some(e => e.code === c);
+t('map parses', parseIsle({ storeys:[{ rows:['S . G'], at:[0, 0, 0] }, { rows:['. .'], at:[5, 0, 2] }] }).ok);
+t('E_STOREYS: not a list', code({ storeys:'S G' }, 'E_STOREYS'));
+t('E_STOREYS: more than 3', code({ storeys:Array(4).fill({ rows:['S G'], at:[0, 0, 0] }) }, 'E_STOREYS'));
+t('E_AT: missing at', code({ storeys:[{ rows:['S . G'] }] }, 'E_AT'));
+t('E_AT: fractional altitude', code({ storeys:[{ rows:['S . G'], at:[0, 0, 1.5] }] }, 'E_AT'));
+t('E_SIZE per storey', code({ storeys:[{ rows:['S . G'], at:[0, 0, 0] }, { rows:[Array(MAX_W + 1).fill('.').join(' ')], at:[0, 2, 0] }] }, 'E_SIZE'));
+t('E_OVERLAP: stacked storeys too close', code({ storeys:[{ rows:['S . G'], at:[0, 0, 0] }, { rows:['. .'], at:[1, 0, 4] }] }, 'E_OVERLAP'));
+t('stacked storeys far enough apart are fine', parseIsle({ storeys:[{ rows:['S . G'], at:[0, 0, 0] }, { rows:['. .'], at:[1, 0, 8] }] }).ok);
+t('E_V6: pans need a map', code({ rows:['S a1 b1 G'] }, 'E_V6'));
+t('E_V6: arch C needs a map', code({ rows:['S r - r G'] }, 'E_V6'));
+t('E_PANS: one pan alone', code({ storeys:[{ rows:['S a1 G'], at:[0, 0, 0] }] }, 'E_PANS'));
+t('E_PAN_H: base 0', code({ storeys:[{ rows:['S a b1 G'], at:[0, 0, 0] }] }, 'E_PAN_H'));
+t('E_PAN_H: base 5', code({ storeys:[{ rows:['S a5 b1 G'], at:[0, 0, 0] }] }, 'E_PAN_H'));
+t('E_PAN_PLAIN: water on a pan', code({ storeys:[{ rows:['S a~ b1 G'], at:[0, 0, 0] }] }, 'E_PAN_PLAIN'));
+t('E_PAN_PLAIN: crate on a pan', code({ storeys:[{ rows:['S Ca b1 G'], at:[0, 0, 0] }] }, 'E_PAN_PLAIN'));
+t('E_PORTAL: arch C unpaired', code({ storeys:[{ rows:['S r G'], at:[0, 0, 0] }] }, 'E_PORTAL'));
+{ const mh = isleHash({ storeys:[{ rows:['S  .  G'], at:[0, 0, 0] }] });
+  t('map hash ignores whitespace', mh === isleHash({ name:'x', storeys:[{ rows:['S . G'], at:[0, 0, 0] }] }));
+  t('map hash changes with a storey offset', mh !== isleHash({ storeys:[{ rows:['S . G'], at:[1, 0, 0] }] }));
+  t('map hash differs from the same rows as a v5 isle', mh !== isleHash({ rows:['S . G'] }));
+  t('canonical map keeps storeys, drops names', canonicalIsle({ name:'n', storeys:[{ rows:['S G'], at:[0, 0, 0] }] }).schemaVersion === 6); }
+
+// storey edges: two storeys touching on the map are still two isles
+{ const lv = M([{ rows:['S . .'], at:[0, 0, 0] }, { rows:['. . G'], at:[3, 0, 0] }]);
+  t('movement never crosses a storey edge', !run(lv, 'RRRRR').won && neighbor(lv, 2, 'R') === -1);
+  t('cellPlace maps a cell to its storey and map tile', (({ storey, x, mx }) => storey === 1 && x === 0 && mx === 3)(cellPlace(lv, 4))); }
+// gateways: an arch pair across storeys
+{ const lv = M([{ rows:['S . p'], at:[0, 0, 0] }, { rows:['p . G'], at:[0, 0, 10] }]);
+  const r = step(lv, step(lv, initialState(lv), 'R').state, 'R');
+  t('gateway carries Pip to the other storey', r.ok && lv.sid[r.state.p] === 1 && r.events.some(e => e.t === 'tp' && e.gateway));
+  t('gateway map solves', run(lv, 'RRRR').won);
+  t('a gateway counts as "gateway", not "tp"', (m => m.includes('gateway') && !m.includes('tp'))(mechanicsUsed(lv, 'RRRR')));
+  const local = M([{ rows:['S p - p G'], at:[0, 0, 0] }]);
+  t('an arch pair on one storey is a plain arch', (m => m.includes('tp') && !m.includes('gateway'))(mechanicsUsed(local, 'RR'))); }
+
+/* ---------------- Sky Scales (K1) ---------------- */
+{ const lv = M([{ rows:['S2 a2 .2 G2', '-  b2 -  - '], at:[0, 0, 0] }]);
+  const A = 1, B = lv.w + 1, s0 = initialState(lv);
+  t('empty scales balance at base', panTilt(lv, s0) === 0 && heightAt(lv, A, 0) === 2 && heightAt(lv, B, 0) === 2);
+  t('Pip on pan A: A heavier', panTilt(lv, { ...s0, p:A }) === 1 && heightAt(lv, A, 1) === 1 && heightAt(lv, B, 1) === 3);
+  t('Pip on A + crate on B: balanced', panTilt(lv, { ...s0, p:A, crates:[B] }) === 0);
+  t('crate on B alone: B heavier', panTilt(lv, { ...s0, crates:[B] }) === -1);
+  const wide = M([{ rows:['S2 a2 .2 G2', '-  b2 b2 - '], at:[0, 0, 0] }]);
+  t('a pan can span tiles; two crates outweigh Pip', panTilt(wide, { ...initialState(wide), p:1, crates:[wide.w + 1, wide.w + 2] }) === -1);
+  const r1 = step(lv, s0, 'R');
+  t('stepping on a pan is judged with the heights at the START of the move', r1.ok && r1.state.p === A);
+  t('the pan sinks once the move settles (scales event)', r1.events.some(e => e.t === 'scales' && e.tilt === 1));
+  t('Pip rides the pan down: no climbing back', !step(lv, r1.state, 'L').ok && !step(lv, r1.state, 'R').ok);
+  t('no cascades: one move, one tilt', r1.events.filter(e => e.t === 'scales').length === 1); }
+{ // counterweight: a crate on B lifts A; Pip steps on at the top and rides down to the goal level
+  const lv = M([{ rows:['.3 a2 G2 -', 'S3 C3 b2 .2'], at:[0, 0, 0] }]);
+  const r = solveIsle(lv);
+  t('counterweight lifts the far pan (solver)', r.solvable && r.solution === 'RUR');
+  t('without the counterweight the pan sinks under Pip', !run(lv, 'URR').won);
+  t('scales show up as a mechanic', mechanicsUsed(lv, 'RUR').includes('scales')); }
+{ // crates ride a pan: a crate's height follows its pan
+  const lv = M([{ rows:['S2 C2 a2 .', '.  .  b2 G'], at:[0, 0, 0] }]);
+  const r = step(lv, initialState(lv), 'R');
+  t('a crate pushed onto a pan sinks with it', r.ok && r.state.crates[0] === 2 && heightAt(lv, 2, panTilt(lv, r.state)) === 1); }
+// the chapter's signature: pans on different storeys — load the lower isle to lift the upper one
+const CROSS = [{ rows:['S1 C1 b1', 'p1 .1 .1'], at:[0, 0, 0] }, { rows:['p3 a2 .2 G2'], at:[0, 0, 10] }];
+{ const lv = M(CROSS);
+  const r = solveIsle(lv);
+  t('cross-storey scales: solvable', r.solvable && r.par === 6);
+  t('cross-storey scales: the lower crate lifts the upper pan', run(lv, 'RDLRRR').won && !run(lv, 'DRRR').won);
+  t('cross-storey scales: uses scales and a gateway', (m => m.includes('scales') && m.includes('gateway'))(mechanicsUsed(lv, r.solution)));
+  const shape = s => Object.keys(s).join() + '|' + stateKey(s).split('|').length;
+  t('solver state does not grow with scales or storeys', shape(initialState(lv)) === shape(initialState(L(['S . G'])))); }
+
+/* ---------------- hash stability: v5 isles keep their identity forever ---------------- */
+const FROZEN = {
+  'first-steps':'3727fc423dff6394079bc314af8f522391d8f98a0834f5720f2d43360879902c', 'ledge-drop':'99c5f735c6050a3938d545f248b57a284afc86d5db90ed6460120d643df8defd',
+  'mossy-crate':'ad4cc7140da0e471a025f39706c54fdcae246056c5dc4391e2cf4d5cbc7dbd80', 'root-bridge':'a2e81391e8cc2bb4f2100ac29a15465c07b18469f3d61f7a4772a517b8460f8a',
+  'fern-gate':'33414f684be9fb4209bd4285f6ac4f2af766f20e6caf46903eb2feeeed910f49', 'mirage':'e48a1a2e4839444ec2b001b2db461817ff6e7491195479e14f928cb21468f8b9',
+  'twin-mirages':'bf6206b7af47c312f9bea847b5b0751415a8ccbf730ee50a8edae6f7150e0399', 'sunken-well':'c0b9d0f405f3e0d30fd403c412c8c7151eee09ecb334b6010740f09c344fd454',
+  'palm-plates':'7689bc255286eee3154e9b3e33fc95c1f35c5f6bf0d22843a523467715b60176', 'tide-lever':'01f6d885177e092b864cc789d47010cf9e151806a9cc25182c77b2f2962b8120',
+  'low-tide':'9b73c0946422d507c13d431c5ae41741a52c4e2a32906bca7c9f648b028d4df6', 'coconut-key':'f2dc0fc0d141c56f9bf2d56bf4be5e23e619fa2375757fbfa50226cec2564946',
+  'lagoon-locks':'6661e5a333db60f2ec16c8cc6cf9b4c151fcc34bfd378c32722ec3015764a3d5', 'rooftops':'9778d336a661dab80b80150c64ece128c2f97269d078f15ea19834f7f79267c9',
+  'canal-lift':'821b902f8270dc7d46900a2794d7e8e1c1dbb2ce24ebea96680dfd24b56c0641', 'subway':'cf4bbc10ed8b8576af82ba96b846f733c2db6d6bc6b6e0ed9b8899d48fe1e28d',
+  'night-market':'52b27ff0f378bb5993e869e3d7ecf61f64fdc1906a5938e6edb22b450d8c7d79', 'crosswalk':'4035f7cd57bc927c0c560d0bb0ec2b4a6bf7599e63e77e11743235c77467c748',
+  'first-frost':'36f240d94f3c27f9357958a657cded9602c9b8d69aed6d1583c995a8bfcabe21', 'glacier-stops':'aaa6c8e7d62ff8164f62aaa951cbaee8922ca26d619f7e1969d419e5bc44a304',
+  'snowball':'af9088a168516109f7c8fab1735ea478a25e4f4e74f8bb123d1dabbc91931c8b', 'glacier-maze':'521b0a5a7e3432c4fb2ae00885625fdb870113a03629e1bc590de667d754b17c',
+  'frozen-gate':'5482153a39388a9bdeabd5af4f590cda81fde6201bd3430c380148aa632f3a61', 'the-peak':'cd4133e4d647783778a3cd6ec8db4fc66228e6017b018829ca9604820c906981',
+  'community:TanmoyP/sundial-steps':'4d674ca8bc109cb409d34f1316a3d3c2c9a6b7a9eda952784ef77649b52c4cfb',
+};
+// the v5 identity formula, written out independently of format.js
+const v5Hash = d => sha256hex(stableStringify({ schemaVersion:5, theme:d.theme || 'jungle', rows:d.rows.map(r => r.trim().split(/\s+/).join(' ')) }));
+for(const isle of CURATED_ISLES) if(FROZEN[isle.id]) t(`hash unchanged: ${isle.id}`, isleHash(isle) === FROZEN[isle.id]);
+t('every pre-map official isle is frozen here', Object.keys(FROZEN).filter(k => !k.includes(':')).every(id => CURATED_ISLES.some(i => i.id === id)));
+{ const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../isles/community');
+  for(const owner of fs.existsSync(dir) ? fs.readdirSync(dir) : []) for(const f of fs.readdirSync(path.join(dir, owner))){
+    const d = JSON.parse(fs.readFileSync(path.join(dir, owner, f), 'utf8')), key = `community:${owner}/${f.replace(/\.json$/, '')}`;
+    if(FROZEN[key]) t(`hash unchanged: ${key}`, isleHash(d) === FROZEN[key]);
+    if(Array.isArray(d.rows)) t(`v5 hash formula holds: ${key}`, isleHash(d) === v5Hash(d));
+  } }
+
 /* ---------------- curated isles ---------------- */
 t('at least 20 curated isles', CURATED_ISLES.length >= 20);
 t('ids unique', new Set(CURATED_ISLES.map(i => i.id)).size === CURATED_ISLES.length);
-t('every chapter has isles', CHAPTERS.every(c => CURATED_ISLES.some(i => i.theme === c.theme)));
+t('every chapter has isles', CHAPTERS.every(c => CURATED_ISLES.some(i => (i.chapter || i.theme) === (c.id || c.theme))));
 for(const isle of CURATED_ISLES){
   const { ok, errors, level } = parseIsle(isle);
   if(!ok){ t(`${isle.id}: parses (${errors.map(e => e.code).join(',')})`, false); continue; }
@@ -98,7 +202,7 @@ for(const isle of CURATED_ISLES){
   const sim = simulate(level, isle.solution);
   t(`${isle.id}: stored solution replays to a win`, sim.won && sim.applied === isle.solution.length);
   let s = initialState(level); const used = new Set();
-  for(const m of isle.solution){ const st = step(level, s, m); for(const e of st.events) used.add(e.t === 'walk' ? 'walk:' + e.kind : e.t); s = st.state; }
+  for(const m of isle.solution){ const st = step(level, s, m); for(const e of st.events) used.add(eventMechanic(e)); s = st.state; }
   for(const n of isle.needs || []) t(`${isle.id}: uses ${n}`, used.has(n));
 }
 
@@ -125,6 +229,15 @@ t('contrib: bad schema', bad({ schemaVersion:4 }, 'schemaVersion'));
 t('contrib: oversize file', !checkCommunityIsle(good, { bytes:99999 }).ok);
 { const f = toCommunityFile({ name:'Sundial Steps', theme:'oasis', rows:good.rows }, 'TanmoyP');
   t('toCommunityFile fills par + solution that pass the gate', checkCommunityIsle(f).ok && f.par === 9); }
+const map6 = { schemaVersion:6, id:'vine-lift', name:'Vine Lift', author:'TanmoyP', theme:'jungle', storeys:CROSS, par:6, solution:'RDLRRR' };
+t('contrib: a v6 map passes', checkCommunityIsle(map6).ok);
+t('contrib: map reports scales + gateway', (m => m.includes('scales') && m.includes('gateway'))(checkCommunityIsle(map6).report.mechanics));
+t('contrib: a map must say schemaVersion 6', !checkCommunityIsle({ ...map6, schemaVersion:5 }).ok);
+t('contrib: rows with schemaVersion 6 is rejected', bad({ schemaVersion:6 }, 'schemaVersion must be'));
+t('contrib: a map needs storeys, not rows', (v => !v.ok && v.errors.some(e => e.includes('unknown field "rows"')))(checkCommunityIsle({ ...map6, rows:['S G'] })));
+t('contrib: map errors name the storey', (v => v.errors.some(e => e.includes('storey 2')))(checkCommunityIsle({ ...map6, storeys:[CROSS[0], { ...CROSS[1], rows:['p3 a2 ?2 G2'] }] })));
+{ const f = toCommunityFile({ name:'Vine Lift', theme:'jungle', storeys:CROSS }, 'TanmoyP');
+  t('toCommunityFile keeps a map a map', f.schemaVersion === 6 && Array.isArray(f.storeys) && !('rows' in f) && checkCommunityIsle(f).ok); }
 
 console.log(`\nISLES pass=${pass} fail=${fail}`);
 process.exit(fail ? 1 : 0);

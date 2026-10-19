@@ -317,6 +317,117 @@
       ],
       "hash": "cd4133e4d647783778a3cd6ec8db4fc66228e6017b018829ca9604820c906981",
       "file": "24-the-peak.json"
+    },
+    {
+      "order": 25,
+      "id": "counterweight",
+      "name": "Counterweight",
+      "theme": "jungle",
+      "par": 15,
+      "mechanics": [
+        "push",
+        "scales"
+      ],
+      "hash": "d7a6849b3f20ed45e12973f19dda636245fa45d8c69e7943d2d7b804684840ac",
+      "file": "25-counterweight.json"
+    },
+    {
+      "order": 26,
+      "id": "high-arch",
+      "name": "High Arch",
+      "theme": "tropical",
+      "par": 31,
+      "mechanics": [
+        "push",
+        "scales",
+        "gateway"
+      ],
+      "hash": "f69e2de5eb43cf8085443cfd7c911d2356b286ddae86a6fdbef976ed7276cfec",
+      "file": "26-high-arch.json"
+    },
+    {
+      "order": 27,
+      "id": "own-weight",
+      "name": "Own Weight",
+      "theme": "jungle",
+      "par": 23,
+      "mechanics": [
+        "push",
+        "scales"
+      ],
+      "hash": "4b59c394390fb3cfab301d70d73c55a08f7fd6a983866895cb31f59529c683fd",
+      "file": "27-own-weight.json"
+    },
+    {
+      "order": 28,
+      "id": "the-crane",
+      "name": "The Crane",
+      "theme": "jungle",
+      "par": 38,
+      "mechanics": [
+        "push",
+        "sink",
+        "scales",
+        "gateway"
+      ],
+      "hash": "c5a1f6ce0394494f07f810b873bb818f13dc7d8ef4f2969c1028d79ce09bb0df",
+      "file": "28-the-crane.json"
+    },
+    {
+      "order": 29,
+      "id": "spend-a-crate",
+      "name": "Spend a Crate",
+      "theme": "jungle",
+      "par": 31,
+      "mechanics": [
+        "push",
+        "sink",
+        "scales"
+      ],
+      "hash": "cf42517922717c7eed8a6ebb8c8f39837f06a47ff5b8fdc25ebd172bf9211c2b",
+      "file": "29-spend-a-crate.json"
+    },
+    {
+      "order": 30,
+      "id": "garden-lift",
+      "name": "Garden Lift",
+      "theme": "tropical",
+      "par": 27,
+      "mechanics": [
+        "push",
+        "scales",
+        "gateway"
+      ],
+      "hash": "6683f6f7abff97802b0243ea12505159c6aa8bcfd26a1438a3f8c0835317a357",
+      "file": "30-garden-lift.json"
+    },
+    {
+      "order": 31,
+      "id": "three-storeys",
+      "name": "Three Storeys",
+      "theme": "tropical",
+      "par": 46,
+      "mechanics": [
+        "push",
+        "scales",
+        "gateway"
+      ],
+      "hash": "7e377d1b04b1c1875720ca0efc98e05a8b2e0794618a6e0326c35c2f5252b402",
+      "file": "31-three-storeys.json"
+    },
+    {
+      "order": 32,
+      "id": "sky-scales",
+      "name": "Sky Scales",
+      "theme": "tropical",
+      "par": 43,
+      "mechanics": [
+        "push",
+        "scales",
+        "gateway"
+      ],
+      "hash": "61e28e8cece0d2b98a0042a5ef344cf09ef19491c1acaad772b2da2b5115f87e",
+      "file": "32-sky-scales.json"
     }
   ]
 }

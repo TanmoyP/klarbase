@@ -1,5 +1,5 @@
-// @klar/core — the curated isles. 24 hand-designed puzzles in five themed
-// chapters, each verified by the solver (core/test/isles.mjs re-checks every
+// @klar/core — the curated isles. Hand-designed puzzles in themed chapters
+// (the sixth, Hanging Gardens, uses archipelago maps), each verified by the solver (core/test/isles.mjs re-checks every
 // one in CI): solvable, featured mechanics load-bearing, and `solution` is the
 // solver's shortest key combo — so par is exact and the replay is guaranteed.
 // Moves: U D L R = north/south/west/east, X = use (lever).
@@ -7,7 +7,9 @@
 // Generated once from the design harness; edit freely, then run
 // `node core/test/isles.mjs` — it will tell you the new par and solution.
 
-export const CHAPTERS = [{"theme":"jungle","title":"Canopy"},{"theme":"oasis","title":"Mirage"},{"theme":"tropical","title":"Lagoon"},{"theme":"urban","title":"Rooftops"},{"theme":"mountain","title":"Summit"}];
+export const CHAPTERS = [{"theme":"jungle","title":"Canopy"},{"theme":"oasis","title":"Mirage"},{"theme":"tropical","title":"Lagoon"},{"theme":"urban","title":"Rooftops"},{"theme":"mountain","title":"Summit"},
+  // Phase 2 (K1 + K4): a chapter keyed by id, not theme — its isles say `chapter:'gardens'`.
+  {"id":"gardens","theme":"jungle","title":"Hanging Gardens","blurb":"Sky Scales and gateways: isles on vines, weighed against each other."}];
 
 export const CURATED_ISLES = [
   // ---- Canopy (jungle) ----
@@ -266,6 +268,162 @@ export const CURATED_ISLES = [
       '-  *  *  *  *  *  .',
       '-  .  C  #  .  .  .',
       '-  .  .  .  S  .  -',
+    ] },
+  // ---- Hanging Gardens (archipelago maps + Sky Scales, schemaVersion 6) ----
+  // Each isle was designed around the catch written above it, then tuned with the
+  // solver (tools/difficulty.mjs metrics) until par, traps and routes fit its tier.
+  // CATCH: the pan to the star sinks under Pip alone. Weigh the other pan first — then
+  // the near pan is lifted, so you must board it from the high ledge and ride it down.
+  // The crate in front is in the way; the one behind it is the counterweight.
+  { id:'counterweight', name:'Counterweight', theme:'jungle', chapter:'gardens', tier:'Tricky', par:15, solution:'DRUURDLDRURRRUU',
+    needs:["scales"],
+    hint:"The near pan sinks under you alone. Weigh down the other one first.",
+    storeys:[{ at:[0, 0, 0], rows:[
+      'T3 .3 .3 -  -  G2',
+      'T3 .3 .3 T3 -  .2',
+      'S3 C3 C3 .3 a2 .2',
+      '.3 .3 .3 b3 -  T2',
+      '-  T3 .3 -  -  -',
+    ] }] },
+  // CATCH: the star is upstairs past a pan that sinks under you; its partner pan is
+  // downstairs, and crates never ride an arch. Set the counterweight before you go up —
+  // the short lane to the pan runs past a spring that would swallow the only crate.
+  { id:'high-arch', name:'High Arch', theme:'tropical', chapter:'gardens', tier:'Tricky', par:31, solution:'RRRUULLDDRRDDLLULURRRDRUDDULLUL',
+    needs:["scales","gateway"],
+    hint:"Crates can't take the arch. Whatever weighs the far pan must be set before you leave.",
+    storeys:[
+      { at:[0, 0, 0], rows:[
+        '#1 .1 .1 .1 -',
+        '-  C1 ~1 .1 b1',
+        'S1 .1 .1 .1 .1',
+        '.1 .1 -  .1 .1',
+        '-  .1 .1 .1 p1',
+      ] },
+      { at:[1, 0, 10], rows:[
+        'G2 .2 -  -',
+        '-  a2 .3 .3',
+        '-  T3 -  p3',
+      ] },
+    ] },
+  // CATCH: your own weight is in the way. The bridge pan must stay HIGH while you stand
+  // on it: one crate on the far pan lifts it only until you step on — it takes two. And a
+  // crate pushed along the far pan's row strands you on it when it sinks.
+  { id:'own-weight', name:'Own Weight', theme:'jungle', chapter:'gardens', tier:'Hard', par:23, solution:'RRDDLLDRRULLURRURDURRRU',
+    needs:["scales"],
+    hint:"One crate lifts the bridge — until you step on it. You weigh as much as a crate.",
+    storeys:[{ at:[0, 0, 0], rows:[
+      '#3 #3 -  -  -  -  -',
+      '-  -  .3 .3 -  -  G3',
+      'S3 .3 .3 .3 a2 .3 .3',
+      'C3 C3 .3 .3 -  -  -',
+      '.3 .3 .3 b3 -  -  -',
+      '.3 C3 .3 b3 -  -  -',
+    ] }] },
+  // CATCH: no push ever lifts a crate — but a pan can. Park the upstairs crate on its pan
+  // while the pan is level, THEN weigh the downstairs pan with two crates: the crate rides
+  // up to the spring's height and you can tip it in. In the wrong order the raised pan
+  // takes no crate (and a loaded crate sinks its pan, lifting the far one out of reach).
+  { id:'the-crane', name:'The Crane', theme:'jungle', chapter:'gardens', tier:'Hard', par:38, solution:'URRDRDDRDDRLUULUULURLLLDRRRLLDLDLLUUUU',
+    needs:["scales","gateway","sink"],
+    hint:"No push can lift a crate. A pan can — if it's loaded before the other side is.",
+    storeys:[
+      { at:[0, 0, 0], rows:[
+        '.2 T2 T2 #2 #2',
+        '.2 C2 .2 .2 b1',
+        'S2 C2 .2 .2 b1',
+        '.2 .2 C2 .2 #2',
+        'p2 T2 T2 .2 q2',
+      ] },
+      { at:[0, 0, 11], rows:[
+        '-  -  G3 -  -',
+        'q2 -  .3 -  -',
+        '.2 -  ~3 -  -',
+        '.2 C2 a2 -  -',
+        '-  #2 .3 .3 p3',
+      ] },
+    ] },
+  // CATCH: the far pan sits past a spring, at the end of the only lane a crate can
+  // travel. The first crate down that lane is lost to the spring — spend it, and the next
+  // one rolls across onto the pan. Weighed, the bridge pan meets you at your height and
+  // settles to the star's; unweighed, it sinks under you.
+  { id:'spend-a-crate', name:'Spend a Crate', theme:'jungle', chapter:'gardens', tier:'Fiendish', par:31, solution:'URRRURDDULLDLDDRUULURRURDDDURRU',
+    needs:["scales","sink"],
+    hint:"The spring keeps the first crate it gets. Make it worth it.",
+    storeys:[{ at:[0, 0, 0], rows:[
+      '.2 C2 .2 .2 .2 -  -',
+      '.2 C2 .2 .2 .2 -  G1',
+      'S2 .2 .2 -  .2 a1 .1',
+      '~2 .2 C2 ~2 ~2 -  -',
+      '~2 .2 .2 ~2 b2 -  -',
+      '~2 .2 .2 .2 .2 -  -',
+    ] }] },
+  // CATCH: pans on different isles, and both isles crowded. Downstairs only one crate has
+  // a clean run at the low pan, from the west; upstairs two crates hem in the arch and the
+  // bridge pan — clear them without parking one on the pan, whose weight would sink it.
+  { id:'garden-lift', name:'Garden Lift', theme:'tropical', chapter:'gardens', tier:'Fiendish', par:27, solution:'RDRRURRUULLLDRDDLLDLRUURRRU',
+    needs:["scales","gateway"],
+    hint:"Only one crate downstairs can reach the pan. Which one, and from where?",
+    storeys:[
+      { at:[0, 0, 0], rows:[
+        '.1 C1 .1 .1 .1 .1',
+        '.1 T1 .1 .1 b1 .1',
+        'S1 .1 -  C1 .1 .1',
+        'C1 .1 .1 .1 .1 .1',
+        'p1 .1 T1 .1 .1 .1',
+      ] },
+      { at:[1, 1, 10], rows:[
+        '-  .3 -  -  G2',
+        '.3 C3 .3 a2 .2',
+        '#3 .3 .3 -  -',
+        'p3 C3 .3 -  -',
+      ] },
+    ] },
+  // CATCH: three isles, and Pip starts in the middle. The arch up leads straight to the
+  // high pan — which sinks under you, stranding you, unless the low pan two storeys down
+  // was weighed first. Down first: one crate, a cramped yard, and the pan only takes it
+  // pushed up from the south.
+  { id:'three-storeys', name:'Three Storeys', theme:'tropical', chapter:'gardens', tier:'Hard', par:46, solution:'UURUURRRUULLLDLDRRLUURRRDDDLULLDDLDDDRRRRDRRRU',
+    needs:["scales","gateway"],
+    hint:"The pan at the top answers to the pan at the bottom.",
+    storeys:[
+      { at:[0, 0, 0], rows:[
+        '-  .1 .1 .1 .1',
+        '.1 C1 -  b1 .1',
+        '.1 .1 .1 .1 .1',
+        '-  .1 T1 .1 .1',
+        'p1 .1 .1 -  .1',
+      ] },
+      { at:[6, 0, 5], rows:[
+        'p2 .2 -  -',
+        '.2 #2 #2 -',
+        'S2 -  -  -',
+        '.2 .2 .2 q2',
+      ] },
+      { at:[2, 1, 14], rows:[
+        'q4 .4 #4 -  G3',
+        'T4 .4 .4 a3 .3',
+      ] },
+    ] },
+  // CATCH (the chapter's signature): the pans hang on different isles. Load the LOWER
+  // isle to lift the upper one — but the low pan only takes a crate pushed up from below,
+  // and the crates crowding the upper isle must be cleared without blocking the pan.
+  { id:'sky-scales', name:'Sky Scales', theme:'tropical', chapter:'gardens', tier:'Mythic', par:43, solution:'DRRUUURRRDDLDLRURUULLLDDRDRULLDLLDUUURDRRRU',
+    needs:["scales","gateway"],
+    hint:"Load the lower isle to lift the upper one.",
+    storeys:[
+      { at:[0, 0, 0], rows:[
+        '.1 -  .1 .1 .1 .1',
+        '.1 C1 .1 -  b1 .1',
+        'S1 T1 .1 C1 .1 .1',
+        '.1 C1 .1 .1 .1 -',
+        'p1 -  .1 -  -  T1',
+      ] },
+      { at:[1, 1, 10], rows:[
+        '.3 C3 .3 -  G2',
+        '.3 C3 .3 a2 .2',
+        '.3 .3 #3 -  T2',
+        'p3 T3 #3 -  -',
+      ] },
     ] },
 ];
 
