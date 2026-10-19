@@ -284,9 +284,8 @@ function play(entry){
   $('#statKeysWrap').style.display = level.keys.length ? '' : 'none';
   $('#btnSolution').disabled = !entry.par;
   $('#keystrip').classList.remove('on');
-  const ht = $('#hintText');
-  if(entry.hint){ ht.textContent = entry.hint; ht.style.opacity = 1; ht.style.display = ''; clearTimeout(play.ht); play.ht = setTimeout(() => ht.style.opacity = 0, 9000); }
-  else ht.style.display = 'none';
+  if(entry.hint) showTip(entry); else $('#hintText').style.display = 'none';
+  hintStage = entry.hint ? 'tip' : 'move'; setHintLabel();
   show('game'); syncTopbar(); hud(game); loadPlays();
 }
 // Restart button / R key. Restarting after some moves (and before a clear) is a stats signal.
@@ -303,6 +302,7 @@ function hud(s){
   $('#statKeys').textContent = s.state.keys;
   $('#btnSolution').innerHTML = s.replaying ? '■<span class="lbl"> Stop</span>' : unlocked(current) ? '▶<span class="lbl"> Solution</span>' : '🔒<span class="lbl"> Solution</span>';
   $('#btnUndo').disabled = !s.history.length || s.replaying;
+  $('#btnHint').disabled = s.won || s.replaying;
 }
 world.onFrame = () => { if(game && settings.timer) $('#statTime').textContent = fmtTime(game.time); };
 const fmtTime = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
@@ -403,12 +403,27 @@ function watch(){
     if(i < 0) setTimeout(() => strip.classList.remove('on'), 600);
   });
 }
+// Hint is two-stage (player feedback): the first press re-shows the isle's written tip
+// (free, always); after that it's "next move" from the solver, which keeps the free-hint
+// limit. A hint is only spent when a move is actually shown — never mid-hop.
+let hintStage = 'tip';
+function showTip(entry){
+  const ht = $('#hintText');
+  ht.textContent = entry.hint; ht.style.opacity = 1; ht.style.display = '';
+  clearTimeout(play.ht); play.ht = setTimeout(() => ht.style.opacity = 0, 9000);
+}
+function setHintLabel(){
+  const tip = hintStage === 'tip', b = $('#btnHint');
+  b.innerHTML = (tip ? '💡<span class="lbl"> Tip</span>' : '🧭<span class="lbl"> Next move</span>') + ' <span class="kbd">H</span>';
+  b.title = tip ? 'Show this isle’s tip (H)' : 'Best next move from here (H)';
+}
 function hint(){
-  if(!game || game.won || game.replaying) return;
+  if(!game || game.won || game.replaying || game.busy) return;
+  if(hintStage === 'tip'){ showTip(current); hintStage = 'move'; setHintLabel(); return; }
   if(!unlocked(current) && freeHints <= 0) return lockModal('hints');
-  if(!unlocked(current)) freeHints--;
   const h = game.hint();
   if(!h) return;
+  if(!unlocked(current)) freeHints--;
   postPlay('hint');
   if(h.stuck) toast('Hmm — this spot can’t reach the goal any more. Undo or restart.', true);
   else toast((h.move === 'X' ? `Best next move: pull the lever (Space) · ${h.left} to go` : `Best next move: ${glyphFor(h.move)} · ${h.left} to go`) + (unlocked(current) ? '' : ' · that was your free hint'));
