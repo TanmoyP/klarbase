@@ -146,6 +146,14 @@ storey edge, so no rule ever crosses one; an arch pair whose arches sit on diffe
 v5 formula independently. A map hashes `{schemaVersion:6, theme, storeys:[{rows, at}]}`.
 The builder writes v5 unless the isle needs a map (2+ storeys, an offset, pans or arch C).
 
+**Weight II tiles (Phase 3, K1/K6/K9) — map-only too:** `B` balloon post, `P` stone pile, `u`
+buoy (a piece like a crate; crates + buoys ≤ 8, `E_CRATES`), `n e s w` gust vents (blow N/E/S/W),
+`+` seed (≤ 3, `E_SEEDS`). The parser precomputes **gust lines** (`level.gusts = [{dir, cells}]`,
+`level.inGust` cell → line): from the vent along its direction over non-void floor no higher than
+the vent (pans by base), stopped by rock, tree, gate, door, ramp, the sky or the storey edge; two
+lines may not share a tile (`E_GUSTS`). Also `level.buoys / posts / piles / seeds`. Hashing is
+unchanged (same v6 canonical form).
+
 **`tier` (2026-10-19, K3):** optional gut call — `breeze · easy · tricky · hard · fiendish · mythic`
 — on official isles (all 29 declare one), community files, daily files (required there) and online
 shares (publish payload). Presentation only: never part of the hash (`core/test/difficulty.mjs`
@@ -188,10 +196,29 @@ tilt on B, everything else unchanged. A move is judged entirely with the tilt at
 (walking, pushes, crate drops, ice slides — like gates reading plates); after it settles the tilt is
 recomputed (`scales{from,tilt}` event) and whatever stands on a pan rides with it. No cascades.
 Pans may sit on different storeys. Heights are derived from positions, so **the solver state does
-not grow** (test asserts the same state shape and `stateKey` fields). Phase 3 adds balloon-Pip (0)
-and buoys (−1) by extending `WEIGHT` and the sum in `panTilt` only.
+not grow** (test asserts the same state shape and `stateKey` fields).
 
-**State:** `{p, crates[], filled[], keys, got[], opened[], flip}` — everything that can change.
+**Weight II (K1, K6, K9, Phase 3):** Pip holds one thing (`state.hold` = `''|'balloon'|'stone'`).
+Use (`X`) priority: lever → toggle; post with its balloon still there + empty hands → take
+(`state.posts` lists emptied posts); pile + empty hands → stone; pile + stone → put back; holding a
+balloon anywhere else → release (gone). `WEIGHT = {pip:1, crate:1, buoy:-1, balloon:0, stone:2}`,
+`pipWeight(s)`; plates count Pip only if `pipWeight > 0`; `panTilt` sums Pip, crates and buoys.
+**Glide** (`glideTo`): a balloon-Pip move that can't be walked descends one level per tile from the
+exit height and lands on walkable floor whose height equals the altitude; 1-tall things (rock, tree,
+ramp, closed gate/door, crate, grounded buoy) block unless cleared from above; water or floor at or
+above the altitude, an edge, or altitude < 0 → blocked (`glide{from,to}`). **Buoys** (`state.buoys`):
+pushed like crates (`buoyCanEnter`: same height or **up** one, never down; onto open water or a sunk
+bridge they float, `float{at}`); a floating buoy is floor for Pip (never pushed) and doesn't fill.
+**Gusts:** `windAt(level, s, i)` walks the cell's line from the vent — a crate on an earlier tile
+(the vent included) shelters it. After a move settles and Pip hasn't just reached a goal, `blow()`
+moves every light thing in the wind one tile downwind if it can — balloon-Pip by walk rules (no
+push, no glide; `enter()` effects apply), buoys not under Pip by `buoyCanEnter` — farthest-downwind
+first (`gust{from,to,buoy?}`). **Brace rule:** pushing a piece whose tile is in a wind blowing
+against the push needs `pipWeight > GUST (1)`. Balloon-Pip never pushes. **Seeds** are *not* state:
+`seedsTouched(level, r)` (cells Pip stood on during a step) and `solveSeeds(level)` (BFS over state
++ seed bitmask) give the seed par; official isles store `seedPar`, verified by tests + `author.mjs`.
+
+**State:** `{p, crates[], filled[], keys, got[], opened[], flip, hold, buoys[], posts[]}` — everything that can change.
 `step(level, state, move)` is pure and total: it returns `{ok:false}` for a blocked move or
 `{ok, state, events, won}` where `events` (`walk/slide/tp/push/cslide/sink/fall/key/door/toggle/gate/win`)
 (+ `scales`, and `tp` may carry `gateway:true`) drive animation in order. **Solver:** BFS over `stateKey(state)` from any state (`solveFrom`) —
@@ -281,6 +308,23 @@ shorter). Audit = `provisionalTier` (main's rule: Mythic-by-traps needs ≥ 30k 
 | 36 | Garden Lift | 2 | Fiendish | 27 | 37,361 | 4 | fails | 2 | Fiendish | one lower crate can reach the pan; clear the upper crates without parking one on the bridge |
 | 37 | Sky Scales | 2 | Mythic | 43 | 46,440 | 11 | fails | 1 | Mythic | the signature: load the lower isle to lift the upper one |
 
+**Windward (Phase 3, 2026-10-20)** — chapter `windward` (mountain), all one-storey v6 maps,
+Weight II. Each catch is written above the isle in `isles.js` and **proven with `tools/isle-lab.mjs
+--must`** (no winning route skips it); shortcuts the lab printed were blocked one by one.
+
+| # | Isle | Gut | Par | Seed par | States | Traps | Greedy | Routes | Audit | Catch (short) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 38 | Lift Off | Breeze | 6 | 8 | 32 | 2 | fails | 1 | Breeze | take the balloon, step off: glide |
+| 39 | Let It Go | Easy | 8 | — | 28 | 2 | fails | 2 | Breeze | glide with it, then release it to weigh enough for the plate |
+| 40 | Heavy Heart | Easy | 8 | — | 36 | 0 | fails | 1 | Breeze | the crate you clear lands on the other pan; only stone-Pip rides low enough |
+| 41 | Buoy Bay | Easy | 12 | 14 | 42 | 0 | wins | 1 | Breeze | crate fills the low spring; only the buoy floats up to the high one |
+| 42 | Glide or Push | Tricky | 21 | — | 926 | 6 | fails | 5 | Tricky | both crates into the spring before you touch the balloon |
+| 43 | Tailwind | Tricky | 25 | — | 113 | 7 | fails | 1 | Easy | cap the vent from behind, only then take the balloon |
+| 44 | Ballast | Tricky | 14 | — | 179 | 1 | fails | 1 | Easy | crate on B lifts A only while the buoy rides A with Pip |
+| 45 | Drift | Hard | 15 | 19 | 450 | 4 | fails | 1 | Tricky | shelter the gust on the exact move the buoy reaches the crossing |
+| 46 | Brace | Hard | 33 | — | 2,492 | 10 | fails | 4 | Tricky | stone caps a gust + loads the plate; put it back before the balloon |
+| 47 | Windward | Fiendish | 28 | — | 9,196 | 9 | fails | 4 | Hard | crate on A (stone, into the wind) lifts balloon-Pip's pan; height = glide range; wedge B |
+
 **How they were made:** designed in-loop with the solver — a harness flags any isle whose
 solution doesn't use its featured mechanic, and the two glacier mazes were found by a
 solver-driven search over random rock layouts (kept: longest routes with the most sliding).
@@ -291,7 +335,15 @@ Each chapter introduces one idea and ends by combining it with earlier ones.
 the same gate with `checkDailyIsle`: id = `daily-<date>`, `tier` required, optional `catch` shown
 only after a clear, any schema version the parser knows); otherwise `dailyPick()` walks a fixed
 shuffle of the pool (Twist + Tricky-or-harder official + community isles), one per UTC day, same
-for everyone with the same build. Numbering: `#1` = the first dated file's date (else 2026-10-19).
+for everyone with the same build. Numbering: `#1` = 2026-10-19 (`DAILY_EPOCH`); a dated file can
+only move the epoch earlier, so shared numbers never shift. First hand-made daily: 2026-10-20
+*Tipping Pass* (Daily #2), designed by the K10 agent.
+**Daily isle agent (K10, local):** `/daily-isle` skill (`.claude/skills/daily-isle/SKILL.md`) →
+`isle-smith` agent (`.claude/agents/isle-smith.md`) → `tools/isle-lab.mjs` (gate check, audit,
+`--must` necessity proofs, `--routes`, `--replay` text frames, idle pieces, layout similarity vs every
+shipped isle, seed par) → local playtest at `/daily/<date>` → PR (solution + catch in `<details>`).
+Brief = weekday tier rotation (Mon easy · Tue tricky · Wed hard · Thu tricky · Fri hard · Sat
+fiendish · Sun tricky) adjusted by recent dailies' clear rates, plus a catch type unused in 7 days.
 After a clear the share text `Klarbase Daily #N · M moves (par P) · ★★☆` + `/daily` link is
 copied (no route). See `isles/daily/README.md`.
 **Online isles** live in the database (`Puzzle` rows, `json` = canonical isle + par + solution).
@@ -352,6 +404,16 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
 - **Builder difficulty:** "Difficulty — your gut call" chips (saved in the draft, exported in
   JSON / Export for GitHub, sent with Share online), live audit (60k live / 200k deep check),
   score, audit tier, the gut-vs-audit warning and optional "make it harder" hints.
+- **Hint (2026-10-19):** two-stage — the first H / 💡 press re-shows the isle's written tip (free);
+  then the button becomes 🧭 Next move (solver, keeps the free-hint limit). Never spent mid-hop.
+- **Weight II (Phase 3):** props for balloon posts, stone piles, buoys (crate + float ring + balloon,
+  sunk to the surface when floating), vents (turning fan, still when capped) and seeds; Pip carries
+  a balloon beside him or a stone overhead; glide = long soft descent, drift = wind nudge, a
+  released balloon floats away; white streaks run each gust line up to its shelter. Seeds are
+  tracked by the `Session` (not engine state) with undo; HUD shows `seeds n/N`. Win modal: seed
+  line (seed par from `isle.seedPar`, else `solveSeeds` once after load) and the **moves
+  histogram** (par … par+8+, your bar lit; shown once an isle has ≥ 3 clears in `GET /api/plays`).
+- **Dev only:** `/daily/YYYY-MM-DD` plays that date's daily (playtesting drafts, K10 agent).
 - **Bundle:** ~600 KB / ~166 KB gzip (mostly three.js). Code-splitting the builder is a cheap
   future win.
 
@@ -398,9 +460,9 @@ must move to a shared store before running more than one replica.
 
 ## 10. Current state & numbers
 
-- ✅ Engine: 341 isle assertions + 150 difficulty/daily + 57 legacy, green. 37 official isles
-  (24 + 5 Twist + 8 Hanging Gardens maps) verified; artifacts deterministic. (CI's `engine` job does not run
-  `core/test/difficulty.mjs` yet — add one line to `.github/workflows/ci.yml`; `npm test` runs it.)
+- ✅ Engine: 453 isle assertions + 150 difficulty/daily + 57 legacy, green (CI's `engine` job runs
+  all three). 47 official isles (24 + 5 Twist + 8 Hanging Gardens + 10 Windward maps) verified;
+  artifacts deterministic.
 - ✅ Client: all screens verified in the browser (title, picker with real mini-map thumbnails,
   play, replay, win, lock modal, builder with live verdict, community tab). Phone-width layout done; the phone builder is a bottom sheet (paint tools first) and the 3D isle is framed above it (`World.setInsetBottom`).
 - ✅ Contribution pipeline: checker + CI + docs + 11 PR scenarios.
@@ -413,7 +475,7 @@ must move to a shared store before running more than one replica.
 |---|---|---|
 | **Builder bot** | "Describe your isle" → LLM writes `rows` → `parseIsle`/`solveIsle`/`checkCommunityIsle` → repair loop → draft in the builder. Never ships unverified output. Claude Haiku for cost. | login, rate limits, cost cap |
 | **Isle drafts** | server-side drafts with 5 versioned slots per isle (v1 §8.1 design, renamed) | — |
-| **Daily isle** | ✅ shipped in Phase 1 (`/daily`, share text). Next: a moves histogram after a clear from `IslePlay` (Phase 3) | — |
+| **Daily isle** | ✅ Phase 1 (`/daily`, share text) · ✅ moves histogram (Phase 3) · ✅ local daily isle agent `/daily-isle` (K10). Next: run it on a schedule | — |
 | **More tiles** | e.g. moving platforms, colour-matched plates/gates, one-way doors. Each one is a schema decision: rules + solver + tests + art + builder tool + docs together | design review |
 | **Themes** | snow-night, cherry blossom, deep-sea | art time |
 | **World (v1 idea)** | stitch isles into a walkable archipelago | strong demand |
@@ -434,6 +496,8 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 
 - **better-auth is exact-pinned to `1.4.22`** to match the Prisma schema (1.7 expects `Account.issuer`).
 - `railway up --ci` often drops its log stream with a timeout — **not** a failed build; verify via the served bundle hash and `/api/health`.
+- **Railway auto-deploys every merge to `main`** (seen 2026-10-19: deploys at each PR merge). `railway up` uploads the *working directory*, so only run it from a clean `main` checkout — never from a feature branch.
+- **Browser pane hidden ⇒ `requestAnimationFrame` stops**, so Pip's tweens never finish and keys queue up. Show the pane (`show_pane preview`) before driving solutions in the browser.
 - Neon `DIRECT_URL` = pooled URL minus `-pooler`. OAuth callbacks must match `BETTER_AUTH_URL` exactly.
 - **New rules or tiles:** change `core/src/isle/*`, run `node core/test/isles.mjs` — it re-solves every official isle and reports any par that moved; then `node tools/author.mjs` and commit `content/isles/`.
 - **New official isle:** add it to `isles.js`, run the tests — they print the true par and solution to paste in.
@@ -445,6 +509,35 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-10-20 (s) — Phase 3 · Weight II (K1, K6, K9)
+- **Schema decision (CLAUDE.md rule 4), shipped together:** map-only tiles `B P u n e s w +`
+  (§3), the Weight II rules (§4: hold one thing, glide, buoys, gusts + crate shelter, brace rule,
+  seeds outside rule state), solver (`solveSeeds`), 45 new rule tests, art, builder tools, help
+  text, `isles/README.md`, and every official isle re-verified (pars unchanged; Windward added).
+  `stateKey` grew `hold|buoys|posts` for every isle (format is internal; v5 hashes untouched).
+- **Builder:** the *Raise* tool's id moved `+` → `^+` (it collided with the seed token).
+- **Client:** §7. Moves histogram reads the existing `IslePlay.moves` sums — no migration.
+- **Content:** Windward chapter, 10 isles (§5), every catch proven with `isle-lab --must`.
+- **Verified in the browser:** all 10 Windward isles cleared at par through real key input
+  (Lift Off also by its seed route: "🌱 1 of 1 · seed par!"); undo restores held item, post
+  balloon and seeds; Hint plans through balloon state; builder solves + audits a pasted v6 isle
+  with vents/posts identically to the lab. Histogram not seen live yet (needs ≥ 3 clears on an isle).
+- **Caveats:** the daily pool now includes Windward's Tricky+ isles, so pool picks for undated days
+  reshuffle with this build (same as Phase 2). Gust lines use pans' *base* height (static).
+
+### 2026-10-19 (r) — K10 daily isle agent + first hand-made daily
+- `tools/isle-lab.mjs` (designer's workbench, all from core), `.claude/agents/isle-smith.md`,
+  `/daily-isle` skill; `.gitignore` unignores `.claude/skills/`; dev-only `/daily/<date>` route.
+- **Fix:** `dailyEpoch` took the first dated file as Daily #1 — the first file would have renumbered
+  the live dailies. Now the epoch can only move earlier (`DAILY_EPOCH` 2026-10-19 stays #1).
+- First run: *Tipping Pass* (2026-10-20, tricky, par 16, counterweight catch, 5 catches proven,
+  nearest isle 42%), playtested locally, PR #14 merged, live in the bundle before its day.
+
+### 2026-10-19 (q) — Hint fix, Phase 2 live
+- Two-stage Hint (tip, then next move; never spent mid-hop) — PR #12, browser-tested, deployed.
+- Phase 2 (PR #11) reviewed (rules, publish gate, solution gating for v6), browser-verified
+  (Three Storeys + Sky Scales cleared at par, map view, builder), merged, deployed, verified live.
 
 ### 2026-10-19 (p) — Phase 2 · Archipelago maps + Sky Scales (K1, K4)
 - **Schema decision (CLAUDE.md rule 4):** schemaVersion 6 maps (§3) and the Sky Scales rule (§4),

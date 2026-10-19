@@ -1,6 +1,6 @@
 # Proposal — Depth, difficulty and one new physics: **Weight**
 
-> Status: **accepted 2026-10-19 — see [§0 Decisions](#0-decisions-2026-10-19).** Not built yet.
+> Status: **accepted 2026-10-19 — see [§0 Decisions](#0-decisions-2026-10-19).** Phases 1–3 and K10 shipped (2026-10-19/20); Phase 4 in progress — see ENGINEERING.md §13.
 > Every new tile here is a schema decision (CLAUDE.md rule 4). Written after the first
 > real-player feedback: *"not challenging enough, no new or novel mechanic."* Data from
 > `node tools/difficulty.mjs`; research sources at the end.
@@ -22,7 +22,7 @@ The founder approved the proposal with these decisions. They override anything b
 | **K7** | **Anonymous per-isle stats** | Aggregate counters per isle (started, cleared, moves, hints, restarts, time buckets). No user IDs, no cookies, nothing per person. One line in the privacy note. Powers K3 and the moves histogram. |
 | **K8** | **Staged execution** | Phase 1 and Phase 2 run in parallel (separate worktrees and PRs); Phases 3 and 4 run one after another, since every rule edits the same engine files. Founder reviews and merges each phase. Drift (§3.7) moves to the backlog. |
 | **K9** | **Stone + brace rule** | Pip carries one thing at a time: nothing = weight 1, balloon = 0, **stone = 2** (from a stone pile; put back only at a pile, so it is never a free counterweight). **Brace rule:** pushing *into* a gust needs weight greater than the gust's strength (normal gust = 1), so only stone-Pip can push a crate upwind. A pushed crate stays put (weight 1 isn't moved by strength 1). Strong gales (strength 2) deferred. §3.5. Phase 3. |
-| **K10** | **Daily isle agent** | A triggerable Claude Code agent (`/daily-isle`) that reads the project history, rules, past dailies and player stats, then designs one new solver-verified isle per day into `isles/daily/YYYY-MM-DD.json` and opens a PR. Phase 4; built as soon as Phase 1's daily folder exists. |
+| **K10** | **Daily isle agent** | A triggerable Claude Code agent (`/daily-isle`) that reads the project history, rules, past dailies and player stats, then designs one new solver-verified isle per day into `isles/daily/YYYY-MM-DD.json` and opens a PR. Phase 4; built as soon as Phase 1's daily folder exists. **Built 2026-10-19, local and sophisticated:** `isle-smith` agent + `tools/isle-lab.mjs` (necessity proofs, shortcut finder, similarity, replay) + local playtest; first daily 2026-10-20. |
 
 ---
 
