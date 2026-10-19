@@ -6,7 +6,7 @@ import {
   parseIsle, solveIsle, simulate, step, initialState, starsFor,
   canonicalIsle, isleHash, CURATED_ISLES, CHAPTERS, MAX_W,
   checkCommunityIsle, toCommunityFile,
-  panTilt, heightAt, stateKey, mechanicsUsed, eventMechanic, neighbor, cellPlace,
+  panTilt, heightAt, stateKey, mechanicsUsed, eventMechanic, neighbor, cellPlace, solveSeeds, seedsTouched,
 } from '../src/isle/index.js';
 import { sha256hex, stableStringify } from '../src/schema.js';
 import fs from 'node:fs';
@@ -162,6 +162,95 @@ const CROSS = [{ rows:['S1 C1 b1', 'p1 .1 .1'], at:[0, 0, 0] }, { rows:['p3 a2 .
   const shape = s => Object.keys(s).join() + '|' + stateKey(s).split('|').length;
   t('solver state does not grow with scales or storeys', shape(initialState(lv)) === shape(initialState(L(['S . G'])))); }
 
+/* ---------------- Weight II: balloon, glide, stone, buoys, gusts, seeds (Phase 3) ---------------- */
+const M1 = rows => M([{ rows, at:[0, 0, 0] }]);
+const go = (lv, moves, s = initialState(lv)) => { for(const m of moves){ const r = step(lv, s, m); if(!r.ok) return null; s = r.state; } return s; };
+t('E_V6: balloon posts need a map', code({ rows:['S B G'] }, 'E_V6'));
+t('E_V6: vents need a map', code({ rows:['S e . G'] }, 'E_V6'));
+t('E_SEEDS: at most 3', code({ storeys:[{ rows:['S + + + + G'], at:[0, 0, 0] }] }, 'E_SEEDS'));
+t('E_CRATES counts buoys', code({ storeys:[{ rows:['S C C C C C u u u u G'], at:[0, 0, 0] }] }, 'E_CRATES'));
+t('E_GUSTS: crossing gust lines', code({ storeys:[{ rows:['S . s .', 'e . . .', '. . . G'], at:[0, 0, 0] }] }, 'E_GUSTS'));
+{ const lv = M1(['S e . . # .', '. . . . . G']);
+  t('gust line runs from the vent to the rock', lv.gusts.length === 1 && lv.gusts[0].cells.length === 3 && lv.gusts[0].dir === 'R'); }
+{ const lv = M1(['S1 e1 .1 . .1 .2 G1']);
+  t('gust line passes over a dip, stops at higher floor', lv.gusts[0].cells.length === 4); }
+// taking, holding, releasing
+{ const lv = M1(['S B . G']);
+  const s1 = go(lv, 'RX'), r1 = step(lv, go(lv, 'R'), 'X');
+  t('Use on a post takes its balloon', s1.hold === 'balloon' && r1.events.some(e => e.t === 'take' && e.what === 'balloon'));
+  t('a post holds one balloon', (s => s && s.hold === '' && !step(lv, s, 'X').ok)(go(lv, 'RXX')));
+  t('Use elsewhere with a balloon lets it go', go(lv, 'RXRX').hold === '');
+  t('Use with empty hands off a post, pile or lever is a no-op', !step(lv, initialState(lv), 'X').ok); }
+{ const lv = M1(['S P . G']);
+  t('Use on a pile takes a stone', go(lv, 'RX').hold === 'stone');
+  t('Use on the pile again puts it back', go(lv, 'RXX').hold === '');
+  t('a stone is put back only at a pile', go(lv, 'RXRX') === null); }
+// weights: plates, scales
+{ const lv = M1(['S B o D G']);
+  t('balloon-Pip presses no plate', !run(lv, 'RXRRR').won && run(lv, 'RRRR').won); }
+{ const lv = M1(['S P o D G']);
+  t('stone-Pip presses plates', run(lv, 'RXRRR').won); }
+{ const lv = M1(['S2 P2 a2 G2', '-  -  b2 C2']);
+  const A = 2, B = lv.w + 2, s0 = initialState(lv);
+  t('stone-Pip outweighs a crate on the scales', panTilt(lv, { ...s0, p:A, hold:'stone', crates:[B] }) === 1);
+  t('balloon-Pip weighs nothing on the scales', panTilt(lv, { ...s0, p:A, hold:'balloon', crates:[B] }) === -1);
+  t('a buoy lifts its pan', panTilt(lv, { ...s0, crates:[], buoys:[A] }) === -1); }
+// pushing
+{ const lv = M1(['S B C . G']);
+  t('balloon-Pip is too light to push', go(lv, 'RXR') === null && go(lv, 'RR') !== null); }
+// glide
+{ const lv = M1(['S4 B4 -  .  .1 G1', '.  .  .  .  .  . ']);
+  const r = step(lv, go(lv, 'RX'), 'R');
+  t('glide: one level lower per tile, lands where floor meets the altitude', r.ok && r.state.p === 4 && r.events.some(e => e.t === 'glide' && e.to === 4));
+  t('glide: without a balloon the step is blocked', go(lv, 'RR') === null);
+  t('glide shows up as a mechanic', mechanicsUsed(lv, 'RXRR').includes('glide')); }
+{ const lv = M1(['S3 B3 #2 .1 G1']);
+  t('glide: a rock in the way ends it', go(lv, 'RXR') === null); }
+{ const lv = M1(['S3 B3 #  .1 G1']);
+  t('glide: clears a low rock', go(lv, 'RXR').p === 3); }
+{ const lv = M1(['S3 B3 ~  .1 G1']);
+  t('glide: flies over water below the altitude', go(lv, 'RXR').p === 3); }
+{ const lv = M1(['S3 B3 ~2 .1 G1']);
+  t('glide: water at the altitude ends it', go(lv, 'RXR') === null); }
+{ const lv = M1(['S2 B2 - - G']);
+  t('glide: nothing to land on = no move', go(lv, 'RXR') === null); }
+// buoys
+{ const lv = M1(['S u .1 G1']);
+  const r = step(lv, initialState(lv), 'R');
+  t('buoy floats UP a one-level ledge', r.ok && r.state.buoys[0] === 2); }
+{ const lv = M1(['S1 u1 . G']);
+  t('buoy never drops down a ledge', !step(lv, initialState(lv), 'R').ok); }
+{ const lv = M1(['S u ~ ~ .', '. . . . G']);
+  const r = step(lv, initialState(lv), 'R');
+  t('buoy pushed into water floats (does not fill it)', r.ok && r.state.buoys[0] === 2 && !r.state.filled.length && r.events.some(e => e.t === 'float'));
+  const r2 = step(lv, r.state, 'R');
+  t('a floating buoy is a stepping stone', r2.ok && r2.state.p === 2);
+  t('Pip cannot push a floating buoy', r2.state.buoys[0] === 2); }
+{ const lv = M1(['S u o D G']);
+  t('buoys press no plate', !run(lv, 'RRRR').won); }
+// gusts
+{ const lv = M1(['S B . . .', 'n . . . G']);
+  t('normal Pip stands in a gust', step(lv, initialState(lv), 'D').state.p === lv.w); }
+{ const lv = M1(['.  .  .  .', 'S  B  .  .', '.  n  .  G']);   // vent (1,2) blows north over (1,1),(1,0)
+  const r = step(lv, go(lv, 'R'), 'X');
+  t('balloon-Pip is blown one tile downwind after Use', r.ok && r.state.p === 1 && r.events.some(e => e.t === 'gust')); }
+{ const lv = M1(['S . . . .', 'e u . # G']);  // vent (0,1) blows east: the buoy drifts, stops before the rock
+  const s1 = go(lv, 'R');
+  t('buoys drift one tile per move', s1.buoys[0] === lv.w + 2);
+  t('gusts never push into a rock', go(lv, 'R', s1).buoys[0] === lv.w + 2); }
+{ const lv = M1(['S . . . .', 'e C u . G']);
+  t('a crate shelters what lies behind it', go(lv, 'R').buoys[0] === lv.w + 2); }
+{ const lv = M1(['. P . . .', 'S C . w G']);   // vent (3,1) blows west over (2,1),(1,1),(0,1)
+  t('brace rule: weight 1 cannot push a crate into the wind', !step(lv, initialState(lv), 'R').ok);
+  t('brace rule: stone-Pip can', go(lv, 'URXLDR') !== null); }
+// seeds
+{ const lv = M1(['S . . G', '. + . .']);
+  const r = solveIsle(lv), sp = solveSeeds(lv);
+  t('seeds never change par', r.par === 3);
+  t('seed par: the shortest route through every seed', sp.solvable && sp.par === 5);
+  t('seedsTouched reports a seed stood on', seedsTouched(lv, step(lv, initialState(lv), 'D')).length === 0 && seedsTouched(lv, step(lv, { ...initialState(lv), p:lv.w }, 'R')).length === 1); }
+t('no seeds -> no seed par', solveSeeds(L(['S . G'])) === null);
+
 /* ---------------- hash stability: v5 isles keep their identity forever ---------------- */
 const FROZEN = {
   'first-steps':'3727fc423dff6394079bc314af8f522391d8f98a0834f5720f2d43360879902c', 'ledge-drop':'99c5f735c6050a3938d545f248b57a284afc86d5db90ed6460120d643df8defd',
@@ -204,6 +293,8 @@ for(const isle of CURATED_ISLES){
   let s = initialState(level); const used = new Set();
   for(const m of isle.solution){ const st = step(level, s, m); for(const e of st.events) used.add(eventMechanic(e)); s = st.state; }
   for(const n of isle.needs || []) t(`${isle.id}: uses ${n}`, used.has(n));
+  const sp = solveSeeds(level);
+  if(sp || isle.seedPar) t(`${isle.id}: seedPar ${isle.seedPar} == ${sp && sp.par}, and seeds sit off the par route`, sp && sp.par === isle.seedPar && sp.par > r.par);
 }
 
 /* ---------------- community contribution rules ---------------- */

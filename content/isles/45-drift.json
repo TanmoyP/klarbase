@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 6,
+  "id": "drift",
+  "name": "Drift",
+  "theme": "tropical",
+  "tier": "hard",
+  "hint": "The wind carries the buoy. A crate in the gust stills the wind behind it.",
+  "storeys": [
+    {
+      "rows": [
+        "S . . . . - - . + - -",
+        ". . . C u . . . . . #",
+        "e ~ ~ . ~ ~ ~ ~ ~ ~ #",
+        "# # # # # # # . # # #",
+        "- - - - - - - G - - -"
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "par": 15,
+  "solution": "RRRRDULDRRRRDDD",
+  "seedPar": 19
+}

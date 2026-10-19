@@ -103,6 +103,12 @@
   .hud-title .sub .tier{ font-size:10.5px; padding:1px 7px; margin-right:2px; }
   .share-text{ margin:12px auto 0; padding:10px 12px; border-radius:12px; background:rgba(42,34,56,.06); font-weight:800; font-size:15px; user-select:all; }
   .share-text small{ font-weight:700; color:var(--ink-3); }
+  /* moves histogram (Phase 3): how everyone else cleared this isle */
+  .hist{ display:flex; align-items:flex-end; gap:4px; height:48px; margin:12px auto 2px; max-width:260px; }
+  .hist i{ flex:1; border-radius:4px 4px 2px 2px; background:rgba(42,34,56,.16); min-height:4px; }
+  .hist i.you{ background:var(--accent, #ffcf5a); box-shadow:0 0 0 2px rgba(42,34,56,.25) inset; }
+  .hist-axis{ display:flex; justify-content:space-between; max-width:260px; margin:0 auto; font-size:11px; font-weight:800; color:var(--ink-3); }
+  .hist-cap{ font-size:12px; font-weight:800; color:var(--ink-2); margin-top:10px; }
   .diff{ font-size:13px; font-weight:700; color:var(--ink-2); padding:9px 12px; border-radius:12px; background:rgba(42,34,56,.05); display:flex; flex-direction:column; gap:6px; }
   .diff ul{ margin:0; padding-left:18px; font-weight:600; }
   .diff .warn{ color:#9a5b12; }
@@ -267,6 +273,7 @@
       <div class="stat"><b id="statMoves">0</b><span>moves</span></div>
       <div class="stat"><b id="statPar">–</b><span>par</span></div>
       <div class="stat" id="statKeysWrap"><b id="statKeys">0</b><span>keys</span></div>
+      <div class="stat" id="statSeedsWrap"><b id="statSeeds">0</b><span>seeds</span></div>
       <div class="stat" id="statTimeWrap"><b id="statTime">0:00</b><span>time</span></div>
     </div>
     <div class="glass hint-text" id="hintText"></div>
@@ -281,7 +288,7 @@
     </div>
     <div class="glass legend">
       <div><span class="kbd">←↑→↓</span> or <span class="kbd">WASD</span> hop</div>
-      <div><span class="kbd">Space</span> pull a lever</div>
+      <div><span class="kbd">Space</span> use</div>
     </div>
     <div class="dpad">
       <span></span><button class="btn" data-arrow="up">▲</button><span></span>

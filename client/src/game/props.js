@@ -506,3 +506,78 @@ export function makeFlyer(kind, color){
   g.userData = { L, R };
   return g;
 }
+
+/* ---------------- Weight II (Phase 3): balloons, stones, buoys, vents, seeds ---------------- */
+// A round balloon on a string. `lift` = string length; the knot sits at the group origin.
+export function makeBalloon(color = '#ff6f7d', lift = 0.75){
+  const g = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color, roughness:0.35, metalness:0.05, emissive:color, emissiveIntensity:0.08 });
+  const ball = mesh(new THREE.SphereGeometry(0.2, 18, 14), skin); ball.scale.set(1, 1.15, 1); ball.position.y = lift + 0.2; g.add(ball);
+  const tie = mesh(new THREE.ConeGeometry(0.035, 0.06, 8), skin, false); tie.position.y = lift - 0.01; g.add(tie);
+  const glint = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), new THREE.MeshBasicMaterial({ color:'#ffffff', transparent:true, opacity:0.7 }));
+  glint.position.set(-0.08, lift + 0.3, 0.13); g.add(glint);
+  const str = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, lift, 4), new THREE.MeshBasicMaterial({ color:'#f4f0e6' }));
+  str.position.y = lift / 2; g.add(str);
+  g.userData = { ball, str };
+  return g;
+}
+// A wooden post with one balloon tied on; the balloon hides once taken.
+export function makePost(T){
+  const g = new THREE.Group();
+  const post = mesh(new THREE.CylinderGeometry(0.05, 0.065, 0.62, 7), flat(T.woodDark)); post.position.y = 0.31; g.add(post);
+  const cap = mesh(new THREE.SphereGeometry(0.075, 8, 6), flat(T.wood)); cap.position.y = 0.64; g.add(cap);
+  const ring = mesh(new THREE.TorusGeometry(0.07, 0.016, 6, 12), flat(T.metal, { metalness:0.5, roughness:0.4 }), false);
+  ring.rotation.x = Math.PI / 2; ring.position.y = 0.5; g.add(ring);
+  const balloon = makeBalloon(T.accent, 0.55); balloon.position.set(0.07, 0.5, 0); g.add(balloon);
+  g.userData = { balloon };
+  return g;
+}
+// A cairn of round river stones (the pile never runs out).
+export function makePile(T, r = Math.random){
+  const g = new THREE.Group(), mat = flat(T.rock), top = flat(T.rockTop);
+  const spots = [[-0.18, 0, -0.1, 0.17], [0.16, 0, -0.14, 0.15], [0.02, 0, 0.16, 0.16], [-0.02, 0.17, -0.04, 0.13], [0.1, 0.13, 0.08, 0.1]];
+  spots.forEach(([x, y, z, s], k) => { const m = mesh(new THREE.DodecahedronGeometry(s, 0), k > 2 ? top : mat); m.position.set(x, y + s * 0.8, z); m.rotation.set(r() * 3, r() * 3, 0); m.scale.y = 0.75; g.add(m); });
+  return g;
+}
+// The stone Pip carries: held overhead, so the weight reads at a glance.
+export function makeStone(T){
+  const g = new THREE.Group();
+  const m = mesh(new THREE.DodecahedronGeometry(0.17, 0), flat(T.rock)); m.scale.set(1.1, 0.8, 1); g.add(m);
+  const band = mesh(new THREE.TorusGeometry(0.15, 0.018, 5, 14), flat(T.rockTop), false); band.rotation.x = Math.PI / 2; band.position.y = 0.04; g.add(band);
+  return g;
+}
+// A buoy: a little crate lashed under a balloon (weight −1). Same footprint as a crate.
+export function makeBuoy(T){
+  const holder = new THREE.Group(), g = new THREE.Group();
+  const s = 0.6, wood = flat(T.wood), dark = flat(T.woodDark);
+  g.add(mesh(new THREE.BoxGeometry(s, s * 0.8, s), wood));
+  for(const y of [-0.17, 0.17]){ const band = mesh(new THREE.BoxGeometry(s + 0.03, 0.06, s + 0.03), dark); band.position.y = y; g.add(band); }
+  const float = mesh(new THREE.TorusGeometry(0.36, 0.07, 8, 20), flat('#ff7d6b')); float.rotation.x = Math.PI / 2; float.position.y = -0.12; g.add(float);
+  for(const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]){ const st = mesh(new THREE.BoxGeometry(0.1, 0.075, 0.075), flat('#ffffff')); st.position.set(Math.cos(a) * 0.36, -0.12, Math.sin(a) * 0.36); st.rotation.y = -a; g.add(st); }
+  g.position.y = s * 0.4;
+  const balloon = makeBalloon('#7fd0ff', 0.5); balloon.position.y = s * 0.8; holder.add(g, balloon);
+  holder.userData = { balloon, box:g };
+  return holder;
+}
+// A gust vent: a stone mouth with turning vanes, set flush in the floor and pointing
+// along its gust (+Z before the group is rotated).
+export function makeVent(T){
+  const g = new THREE.Group();
+  const rim = mesh(new THREE.CylinderGeometry(0.36, 0.4, 0.08, 18), flat(T.rock)); rim.position.y = 0.03; g.add(rim);
+  const hole = mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.02, 18), flat('#2b2433'), false); hole.position.y = 0.075; g.add(hole);
+  const fan = new THREE.Group(); fan.position.y = 0.09; g.add(fan);
+  for(let k = 0; k < 5; k++){ const v = mesh(new THREE.BoxGeometry(0.26, 0.015, 0.07), flat(T.metal, { metalness:0.5, roughness:0.4 }), false); v.position.x = 0.13; v.rotation.x = 0.5; const arm = new THREE.Group(); arm.rotation.y = k * Math.PI * 2 / 5; arm.add(v); fan.add(arm); }
+  const arrow = mesh(new THREE.ConeGeometry(0.08, 0.16, 3), new THREE.MeshStandardMaterial({ color:T.accent, emissive:T.accent, emissiveIntensity:0.4 }), false);
+  arrow.rotation.x = Math.PI / 2; arrow.position.set(0, 0.06, 0.42); g.add(arrow);
+  g.userData = { fan };
+  return g;
+}
+// A seed: a tiny glowing sprout in a nut-shell. Optional collectible.
+export function makeSeed(T){
+  const g = new THREE.Group(), spin = new THREE.Group(); spin.position.y = 0.32; g.add(spin);
+  const shell = mesh(new THREE.SphereGeometry(0.1, 12, 10), flat(T.wood)); shell.scale.set(1, 0.7, 1); spin.add(shell);
+  const glow = new THREE.MeshStandardMaterial({ color:'#b6ff7a', emissive:'#9dff5c', emissiveIntensity:0.8, roughness:0.5 });
+  for(const s of [-1, 1]){ const leaf = mesh(new THREE.SphereGeometry(0.06, 8, 6), glow, false); leaf.scale.set(1.3, 0.3, 0.7); leaf.position.set(s * 0.05, 0.1, 0); leaf.rotation.z = s * -0.6; spin.add(leaf); }
+  g.userData = { spin };
+  return g;
+}

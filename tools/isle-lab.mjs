@@ -24,7 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CURATED_ISLES, MOVES, parseIsle, cellPlace, isleHash, initialState, step, stateKey, simulate,
-         solveIsle, auditIsle, provisionalTier, tierById, harderHints, gutMismatch, mechanicsUsed,
+         solveIsle, solveSeeds, auditIsle, provisionalTier, tierById, harderHints, gutMismatch, mechanicsUsed,
          checkCommunityIsle, checkDailyIsle, bridgeUp, gatesOpen, panTilt, heightAt } from '../core/src/isle/index.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -267,13 +267,14 @@ const report = {
   gate: gate ? { as:date ? `daily ${date}` : 'community', ok:gate.ok, errors:gate.errors } : null,
   solvable:solved.solvable, par:solved.par, solution:solved.solution, declaredPar:doc.par ?? null,
   mechanics: solved.solvable ? mechanicsUsed(level, solved.solution) : [],
+  seeds: level.seeds.length ? (r => r && r.solvable ? { n:level.seeds.length, par:r.par, solution:r.solution } : { n:level.seeds.length, par:null })(solveSeeds(level, { maxStates:BUDGET })) : null,
   audit, provisionalTier: provisionalTier(audit).id, declaredTier: doc.tier || null,
   gutMismatch: doc.tier ? gutMismatch(doc.tier, audit) : null,
   harder: harderHints(audit),
   idle: solved.solvable ? idlePieces(solved.solution) : [],
   nearest: nearest(),
 };
-if(opt.must.length) report.catches = opt.must.map(proveNecessary);
+if(opt.must.length) report.catches = solved.solvable ? opt.must.map(proveNecessary) : opt.must.map(spec => ({ spec, proven:null, note:'the isle is unsolvable — nothing to prove' }));
 if(opt.routes){ const g = explore(); report.routes = g.capped ? 'capped' : listRoutes(g, opt.routes); }
 
 if(opt.json){ console.log(JSON.stringify(report, null, 2)); }
@@ -284,6 +285,7 @@ else {
   p('solver', solved.solvable ? `par ${solved.par}  ${solved.solution}` : solved.capped ? `CAPPED at ${BUDGET} states` : 'UNSOLVABLE');
   if(doc.par != null && solved.solvable && doc.par !== solved.par) p('', `✗ file says par ${doc.par}`);
   p('mechanics', report.mechanics.join(', ') || '— (plain walking)');
+  if(report.seeds) p('seeds', report.seeds.par ? `${report.seeds.n} · seed par ${report.seeds.par} (+${report.seeds.par - solved.par})  ${report.seeds.solution}` : `${report.seeds.n} · NOT ALL REACHABLE before a goal`);
   p('audit', audit.capped ? `capped (${audit.states}+ states)` : `${audit.states} states · dead ${audit.deadPct}% · traps ${audit.traps} · away ${audit.away} · greedy ${audit.greedy ? 'WINS (too obvious)' : 'fails'} · routes ${audit.routes}`);
   p('tier', `audit reads ${tierById(report.provisionalTier).name}${doc.tier ? ` · declared ${tierById(doc.tier)?.name || doc.tier}` : ''}`);
   if(report.gutMismatch) p('', '⚠ ' + report.gutMismatch);

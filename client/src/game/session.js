@@ -1,7 +1,7 @@
 // A play session on one isle: input -> engine step -> animation, with undo,
 // restart, hints, optional timer and solution replay. All rules come from
 // @klar/core; this file only sequences them.
-import { initialState, step, solveFrom } from '@klar/core';
+import { initialState, step, solveFrom, seedsTouched } from '@klar/core';
 import { sfx } from './audio.js';
 
 export class Session {
@@ -16,7 +16,8 @@ export class Session {
     this.state = initialState(this.level);
     this.history = []; this.moves = 0; this.won = false; this.queue = [];
     this.t0 = null; this.elapsed = 0; this.hintsUsed = 0; this.replaying = false;
-    this.world.reset(this.state);
+    this.seeds = new Set(); this.seedHistory = [];   // seeds are not rule state: tracked here, undone with the move
+    this.world.reset(this.state); this.world.setSeeds(this.seeds);
     this.world.showHint(null);
     if(!silent) sfx.undo();
     this.emit();
@@ -44,10 +45,13 @@ export class Session {
       this.lastMove = now;
       this.hooks.onEffort && this.hooks.onEffort(gap > 0 && gap < 20 ? gap : 0);
       this.world.showHint(null);
-      this.history.push(this.state);
+      this.history.push(this.state); this.seedHistory.push(new Set(this.seeds));
       this.state = r.state; this.moves++;
+      const picked = seedsTouched(this.level, r).filter(i => !this.seeds.has(i));
+      for(const i of picked) this.seeds.add(i);
       this.emit();
       await this.world.play(m, r);
+      for(const i of picked) this.world.collectSeed(i);
       if(r.won) await this.finish();
     }
     this.busy = false;
@@ -64,7 +68,8 @@ export class Session {
   undo(){
     if(this.busy || this.replaying || !this.history.length || this.won) return;
     this.state = this.history.pop(); this.moves = this.history.length;   // cozy: experimenting is free; stars judge your final path
-    this.world.reset(this.state); this.world.showHint(null);
+    this.seeds = this.seedHistory.pop() || new Set();
+    this.world.reset(this.state); this.world.setSeeds(this.seeds); this.world.showHint(null);
     sfx.undo(); this.emit();
   }
 
@@ -82,8 +87,8 @@ export class Session {
   async replay(solution, onStep){
     const token = ++this.replayToken;
     this.state = initialState(this.level); this.history = []; this.moves = 0; this.won = false; this.queue = [];
-    this.t0 = null; this.elapsed = 0;
-    this.world.reset(this.state); this.world.showHint(null);
+    this.t0 = null; this.elapsed = 0; this.seeds = new Set(); this.seedHistory = [];
+    this.world.reset(this.state); this.world.setSeeds(this.seeds); this.world.showHint(null);
     this.replaying = true; this.emit();
     await new Promise(r => setTimeout(r, 450));
     for(let i = 0; i < solution.length; i++){
@@ -93,6 +98,7 @@ export class Session {
       if(!r.ok) break;
       this.state = r.state; this.moves++; this.emit();
       await this.world.play(solution[i], r, { fast:true });
+      for(const k of seedsTouched(this.level, r)) if(!this.seeds.has(k)){ this.seeds.add(k); this.world.collectSeed(k); }
       await new Promise(res => setTimeout(res, 70));
       if(r.won){ if(token === this.replayToken){ await this.world.celebrate(); } break; }
     }

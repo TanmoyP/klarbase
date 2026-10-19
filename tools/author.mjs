@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  CURATED_ISLES, parseIsle, solveIsle, simulate, isleHash, canonicalIsle, stableStringify, mechanicsUsed, schemaOf,
+  CURATED_ISLES, parseIsle, solveIsle, solveSeeds, simulate, isleHash, canonicalIsle, stableStringify, mechanicsUsed, schemaOf,
 } from '../core/src/index.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -36,6 +36,8 @@ CURATED_ISLES.forEach((isle, i) => {
     if(!sim.won || sim.applied !== isle.solution.length) errs.push('stored solution does not win');
     used = mechanicsUsed(level, isle.solution);
     for(const n of isle.needs || []) if(n !== 'walk:flat' && !used.includes(n)) errs.push(`does not use ${n}`);
+    const sp = solveSeeds(level);
+    if(sp ? sp.par !== isle.seedPar : isle.seedPar) errs.push(`seedPar ${isle.seedPar} != ${sp && sp.par}`);
   }
   const tag = errs.length ? 'FAIL' : 'PASS';
   console.log(`${tag}  ${String(i + 1).padStart(2)} ${isle.name.padEnd(14)} ${isle.theme.padEnd(9)} par ${String(isle.par).padStart(2)}  ${errs.join('; ')}`);
@@ -43,7 +45,7 @@ CURATED_ISLES.forEach((isle, i) => {
   const file = `${String(i + 1).padStart(2, '0')}-${isle.id}.json`;
   const norm = rows => rows.map(r => r.trim().split(/\s+/).join(' '));
   const doc = { schemaVersion:schemaOf(isle), id:isle.id, name:isle.name, theme:isle.theme, tier:isle.tier, ...(isle.twist ? { twist:true } : {}), hint:isle.hint,
-                ...(isle.storeys ? { storeys:isle.storeys.map(s => ({ rows:norm(s.rows), at:s.at })) } : { rows:norm(isle.rows) }), par:isle.par, solution:isle.solution };
+                ...(isle.storeys ? { storeys:isle.storeys.map(s => ({ rows:norm(s.rows), at:s.at })) } : { rows:norm(isle.rows) }), par:isle.par, solution:isle.solution, ...(isle.seedPar ? { seedPar:isle.seedPar } : {}) };
   fs.writeFileSync(path.join(OUT, file), JSON.stringify(doc, null, 2) + '\n');
   manifest.isles.push({ order:i + 1, id:isle.id, name:isle.name, theme:isle.theme, tier:isle.tier, ...(isle.twist ? { twist:true } : {}), par:isle.par, mechanics:used, hash:isleHash(isle), file });
 });

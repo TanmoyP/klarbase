@@ -543,6 +543,163 @@
       ],
       "hash": "61e28e8cece0d2b98a0042a5ef344cf09ef19491c1acaad772b2da2b5115f87e",
       "file": "37-sky-scales.json"
+    },
+    {
+      "order": 38,
+      "id": "lift-off",
+      "name": "Lift Off",
+      "theme": "mountain",
+      "tier": "breeze",
+      "par": 6,
+      "mechanics": [
+        "glide",
+        "take"
+      ],
+      "hash": "c56c7590d002da7c446603f432a4b956e7ee77b2b17918a98a3743e1ee930c95",
+      "file": "38-lift-off.json"
+    },
+    {
+      "order": 39,
+      "id": "let-it-go",
+      "name": "Let It Go",
+      "theme": "mountain",
+      "tier": "easy",
+      "par": 8,
+      "mechanics": [
+        "gate",
+        "glide",
+        "take",
+        "release"
+      ],
+      "hash": "63f97b913a573fa7b7e8fa15d36515a6a0f6d46721361ec0d5f9604f71d84fcc",
+      "file": "39-let-it-go.json"
+    },
+    {
+      "order": 40,
+      "id": "heavy-heart",
+      "name": "Heavy Heart",
+      "theme": "mountain",
+      "tier": "easy",
+      "par": 8,
+      "mechanics": [
+        "walk:down",
+        "push",
+        "scales",
+        "take"
+      ],
+      "hash": "fa86e1634f1352bb244f20af9b807d953f8e24e02e46624148082a266969d5ac",
+      "file": "40-heavy-heart.json"
+    },
+    {
+      "order": 41,
+      "id": "buoy-bay",
+      "name": "Buoy Bay",
+      "theme": "tropical",
+      "tier": "easy",
+      "par": 12,
+      "mechanics": [
+        "walk:ramp",
+        "push",
+        "sink",
+        "float"
+      ],
+      "hash": "eab1a664a8032c704764c57ff74b8edc2548dae835b9f4de88d40910e8a37943",
+      "file": "41-buoy-bay.json"
+    },
+    {
+      "order": 42,
+      "id": "glide-or-push",
+      "name": "Glide or Push",
+      "theme": "mountain",
+      "tier": "tricky",
+      "par": 21,
+      "mechanics": [
+        "push",
+        "sink",
+        "glide",
+        "take"
+      ],
+      "hash": "752a8703d738997937a3b4debda092b7db5db96b922a277e803254ea5ccb3744",
+      "file": "42-glide-or-push.json"
+    },
+    {
+      "order": 43,
+      "id": "tailwind",
+      "name": "Tailwind",
+      "theme": "oasis",
+      "tier": "tricky",
+      "par": 25,
+      "mechanics": [
+        "push",
+        "glide",
+        "take"
+      ],
+      "hash": "acac0b1b910a616986c61a7ed10daab56e363f45afedce85cb1e2de1b30f6db8",
+      "file": "43-tailwind.json"
+    },
+    {
+      "order": 44,
+      "id": "ballast",
+      "name": "Ballast",
+      "theme": "tropical",
+      "tier": "tricky",
+      "par": 14,
+      "mechanics": [
+        "walk:ramp",
+        "push",
+        "scales"
+      ],
+      "hash": "cb866dbd00ff490456dfb400c5e090196df2c170e847f26f7b6d5abe773fb7a0",
+      "file": "44-ballast.json"
+    },
+    {
+      "order": 45,
+      "id": "drift",
+      "name": "Drift",
+      "theme": "tropical",
+      "tier": "hard",
+      "par": 15,
+      "mechanics": [
+        "push",
+        "gust",
+        "float"
+      ],
+      "hash": "f5afb40d515edec91ab46c7447cdfa35e8992a50269e690d44298da9fc18ebc2",
+      "file": "45-drift.json"
+    },
+    {
+      "order": 46,
+      "id": "brace",
+      "name": "Brace",
+      "theme": "mountain",
+      "tier": "hard",
+      "par": 33,
+      "mechanics": [
+        "push",
+        "gate",
+        "glide",
+        "take",
+        "drop"
+      ],
+      "hash": "e6d95220482fc20d0d4c5711706583b940a4f680aeda6082cf9215572bf404da",
+      "file": "46-brace.json"
+    },
+    {
+      "order": 47,
+      "id": "windward",
+      "name": "Windward",
+      "theme": "mountain",
+      "tier": "fiendish",
+      "par": 28,
+      "mechanics": [
+        "push",
+        "scales",
+        "glide",
+        "take",
+        "drop"
+      ],
+      "hash": "0839058202ad250ec9d975b1757e6bcde0943436f9ec0d7c3fff2aef4fe3ad6b",
+      "file": "47-windward.json"
     }
   ]
 }

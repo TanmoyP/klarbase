@@ -57,6 +57,15 @@ export const sfx = {
   fall:() => { tone(300, { dur:0.35, gain:0.08, to:90 }); noise({ dur:0.3, gain:0.05, freq:600, at:0.15 }); },
   scales:up => { tone(up ? 140 : 180, { dur:0.42, type:'triangle', gain:0.05, to:up ? 200 : 110 }); noise({ dur:0.3, gain:0.03, freq:700, type:'lowpass' }); },   // a woody creak as the vine settles
   bonk:() => { tone(260, { dur:0.12, type:'sine', gain:0.06, to:180 }); },
+  // Weight II
+  take:what => what === 'stone' ? (tone(95, { dur:0.2, gain:0.12, to:75 }), noise({ dur:0.12, gain:0.05, freq:400, type:'lowpass' }))
+                                : [0, 4].forEach((n, i) => tone(note(n) * 2, { dur:0.16, type:'sine', gain:0.05, at:i * 0.06, to:note(n + 2) * 2 })),
+  drop:() => { tone(80, { dur:0.25, gain:0.12, to:60 }); noise({ dur:0.2, gain:0.05, freq:300, type:'lowpass' }); },
+  release:() => { tone(note(4) * 2, { dur:0.6, type:'sine', gain:0.045, to:note(9) * 4 }); },
+  glide:() => { noise({ dur:0.5, gain:0.035, freq:900, sweep:500, type:'lowpass' }); tone(note(7) * 2, { dur:0.45, type:'sine', gain:0.03, to:note(2) * 2 }); },
+  gust:() => { noise({ dur:0.45, gain:0.05, freq:1400, sweep:600 }); },
+  float:() => { tone(330, { dur:0.2, gain:0.05, to:440 }); for(let i = 0; i < 3; i++) tone(900 + i * 200, { dur:0.04, gain:0.02, at:0.08 + i * 0.05 }); },
+  seed:() => { [7, 9, 12].forEach((n, i) => tone(note(n) * 2, { dur:0.18, type:'triangle', gain:0.04, at:i * 0.05 })); },
   undo:() => { tone(note(3) * 2, { dur:0.08, type:'sine', gain:0.04, to:note(1) * 2 }); },
   ui:() => { tone(note(5) * 2, { dur:0.06, type:'triangle', gain:0.035 }); },
   win:() => {
