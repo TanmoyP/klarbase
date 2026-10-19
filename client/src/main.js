@@ -202,7 +202,7 @@ $('#btnContinue').onclick = () => { const next = official.find(e => !progress[e.
 /* ---------------- play ---------------- */
 function play(entry){
   const { ok, errors, level } = parseIsle(entry.doc);
-  if(!ok){ toast('This isle is broken: ' + errors[0].text, true); nav('/play', true); return; }
+  if(!ok){ toast('This isle is broken: ' + errors[0].text, true); nav('/play'); return; }
   stopGame();
   current = entry;
   world.setShowcase(false); world.view = 0; world.turn(0);
@@ -372,9 +372,10 @@ const builder = mountBuilder({ world, api, toast, repoUrl:REPO_URL, communityHas
 /* ---------------- routing ---------------- */
 // Real paths (/isle/root-bridge), not #/ hashes. The server answers every path with
 // index.html; old #/ links (shared before the switch) are rewritten on arrival.
-function nav(path, replace = false){
-  if(path === location.pathname) return route();
-  history[replace ? 'replaceState' : 'pushState'](null, '', path);
+// In-game navigation REPLACES the address instead of adding history: the browser's
+// Back leaves the game, the in-game back button moves between screens (player feedback).
+function nav(path){
+  if(path !== location.pathname) history.replaceState(null, '', path);
   route();
 }
 async function route(){
@@ -385,18 +386,17 @@ async function route(){
   if(h === '/play') return selectScreen('official');
   if(h === '/community') return selectScreen('community');
   if(h === '/create'){ stopGame(); world.setShowcase(false); show('create'); builder.show(); setAccent(builder.draft.theme); return; }
-  if((m = /^\/isle\/([\w-]+)$/.exec(h))){ const e = official.find(x => x.doc.id === m[1]); return e ? play(e) : nav('/play', true); }
-  if((m = /^\/c\/([\w-]+)\/([\w-]+)$/.exec(h))){ const e = community.find(x => x.author === m[1] && x.doc.id === m[2]); return e ? play(e) : nav('/community', true); }
+  if((m = /^\/isle\/([\w-]+)$/.exec(h))){ const e = official.find(x => x.doc.id === m[1]); return e ? play(e) : nav('/play'); }
+  if((m = /^\/c\/([\w-]+)\/([\w-]+)$/.exec(h))){ const e = community.find(x => x.author === m[1] && x.doc.id === m[2]); return e ? play(e) : nav('/community'); }
   if((m = /^\/(?:i|p)\/([0-9a-f]{64})$/.exec(h))){
     try {
       const r = await api('/puzzles/' + m[1]);
-      if(r.puzzle.schemaVersion !== 5){ toast('That link is from an older version of Klarbase', true); nav('/community', true); return; }
+      if(r.puzzle.schemaVersion !== 5){ toast('That link is from an older version of Klarbase', true); nav('/community'); return; }
       return play({ key:'i:' + m[1], doc:{ ...r.puzzle, name:r.title }, name:r.title, theme:r.puzzle.theme, par:r.puzzle.par, solution:r.puzzle.solution, sub:'shared by ' + r.author.name, online:true });
-    } catch { toast('That isle could not be found', true); nav('/community', true); return; }
+    } catch { toast('That isle could not be found', true); nav('/community'); return; }
   }
-  nav('/', true);
+  nav('/');
 }
-addEventListener('popstate', route);
 syncTopbar();
 refreshAuth();
 route();
