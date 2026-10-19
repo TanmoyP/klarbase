@@ -165,7 +165,7 @@ t('daily: same date → same isle, in any pool order', dailyPick(pool, '2026-11-
   t('daily: no repeats until the pool is used up', seen.size === pool.length); }
 t('daily: empty pool', dailyPick([], '2026-10-20') === null);
 t('daily: numbering', dailyNumber(DAILY_EPOCH) === 1 && dailyNumber('2026-10-20') === 2 && dailyNumber('2026-11-29', '2026-10-19') === 42);
-t('daily: numbered from the first dated file', dailyEpoch(['2026-10-25', '2026-10-21']) === '2026-10-21' && dailyEpoch([]) === DAILY_EPOCH);
+t('daily: a later dated file never renumbers', dailyEpoch(['2026-10-25', '2026-10-21']) === DAILY_EPOCH && dailyEpoch([]) === DAILY_EPOCH && dailyEpoch(['2026-10-01']) === '2026-10-01');
 t('daily: utc date', utcDate(new Date(Date.UTC(2026, 9, 19, 23, 59))) === '2026-10-19');
 t('daily: share text', dailyShareText({ no:42, moves:18, par:17, stars:2 }) === 'Klarbase Daily #42 · 18 moves (par 17) · ★★☆');
 

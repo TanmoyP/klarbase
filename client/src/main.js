@@ -501,6 +501,8 @@ async function route(){
   if(h === '/play') return selectScreen('official');
   if(h === '/community') return selectScreen('community');
   if(h === '/daily'){ const e = dailyEntry(); return e ? play(e) : nav('/play'); }
+  // dev server only: playtest any date's daily before its day (the daily isle agent, K10)
+  if(import.meta.env.DEV && (m = /^\/daily\/(\d{4}-\d{2}-\d{2})$/.exec(h))){ const e = dailyEntry(m[1]); return e ? play(e) : nav('/play'); }
   if(h === '/create'){ stopGame(); world.setShowcase(false); show('create'); builder.show(); setAccent(builder.draft.theme); return; }
   if((m = /^\/isle\/([\w-]+)$/.exec(h))){ const e = official.find(x => x.doc.id === m[1]); return e ? play(e) : nav('/play'); }
   if((m = /^\/c\/([\w-]+)\/([\w-]+)$/.exec(h))){ const e = community.find(x => x.author === m[1] && x.doc.id === m[2]); return e ? play(e) : nav('/community'); }

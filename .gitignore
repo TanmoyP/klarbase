@@ -11,3 +11,4 @@ server/prisma/migrations/dev*
 .claude/*
 !.claude/settings.json
 !.claude/agents/
+!.claude/skills/
