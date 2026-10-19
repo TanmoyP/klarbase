@@ -167,6 +167,7 @@ function helpModal(){
       <div><span class="ico">🛟</span><span>Buoys weigh −1: they float <b>up</b> a step, never down, and float on water as stepping stones.</span></div>
       <div><span class="ico">💨</span><span>Vents blow light things (balloon-you, buoys) one tile after each move. A crate in the gust shelters what’s behind it. Only a stone lets you push into the wind.</span></div>
       <div><span class="ico">🌱</span><span>Seeds are optional — they’re off the short route.</span></div>
+      <div><span class="ico">🪨</span><span>Boulders roll their lane and thorn sweepers turn, one beat per move. Glowing rings show where they’ll be next. Get caught and Pip bonks — the move doesn’t count. <b>Space</b> waits a beat.</span></div>
       <div><span class="ico">🗺</span><span>Some maps have several isles. A gateway arch carries you between them; press <b>M</b> to see the whole map.</span></div>
       <div><span class="ico">⭐</span><span>Reach the glowing star. Match par for ★★★. Stuck? <b>H</b> shows the isle’s tip, then your best next move.</span></div>
       <div><span class="ico">📈</span><span>Each isle shows a difficulty from <b>Breeze</b> to <b>Mythic</b>. It starts as the maker’s guess and settles as people play.</span></div>
@@ -291,7 +292,9 @@ function play(entry){
   $('#btnMap').style.display = world.storeyCount > 1 ? '' : 'none'; syncMap();
   setAccent(entry.doc.theme);
   if(!entry.par){ const r = solveIsle(level, { maxStates:200000 }); entry.par = r.solvable ? r.par : 0; entry.solution = r.solution || ''; }
-  game = new Session(world, level, entry, { onChange:hud, onWin:won, onEffort:addEffort });
+  let warned = false;   // the first hazard bonk of a visit explains itself
+  game = new Session(world, level, entry, { onChange:hud, onWin:won, onEffort:addEffort,
+    onHazard:() => { if(!warned){ warned = true; toast('Bonk! Something comes through there on the next beat — the glowing rings show where. Space waits a beat.'); } } });
   freeHints = 1; attemptOpen = false;
   $('#hudName').textContent = entry.name;
   $('#hudSub').innerHTML = tierBadge(entry) + ' ' + (entry.author && !entry.daily ? `by <a href="https://github.com/${esc(entry.author)}" target="_blank" rel="noopener" style="color:inherit">@${esc(entry.author)}</a>` : esc(entry.sub || ''));   // tier first, so phones never ellipsize it away
@@ -473,7 +476,7 @@ function hint(){
   if(!unlocked(current)) freeHints--;
   postPlay('hint');
   if(h.stuck) toast('Hmm — this spot can’t reach the goal any more. Undo or restart.', true);
-  else toast((h.move === 'X' ? `Best next move: Use (Space) · ${h.left} to go` : `Best next move: ${glyphFor(h.move)} · ${h.left} to go`) + (unlocked(current) ? '' : ' · that was your free hint'));
+  else toast((h.move === 'X' ? `Best next move: ${game.level.hazards && game.level.hazards.length ? 'Use or wait' : 'Use'} (Space) · ${h.left} to go` : `Best next move: ${glyphFor(h.move)} · ${h.left} to go`) + (unlocked(current) ? '' : ' · that was your free hint'));
 }
 $('#btnBack').onclick = () => { nav(current?.draft ? '/create' : current?.daily ? '/' : current?.author ? '/community' : current?.online ? '/community' : '/play'); };
 $('#btnUndo').onclick = () => game && game.undo();

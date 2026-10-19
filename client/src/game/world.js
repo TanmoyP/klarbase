@@ -2,13 +2,13 @@
 // visual that mirrors engine state. The engine (@klar/core) decides what
 // happens; this file only shows it — beautifully, and never differently.
 import * as THREE from 'three';
-import { bridgeUp, gatesOpen, panTilt, heightAt, cellPlace, pipWeight, floating, windAt } from '@klar/core';
+import { bridgeUp, gatesOpen, panTilt, heightAt, cellPlace, pipWeight, floating, windAt, hazardCellsAt } from '@klar/core';
 import { themeOf, PORTAL_COLORS } from './themes.js';
 import {
   LV, rng, hashStr, buildTerrain, makeRock, makeTree, makeFlora, makeTufts,
   makeCrate, makePlate, makeGate, makeLever, makeBridge, makeKey, makeDoor, makePortal,
   makeGoal, makeStart, makeCloud, makeFlyer, makePan, PAN_HOOK,
-  makeBalloon, makePost, makePile, makeBuoy, makeVent, makeSeed,
+  makeBalloon, makePost, makePile, makeBuoy, makeVent, makeSeed, makeBoulder, makeThorn, makeWarning,
 } from './props.js';
 import { Pip } from './pip.js';
 import { sfx, setScale, ambient } from './audio.js';
@@ -187,6 +187,7 @@ export class World {
     this.buildVine(T);
     this.buildThreads();
     this.buildGusts();
+    this.buildHazards(T);
 
     this.buildAtmosphere(T, r);
     this.frameIsle(true);
@@ -286,6 +287,60 @@ export class World {
       this.gustFx.push({ g, dx, dz, start, streaks, reach:g.cells.length });
     }
   }
+  // Cozy hazards (K5): boulders and thorn arms sit where the turn counter says;
+  // warning rings mark every tile a hazard will cover after your next move.
+  buildHazards(T){
+    this.hazardMeshes = []; this.warnings = []; this.turnShown = 0;
+    const L = this.level;
+    for(const hz of L.hazards || []){
+      const m = hz.kind === 'boulder' ? makeBoulder(T) : makeThorn(T);
+      if(hz.kind === 'thorn') m.position.copy(this.cellPos(hz.at, false));
+      this.groupOf(hz.at).add(m); this.hazardMeshes.push(m);
+    }
+    const most = (L.hazards || []).reduce((n, hz) => n + (hz.kind === 'boulder' ? 1 : 2), 0);
+    for(let k = 0; k < most; k++){ const w = makeWarning(); w.visible = false; this.isle.add(w); this.warnings.push(w); }
+  }
+  boulderAt(hz, t){ return hazardCellsAt({ hazards:[hz] }, t)[0]; }
+  thornYaw(t){ return Math.PI - (t % 4) * Math.PI / 2; }       // arm: north, then a quarter clockwise per beat
+  placeHazards(t){
+    const L = this.level; this.turnShown = t;
+    (L.hazards || []).forEach((hz, k) => {
+      const m = this.hazardMeshes[k];
+      if(hz.kind === 'boulder') m.position.copy(this.cellPos(this.boulderAt(hz, t)));
+      else m.userData.pivot.rotation.y = this.thornYaw(t);
+    });
+    this.warn((t + 1) % (L.cycle || 1));
+  }
+  warn(t){
+    const cells = this.level.hazards && this.level.hazards.length ? hazardCellsAt(this.level, t) : [];
+    this.warnings.forEach((w, k) => { const i = cells[k]; w.visible = i != null && this.level.cells[i].kind !== 'void';
+      if(w.visible){ w.position.copy(this.cellPos(i)); w.position.y += 0.03; } });
+  }
+  // One beat: boulders roll a tile, thorn arms turn a quarter.
+  stepHazards(t0, t1, speed){
+    const L = this.level, jobs = [];
+    (L.hazards || []).forEach((hz, k) => {
+      const m = this.hazardMeshes[k];
+      if(hz.kind === 'boulder'){
+        const a = this.cellPos(this.boulderAt(hz, t0)), b = this.cellPos(this.boulderAt(hz, t1)), d = b.clone().sub(a), spin = m.userData.spin;
+        const ax = new THREE.Vector3(d.z, 0, -d.x).normalize(), q0 = spin.quaternion.clone();
+        jobs.push(new Promise(res => { let t = 0; this.fx.push({ update:dt => { t = Math.min(1, t + dt / (0.24 * speed)); const e = easeIO(t);
+          m.position.lerpVectors(a, b, e); if(d.lengthSq() > 0) spin.quaternion.copy(q0).premultiply(new THREE.Quaternion().setFromAxisAngle(ax, e * d.length() / 0.36));
+          if(t >= 1){ res(); return false; } return true; } }); }));
+      } else {
+        const pv = m.userData.pivot, y0 = pv.rotation.y;
+        jobs.push(new Promise(res => { let t = 0; this.fx.push({ update:dt => { t = Math.min(1, t + dt / (0.24 * speed)); pv.rotation.y = y0 - easeIO(t) * Math.PI / 2; if(t >= 1){ pv.rotation.y = this.thornYaw(t1); res(); return false; } return true; } }); }));
+      }
+    });
+    this.turnShown = t1;
+    return Promise.all(jobs).then(() => this.warn((t1 + 1) % (L.cycle || 1)));
+  }
+  // A hazard bonk: the tile flashes where it would have hit.
+  hazardBonk(at){
+    const w = makeWarning(); w.material.color.set('#ff6a5a'); w.position.copy(this.cellPos(at)); w.position.y += 0.05; this.scene.add(w);
+    let t = 0; this.fx.push({ update:dt => { t += dt / 0.5; w.scale.setScalar(1 + t * 0.8); w.material.opacity = Math.max(0, 0.8 * (1 - t)); if(t >= 1){ w.removeFromParent(); w.geometry.dispose(); w.material.dispose(); return false; } return true; } });
+  }
+
   updateGusts(t){
     for(const f of this.gustFx || []){
       for(const m of f.streaks){
@@ -418,6 +473,7 @@ export class World {
     this.buoyMeshes = new Map();
     for(const i of state.buoys || []){ const m = makeBuoy(this.T); m.position.copy(this.buoyPos(i, state)); this.groupOf(i).add(m); this.buoyMeshes.set(i, m); }
     this.pip.setHold(state.hold, this.T);
+    if(this.hazardMeshes && this.hazardMeshes.length) this.placeHazards(state.t || 0);
     for(const [i, k] of this.keys) k.visible = !state.got.includes(i);
     this.applyState(state, true);
     this.pip.placeAt(this.cellPos(state.p)); this.pip.group.visible = true;
@@ -526,6 +582,7 @@ export class World {
       }
       if(e.t === 'key'){ sfx.key(); this.collectKey(e.at); }
       if(e.t === 'toggle'){ sfx.toggle(); }
+      if(e.t === 'wait'){ sfx.wait(); await this.pip.hop(this.cellPos(e.at), this.cellPos(e.at), 'flat', 0.22 * speed); }
       if(e.t === 'take'){ sfx.take(e.what); this.pip.setHold(e.what, this.T); if(e.what === 'balloon') this.posts.get(e.at).userData.balloon.visible = false; }
       if(e.t === 'drop'){ sfx.drop(); this.pip.setHold('', this.T); }
       if(e.t === 'release'){ sfx.release(); this.pip.setHold('', this.T); this.letGo(e.at); }
@@ -539,12 +596,15 @@ export class World {
       }
     }
     await crateJobs;
-    const sc = ev.find(e => e.t === 'scales');
+    const sc = ev.find(e => e.t === 'scales'), hz = ev.find(e => e.t === 'hazard');
+    const beat = hz ? this.stepHazards((hz.turn - 1 + this.level.cycle) % this.level.cycle, hz.turn, speed) : null;
+    if(hz) sfx.roll();
     if(sc){ sfx.scales(sc.tilt > sc.from); await this.settleScales(sc.from, sc.tilt, res.state); }
+    if(beat) await beat;
     this.applyState(res.state);
     if(ev.some(e => e.t === 'gate')) sfx.gate(ev.find(e => e.t === 'gate').open);
   }
-  bonk(){ sfx.bonk(); return this.pip.bonk(); }
+  bonk(hit){ sfx.bonk(); if(hit){ sfx.thorn(); this.hazardBonk(hit.at); } return this.pip.bonk(); }
   async celebrate(){
     sfx.win();
     for(const g of this.goals) this.confetti(g.position);
@@ -630,6 +690,8 @@ export class World {
       for(const pst of this.posts.values()){ const b = pst.userData.balloon; b.rotation.z = Math.sin(t * 1.5 + pst.position.x) * 0.12; }
       for(const m of this.buoyMeshes?.values() || []){ const b = m.userData.balloon; b.rotation.z = Math.sin(t * 1.7 + m.position.z) * 0.1; m.userData.box.rotation.z = Math.sin(t * 1.2 + m.position.x) * 0.03; }
       this.updateGusts(t);
+      for(const w of this.warnings || []) if(w.visible){ w.material.opacity = 0.35 + Math.sin(t * 5) * 0.2; w.scale.setScalar(1 + Math.sin(t * 5) * 0.06); }
+      for(const m of this.hazardMeshes || []) if(m.userData.body) m.userData.body.scale.y = 1 + Math.sin(t * 2.2 + m.position.x) * 0.03;
       for(const k of this.keys.values()){ if(k.visible){ k.userData.spin.rotation.y = t * 2; k.userData.spin.position.y = 0.55 + Math.sin(t * 2.5) * 0.07; } }
       const lerp = (o, key, rate) => { o.userData[key] += (o.userData.target - o.userData[key]) * Math.min(1, dt * rate); return o.userData[key]; };
       for(const g of this.gates){ if(g.userData.target == null) continue; const o = lerp(g, 'open', 6); g.userData.bars.position.y = -o * 0.86; }

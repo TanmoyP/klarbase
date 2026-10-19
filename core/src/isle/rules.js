@@ -40,18 +40,24 @@
 //     move, every light thing in the wind — balloon-Pip, buoys not under Pip —
 //     moves one tile downwind if it can (never off an edge). Brace rule: pushing a
 //     crate or buoy that stands in the wind INTO the wind needs weight > 1 (stone).
-import { MOVE_DIRS, OPP } from './format.js';
+//  Cozy hazards (K5). Boulders roll their lane and thorn sweepers turn, one beat per
+//     move; where they will be is always shown. If, after a move, a hazard is on Pip's
+//     tile — or Pip and a hazard swapped tiles — Pip bonks and the move is undone (it
+//     doesn't count). On an isle with hazards, Use with nothing to use WAITS a beat.
+//     Crates and buoys never enter a hazard's tiles. The turn counter (mod the hazards'
+//     shared cycle, at most 12) is the only new state.
+import { MOVE_DIRS, OPP, hazardCellsAt } from './format.js';
 
 export function initialState(level){
   return { p:level.start, crates:level.crates.slice(), filled:[], keys:0, got:[], opened:[], flip:false,
-           hold:'', buoys:(level.buoys || []).slice(), posts:[] };
+           hold:'', buoys:(level.buoys || []).slice(), posts:[], t:0 };
 }
 
 const clone = s => ({ p:s.p, crates:s.crates.slice(), filled:s.filled.slice(), keys:s.keys,
                       got:s.got.slice(), opened:s.opened.slice(), flip:s.flip,
-                      hold:s.hold, buoys:s.buoys.slice(), posts:s.posts.slice() });
+                      hold:s.hold, buoys:s.buoys.slice(), posts:s.posts.slice(), t:s.t });
 const sorted = a => a.slice().sort((x,y) => x-y).join(',');
-export const stateKey = s => `${s.p}|${sorted(s.crates)}|${sorted(s.filled)}|${s.keys}|${sorted(s.got)}|${sorted(s.opened)}|${s.flip?1:0}|${s.hold}|${sorted(s.buoys)}|${sorted(s.posts)}`;
+export const stateKey = s => `${s.p}|${sorted(s.crates)}|${sorted(s.filled)}|${s.keys}|${sorted(s.got)}|${sorted(s.opened)}|${s.flip?1:0}|${s.hold}|${sorted(s.buoys)}|${sorted(s.posts)}|${s.t}`;
 
 // Next cell in direction m, or -1 off the grid. Never crosses a storey edge.
 export function neighbor(level, i, m){
@@ -165,7 +171,7 @@ function glideTo(level, s, from, m, gateOpen, tilt){
 // Can a crate move from -> to? Crates never use ramps or portals, never cover
 // goals, levers or uncollected keys. Returns null, 'move' or 'sink'.
 function crateCanEnter(level, s, from, to, gateOpen, tilt){
-  if(to < 0 || to === s.p || s.crates.includes(to) || s.buoys.includes(to)) return null;
+  if(to < 0 || to === s.p || s.crates.includes(to) || s.buoys.includes(to) || (level.hazardZone && level.hazardZone.has(to))) return null;
   const b = level.cells[to], ha = heightAt(level, from, tilt), hb = heightAt(level, to, tilt);
   if(b.kind === 'ramp' || !(hb === ha || hb === ha - 1)) return null;
   switch(b.kind){
@@ -182,7 +188,7 @@ function crateCanEnter(level, s, from, to, gateOpen, tilt){
 // Can a buoy move from -> to? The mirror of a crate: same height or UP one level,
 // never down; onto open water it floats ('float'). Returns null, 'move' or 'float'.
 function buoyCanEnter(level, s, from, to, gateOpen, tilt){
-  if(to < 0 || to === s.p || s.crates.includes(to) || s.buoys.includes(to)) return null;
+  if(to < 0 || to === s.p || s.crates.includes(to) || s.buoys.includes(to) || (level.hazardZone && level.hazardZone.has(to))) return null;
   const b = level.cells[to], ha = heightAt(level, from, tilt), hb = heightAt(level, to, tilt);
   if(b.kind === 'ramp' || !(hb === ha || hb === ha + 1)) return null;
   if(wet(level, s, to)) return 'float';
@@ -200,7 +206,8 @@ function buoyCanEnter(level, s, from, to, gateOpen, tilt){
 //   walk{from,to,kind} glide{from,to} slide{from,to} tp{from,to,gateway?}
 //   push{from,to,buoy?} cslide{from,to,buoy?} sink{at} float{at} fall{at} key{at}
 //   door{at} toggle{flip} take{at,what} drop{at,what} release{at}
-//   gust{from,to,buoy?} scales{from,tilt} gate{open} win
+//   gust{from,to,buoy?} scales{from,tilt} gate{open} wait{at} hazard{turn} win
+// A move that ends in a hazard returns { ok:false, bonk:{ at, turn } } (state untouched).
 export function step(level, s0, move){
   const before = gatesOpen(level, s0), tilt = panTilt(level, s0);
   const events = [];
@@ -223,6 +230,7 @@ export function step(level, s0, move){
     else if(cell.kind === 'pile' && !s.hold){ s.hold = 'stone'; events.push({ t:'take', at, what:'stone' }); }
     else if(cell.kind === 'pile' && s.hold === 'stone'){ s.hold = ''; events.push({ t:'drop', at, what:'stone' }); }
     else if(s.hold === 'balloon'){ s.hold = ''; events.push({ t:'release', at }); }
+    else if(level.hazards && level.hazards.length) events.push({ t:'wait', at });   // a beat passes
     else return { ok:false };
   } else {
     const dir = MOVE_DIRS[move];
@@ -290,6 +298,13 @@ export function step(level, s0, move){
   if(tilt2 !== tilt) events.push({ t:'scales', from:tilt, tilt:tilt2 });
   const after = gatesOpen(level, s);
   if(after !== before) events.push({ t:'gate', open:after });
+  // the hazards' beat: one step along their cycle, then the cozy check
+  if(level.hazards && level.hazards.length){
+    s.t = (s0.t + 1) % level.cycle;
+    const now = hazardCellsAt(level, s0.t), next = hazardCellsAt(level, s.t);
+    if(next.includes(s.p) || (now.includes(s.p) && next.includes(s0.p))) return { ok:false, bonk:{ at:s.p, turn:s.t } };
+    events.push({ t:'hazard', turn:s.t });
+  }
   if(won) events.push({ t:'win' });
   return { ok:true, state:s, events, won };
 }
