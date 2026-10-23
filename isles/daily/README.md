@@ -10,6 +10,10 @@ On a date that has a file, everyone plays that isle. On a date without one, the 
 from a pool (Twist isles, Tricky-or-harder official isles, community isles) — the same pick
 for everyone. Dailies are numbered from 2026-10-19 (`Klarbase Daily #1`); adding a file never renumbers them.
 
+After its day, a hand-made daily moves to **Past Daily Isles** on the Community tab
+(`/daily/<date>`), credited to its `author`, with the same stats and the same Daily number.
+A future date is never playable on the live site.
+
 ## The file
 
 Same format as a community isle ([`../README.md`](../README.md)), with these differences:
@@ -18,7 +22,7 @@ Same format as a community isle ([`../README.md`](../README.md)), with these dif
 |---|---|
 | `id` | must be `daily-<date>`, matching the file name — e.g. `daily-2026-10-20` |
 | `tier` | **required** — the designer's gut call: `breeze` `easy` `tricky` `hard` `fiendish` `mythic` |
-| `author` | optional (GitHub username); there is no author folder |
+| `author` | optional (GitHub username); there is no author folder. Credited on the card once the day has passed |
 | `catch` | optional, plain text ≤ 200 chars — the designer's note on the trick. Never shown to a player before they clear the isle |
 | `name`, `theme`, `rows`, `par`, `solution`, `hint`, `description`, `credit` | as for community isles |
 

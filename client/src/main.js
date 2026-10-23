@@ -5,7 +5,7 @@
 //                bundled at build time with credit to their author
 //   online     — isles shared in-game and stored on the server (/i/<hash>)
 import { CURATED_ISLES, CHAPTERS, SCHEMAS, parseIsle, solveIsle, solveSeeds, starsFor, isleHash, initialState,
-  auditIsle, difficultyScore, TIER_IDS, dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate } from '@klar/core';
+  auditIsle, difficultyScore, playSummary, SUMMARY_MIN, TIER_IDS, dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate } from '@klar/core';
 import { World } from './game/world.js';
 import { Session } from './game/session.js';
 import { THEMES, themeOf } from './game/themes.js';
@@ -41,17 +41,20 @@ const DATED = Object.entries(import.meta.glob('../../isles/daily/*.json', { eage
   .map(([p, d]) => ({ date:p.slice(-15, -5), d })).filter(({ date, d }) => d && (Array.isArray(d.rows) || Array.isArray(d.storeys)) && d.id === 'daily-' + date)
   .map(({ date, d }) => ({ key:'d:' + date, statKey:'d/' + date, date, doc:d, name:d.name, theme:d.theme, par:d.par, solution:d.solution,
     hint:d.hint, tier:d.tier, catch:d.catch, author:d.author || null, sub:d.author ? `by @${d.author}` : 'today’s hand-made isle' }));
+// Past hand-made dailies stay playable from the Community tab (newest first), never before their day.
+const pastDailies = () => DATED.filter(e => e.date < utcDate()).sort((a, b) => b.date.localeCompare(a.date));
 const communityHashes = () => COMMUNITY.map(d => [isleHash(d), `community isle “${d.name}” by @${d.author}`]);
 
 /* ---------------- difficulty (K3) + anonymous play stats (K7) ---------------- */
 // Every card shows a tier and a 0–100 score: the maker's gut call (or the solver
 // audit) first, real players' results taking over as plays accumulate. The math
 // is difficultyScore() in @klar/core; this file only gathers its inputs.
-let plays = {}, playsAt = 0;
+let plays = {}, playsAt = 0, playsLoaded = false;
 async function loadPlays(){
   if(Date.now() - playsAt < 60000) return;
   playsAt = Date.now();
-  try { plays = (await api('/plays')).plays || {}; } catch { return; }
+  try { plays = (await api('/plays')).plays || {}; playsLoaded = true; } catch { return; }
+  document.querySelectorAll('[data-stats]').forEach(el => { const e = entryByKey(el.dataset.stats); if(e) el.textContent = statsLine(e); });
   document.querySelectorAll('[data-score]').forEach(el => { const e = entryByKey(el.dataset.score); if(e) el.outerHTML = tierBadge(e); });
 }
 const auditCache = new Map();
@@ -69,6 +72,20 @@ function tierBadge(e){
   const d = scoreOf(e);
   const why = d.settling ? `settling — ${d.n} of 20 plays so far; starts from ${d.declared ? 'the maker’s gut call' : 'the solver’s estimate'}` : `from ${d.n} plays`;
   return `<span class="tier t-${d.tier.id}" data-score="${esc(e.key)}" title="Difficulty ${d.score}/100 · ${why}">${d.tier.name} ${d.score}${d.settling ? '<i> · settling</i>' : ''}</span>`;
+}
+// Card line: "▶ 128 plays · 64% clear · 9% at par" — counts only, from the same anonymous sums.
+function statsLine(e){
+  if(!playsLoaded || !e.statKey) return '';
+  const s = playSummary(plays[e.statKey], e.par);
+  if(!s.plays) return '✦ new — no plays yet';
+  return [`▶ ${s.plays} play${s.plays > 1 ? 's' : ''}`, s.clearRate != null && `${s.clearRate}% clear`, s.parRate != null && `${s.parRate}% at par`].filter(Boolean).join(' · ');
+}
+// Win screen: how this isle has gone for everyone, and where your clear lands.
+function crowdLine(e, moves){
+  const s = e.statKey && playSummary(plays[e.statKey], e.par);
+  if(!s || s.plays < SUMMARY_MIN.clearRate) return '';
+  const rare = e.par && moves <= e.par && s.parRate != null && s.parRate <= 50 ? ` — you're among the ${Math.max(1, s.parRate)}% who hit par` : '';
+  return `<div class="crowd">Played ${s.plays} times · ${s.clearRate}% clear it${s.parRate != null ? ` · ${s.parRate}% at par` : ''}${rare}</div>`;
 }
 const entryByKey = k => [...official, ...community, ...DATED, ...(online || [])].find(e => e.key === k) || (current && current.key === k ? current : null);
 // Fire-and-forget; counts only — no id, no cookie (credentials omitted).
@@ -235,7 +252,8 @@ function cardHtml(e, num){
       ${num ? `<span class="num">${num}</span>` : ''}${tierBadge(e)}</div>
     <div class="body"><div class="name">${esc(e.name)}</div>
       ${e.author ? `<div class="credit">by <a href="https://github.com/${esc(e.author)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">@${esc(e.author)}</a></div>` : ''}
-      <div class="meta"><span>${e.par ? 'par ' + e.par : T.label}${p ? ` · best ${p.moves}` : ''}</span>${starsHtml(p ? p.stars : 0)}</div></div></button>`;
+      <div class="meta"><span>${e.par ? 'par ' + e.par : T.label}${p ? ` · best ${p.moves}` : ''}</span>${starsHtml(p ? p.stars : 0)}</div>
+      <div class="pstats" data-stats="${esc(e.key)}">${statsLine(e)}</div></div></button>`;
 }
 function selectScreen(which){
   stopGame(); tab = which; show('select'); loadPlays();
@@ -253,6 +271,8 @@ function selectScreen(which){
       <div class="grid">${community.map(e => cardHtml(e)).join('') || '<div class="empty">No community isles yet — yours could be first.</div>'}</div>
       <p class="note" style="margin-top:14px">Build an isle in <a href="/create" data-go="/create">Create</a>, press <b>Export for GitHub</b>, and open a pull request.
         Automated checks make sure it's solvable and fair, and you're credited by name. <a href="${REPO_URL}/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing guide →</a></p></div>
+      ${pastDailies().length ? `<div class="chapter"><div class="chapter-head"><h3>Past Daily Isles</h3><span>hand-made for one day · still here to play</span></div>
+        <div class="grid">${pastDailies().map(e => cardHtml(e, '#' + dailyNumber(e.date, DAILY_EPOCH_DATE))).join('')}</div></div>` : ''}
       <div class="chapter"><div class="chapter-head"><h3>Shared online</h3><span>fresh isles shared from the builder</span></div><div class="grid" id="onlineGrid"><div class="empty">Loading…</div></div></div>`;
     loadOnline();
   }
@@ -274,6 +294,7 @@ $('#selectList').addEventListener('click', e => {
   const k = c.dataset.key;
   if(k.startsWith('o:')) nav('/isle/' + k.slice(2));
   else if(k.startsWith('c:')) nav('/c/' + k.slice(2));
+  else if(k.startsWith('d:')) nav('/daily/' + k.slice(2));
   else nav('/i/' + k.slice(2));
 });
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { nav(b.dataset.tab === 'official' ? '/play' : '/community'); });
@@ -341,6 +362,7 @@ function won(s){
   // the main path skips Twist isles (an optional side path); a daily has no "next"
   const next = e.index != null && !e.daily ? official.slice(e.index + 1).find(x => !x.twist) : null;
   const share = e.daily ? dailyShareText({ no:e.daily.no, moves:s.moves, par:e.par, stars }) : null;
+  const shareUrl = location.origin + (e.archived ? '/daily/' + e.daily.date : '/daily');
   modal.open(`<h2>${e.daily ? `Daily #${e.daily.no} cleared!` : 'Isle cleared!'}</h2>
     <div class="big-stars">${[0, 1, 2].map(i => `<span class="${i < stars ? 'lit' : ''}" style="animation-delay:${0.15 + i * 0.18}s">★</span>`).join('')}</div>
     <div class="facts">${s.moves} moves · par ${e.par || '?'}${settings.timer ? ' · ' + fmtTime(s.time) : ''}${s.hintsUsed ? ` · ${s.hintsUsed} hint${s.hintsUsed > 1 ? 's' : ''}` : ''}</div>
@@ -348,7 +370,8 @@ function won(s){
     ${seedLine(s, e)}
     ${e.catch ? `<div class="note" style="margin-top:10px;text-align:left"><b>The catch:</b> ${esc(e.catch)}</div>` : ''}
     ${movesHistogram(e, s.moves)}
-    ${share ? `<div class="share-text" id="wShareText">${esc(share)}<br><small>${esc(location.origin)}/daily</small></div>` : ''}
+    ${crowdLine(e, s.moves)}
+    ${share ? `<div class="share-text" id="wShareText">${esc(share)}<br><small>${esc(shareUrl)}</small></div>` : ''}
     <div class="row">
       ${share ? `<button class="btn primary" id="wDaily">📋 Copy result</button>` : ''}
       ${next ? `<button class="btn primary" id="wNext">Next isle ▶</button>` : ''}
@@ -359,7 +382,7 @@ function won(s){
       ${!e.draft ? `<button class="btn ghost" id="wList">All isles</button>` : ''}
     </div>`);
   // spoiler-free daily result: moves, par and stars — never the route
-  const copyShare = quiet => (navigator.clipboard ? navigator.clipboard.writeText(`${share}\n${location.origin}/daily`) : Promise.reject())
+  const copyShare = quiet => (navigator.clipboard ? navigator.clipboard.writeText(`${share}\n${shareUrl}`) : Promise.reject())
     .then(() => toast('Result copied — no spoilers inside'), () => quiet || toast('Copy failed — select the text above', true));
   if(share){ $('#wDaily').onclick = () => copyShare(false); copyShare(true); }   // try right away; the button is the reliable path
   $('#wNext') && ($('#wNext').onclick = () => { nav('/isle/' + next.doc.id); });
@@ -367,7 +390,7 @@ function won(s){
   $('#wAgain').onclick = () => { modal.close(); game.restart(); };
   $('#wWatch') && ($('#wWatch').onclick = () => { modal.close(); watch(); });
   $('#wShare') && ($('#wShare').onclick = () => navigator.clipboard.writeText(location.href).then(() => toast('Link copied')));
-  $('#wList') && ($('#wList').onclick = () => { nav(e.daily ? '/play' : e.author ? '/community' : '/play'); });
+  $('#wList') && ($('#wList').onclick = () => { nav(e.archived ? '/community' : e.daily ? '/play' : e.author ? '/community' : '/play'); });
 }
 
 // Seeds (Phase 3) are optional: how many you found, and the seed par once all are in.
@@ -475,7 +498,7 @@ function hint(){
   if(h.stuck) toast('Hmm — this spot can’t reach the goal any more. Undo or restart.', true);
   else toast((h.move === 'X' ? `Best next move: Use (Space) · ${h.left} to go` : `Best next move: ${glyphFor(h.move)} · ${h.left} to go`) + (unlocked(current) ? '' : ' · that was your free hint'));
 }
-$('#btnBack').onclick = () => { nav(current?.draft ? '/create' : current?.daily ? '/' : current?.author ? '/community' : current?.online ? '/community' : '/play'); };
+$('#btnBack').onclick = () => { nav(current?.draft ? '/create' : current?.archived ? '/community' : current?.daily ? '/' : current?.author ? '/community' : current?.online ? '/community' : '/play'); };
 $('#btnUndo').onclick = () => game && game.undo();
 $('#btnRestart').onclick = restartGame;
 $('#btnHint').onclick = hint;
@@ -538,8 +561,14 @@ async function route(){
   if(h === '/play') return selectScreen('official');
   if(h === '/community') return selectScreen('community');
   if(h === '/daily'){ const e = dailyEntry(); return e ? play(e) : nav('/play'); }
-  // dev server only: playtest any date's daily before its day (the daily isle agent, K10)
-  if(import.meta.env.DEV && (m = /^\/daily\/(\d{4}-\d{2}-\d{2})$/.exec(h))){ const e = dailyEntry(m[1]); return e ? play(e) : nav('/play'); }
+  // A past hand-made daily (the Community tab's shelf). The dev server also opens
+  // any date, so the daily isle agent (K10) can playtest before the day — live never does.
+  if((m = /^\/daily\/(\d{4}-\d{2}-\d{2})$/.exec(h))){
+    if(m[1] === utcDate() && !import.meta.env.DEV) return nav('/daily');
+    const past = m[1] < utcDate() && DATED.some(x => x.date === m[1]);
+    const e = (past || import.meta.env.DEV) && dailyEntry(m[1]);
+    return e ? play({ ...e, archived:past }) : nav('/community');
+  }
   if(h === '/create'){ stopGame(); world.setShowcase(false); show('create'); builder.show(); setAccent(builder.draft.theme); return; }
   if((m = /^\/isle\/([\w-]+)$/.exec(h))){ const e = official.find(x => x.doc.id === m[1]); return e ? play(e) : nav('/play'); }
   if((m = /^\/c\/([\w-]+)\/([\w-]+)$/.exec(h))){ const e = community.find(x => x.author === m[1] && x.doc.id === m[2]); return e ? play(e) : nav('/community'); }

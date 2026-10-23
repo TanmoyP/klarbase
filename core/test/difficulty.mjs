@@ -4,7 +4,7 @@
 import {
   parseIsle, isleHash, CURATED_ISLES, checkCommunityIsle, toCommunityFile, checkDailyIsle,
   TIERS, TIER_IDS, tierOf, tierById, auditIsle, provisionalTier, provisionalPrior, observedScore, difficultyScore,
-  harderHints, gutMismatch, PRIOR_WEIGHT, timeBucket, TIME_BUCKETS,
+  harderHints, gutMismatch, PRIOR_WEIGHT, timeBucket, TIME_BUCKETS, playSummary,
   dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate, DAILY_EPOCH,
 } from '../src/isle/index.js';
 
@@ -183,6 +183,15 @@ t('daily: share text', dailyShareText({ no:42, moves:18, par:17, stars:2 }) === 
   const daily6 = { schemaVersion:6, id:'daily-2026-10-21', name:'Vine Lift', theme:'jungle', storeys:map.storeys, par:6, solution:'RDLRRR', tier:'tricky' };
   t('daily: a v6 map passes', checkDailyIsle(daily6, { date:'2026-10-21' }).ok);
   t('daily: a map must say schemaVersion 6', !checkDailyIsle({ ...daily6, schemaVersion:5 }, { date:'2026-10-21' }).ok); }
+
+/* ---------------- player-facing numbers ---------------- */
+{ const s = playSummary({ started:20, cleared:10, moves:{ 9:3, 10:1, 14:6 } }, 9);
+  t('summary: plays, clears, rates', s.plays === 20 && s.clears === 10 && s.clearRate === 50 && s.parRate === 30 && s.medianMoves === 14);
+  const few = playSummary({ started:2, cleared:2, moves:{ 9:2 } }, 9);
+  t('summary: rates wait for enough plays', few.plays === 2 && few.clearRate === null && few.parRate === null && few.medianMoves === 9);
+  const none = playSummary(null, 9);
+  t('summary: no stats', none.plays === 0 && none.clears === 0 && none.clearRate === null && none.medianMoves === null);
+  t('summary: no par → no par rate', playSummary({ started:9, cleared:9, moves:{ 4:9 } }, null).parRate === null); }
 
 console.log(`\nDIFFICULTY pass=${pass} fail=${fail}`);
 process.exit(fail ? 1 : 0);
