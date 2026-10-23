@@ -258,6 +258,12 @@ t('night theme is a theme', parseIsle({ theme:'night', rows:['S . G'] }).ok);
 t('E_CYCLE: periods 6 and 8 never line up within 12', code({ storeys:[{ rows:['S . . . . . G', 'H . . . - - -', '- - - - - - -', 'H . . . . - -'], at:[0, 0, 0] }] }, 'E_CYCLE'));
 t('E_HAZARD_START: Pip may not start in a hazard', code({ storeys:[{ rows:['. . . G', '. Y . .', '. S . .'], at:[0, 0, 0] }] }, 'E_HAZARD_START') === false
   && code({ storeys:[{ rows:['. S . G', '. Y . .', '. . . .'], at:[0, 0, 0] }] }, 'E_HAZARD_START'));
+t('E_HAZARD_PIECE: a crate may not start on a boulder lane or thorn arm', code({ storeys:[{ rows:['S . . G', 'H . C .'], at:[0, 0, 0] }] }, 'E_HAZARD_PIECE')
+  && code({ storeys:[{ rows:['S . . G', '. Y C .'], at:[0, 0, 0] }] }, 'E_HAZARD_PIECE') && !code({ storeys:[{ rows:['S C . G', 'H . . .'], at:[0, 0, 0] }] }, 'E_HAZARD_PIECE'));
+{ const far = M1(['S . . . G', '- - - - -', '- - - - -', 'H . . - -']);   // a boulder nowhere near the route
+  t('a far-off hazard is not a mechanic', !mechanicsUsed(far, 'RRRR').includes('hazard'));
+  const near = M1(['S . . G', 'H . . .']);   // Pip (1,0) above the boulder at (1,1)
+  t('passing beside a hazard is', mechanicsUsed(near, 'R').includes('hazard')); }
 t('E_HAZARD_LANE: crossing boulder lanes', code({ storeys:[{ rows:['S . I . G', 'H . . . .', '. . . . .'], at:[0, 0, 0] }] }, 'E_HAZARD_LANE'));
 { const lv = M1(['S . . . G', 'H . . . -']);   // lane (0,1)…(3,1), period 6
   const b = lv.hazards[0], at = tt => hazardCellsAt(lv, tt)[0] - lv.w;

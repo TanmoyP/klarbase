@@ -110,6 +110,7 @@ export const ERR = {
   E_CYCLE:`hazards must repeat within ${MAX_CYCLE} moves together — shorten a boulder lane (at most 7 tiles) or use fewer kinds`,
   E_HAZARD_START:'Pip would start inside a hazard',
   E_HAZARD_LANE:'two boulder lanes cross or share a tile',
+  E_HAZARD_PIECE:'a crate or buoy starts in a hazard’s path — move it off the boulder lane or thorn arm',
 };
 
 const validAt = at => Array.isArray(at) && at.length === 3 && at.every(Number.isInteger)
@@ -259,6 +260,7 @@ export function parseIsle(doc){
     if(hz.kind === 'boulder'){ if(lanes.has(j)) fail('E_HAZARD_LANE'); lanes.add(j); }
     zone.add(j);
   }
+  for(const j of [...crates, ...buoys]) if(zone.has(j)) fail('E_HAZARD_PIECE', cellAt(storeys, sid, W, j, map));
 
   const level = { w:W, h:H, theme, cells, start:start[0], goals, crates, keys, plates,
                   gates, doors, levers, bridges, twin, buoys, posts, piles, seeds, gusts, inGust,

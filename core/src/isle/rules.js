@@ -206,7 +206,7 @@ function buoyCanEnter(level, s, from, to, gateOpen, tilt){
 //   walk{from,to,kind} glide{from,to} slide{from,to} tp{from,to,gateway?}
 //   push{from,to,buoy?} cslide{from,to,buoy?} sink{at} float{at} fall{at} key{at}
 //   door{at} toggle{flip} take{at,what} drop{at,what} release{at}
-//   gust{from,to,buoy?} scales{from,tilt} gate{open} wait{at} hazard{turn} win
+//   gust{from,to,buoy?} scales{from,tilt} gate{open} wait{at} hazard{turn,near} win
 // A move that ends in a hazard returns { ok:false, bonk:{ at, turn } } (state untouched).
 export function step(level, s0, move){
   const before = gatesOpen(level, s0), tilt = panTilt(level, s0);
@@ -303,7 +303,8 @@ export function step(level, s0, move){
     s.t = (s0.t + 1) % level.cycle;
     const now = hazardCellsAt(level, s0.t), next = hazardCellsAt(level, s.t);
     if(next.includes(s.p) || (now.includes(s.p) && next.includes(s0.p))) return { ok:false, bonk:{ at:s.p, turn:s.t } };
-    events.push({ t:'hazard', turn:s.t });
+    // `near`: a hazard is next to Pip on the new beat — only then does it count as a mechanic
+    events.push({ t:'hazard', turn:s.t, near:['U', 'D', 'L', 'R'].some(m => next.includes(neighbor(level, s.p, m))) });
   }
   if(won) events.push({ t:'win' });
   return { ok:true, state:s, events, won };

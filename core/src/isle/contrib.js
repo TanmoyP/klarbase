@@ -24,7 +24,7 @@ export const CONTRIB = {
 const cleanText = (s, max) => typeof s === 'string' && s.length <= max && !/[\u0000-\u001f]/.test(s) && !/https?:|www\./i.test(s);
 
 // The mechanic an engine event stands for (an arch ride between storeys is a gateway).
-export const eventMechanic = e => e.t === 'walk' ? 'walk:' + e.kind : e.t === 'tp' && e.gateway ? 'gateway' : e.t;
+export const eventMechanic = e => e.t === 'walk' ? 'walk:' + e.kind : e.t === 'tp' && e.gateway ? 'gateway' : e.t === 'hazard' && !e.near ? 'beat' : e.t;
 
 // Which mechanics a move string actually exercises.
 export function mechanicsUsed(level, moves){
