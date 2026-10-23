@@ -700,6 +700,57 @@
       ],
       "hash": "0839058202ad250ec9d975b1757e6bcde0943436f9ec0d7c3fff2aef4fe3ad6b",
       "file": "47-windward.json"
+    },
+    {
+      "order": 48,
+      "id": "frost-mirage",
+      "name": "Frost Mirage",
+      "theme": "mountain",
+      "tier": "tricky",
+      "par": 17,
+      "mechanics": [
+        "push",
+        "sink",
+        "slide",
+        "cslide",
+        "tp"
+      ],
+      "hash": "a12b5870b714711106d94b4e5d1f485b322ab6507609c3f9bb80d0fad227774b",
+      "file": "48-frost-mirage.json"
+    },
+    {
+      "order": 49,
+      "id": "drowned-gangway",
+      "name": "Drowned Gangway",
+      "theme": "tropical",
+      "tier": "hard",
+      "par": 23,
+      "mechanics": [
+        "push",
+        "toggle",
+        "fall",
+        "scales"
+      ],
+      "hash": "2d4c1bedc1a5e7abfe0e065777537ed08c9a823b912fa7054e60123a3ac1cc73",
+      "file": "49-drowned-gangway.json"
+    },
+    {
+      "order": 50,
+      "id": "squall-line",
+      "name": "Squall Line",
+      "theme": "mountain",
+      "tier": "fiendish",
+      "par": 20,
+      "mechanics": [
+        "push",
+        "slide",
+        "cslide",
+        "glide",
+        "gust",
+        "take"
+      ],
+      "hash": "eb1716e4063749185ad4f2809ebb1a9c0436cca98422c735accdc3fd38bb953f",
+      "file": "50-squall-line.json"
     }
   ]
 }

@@ -5,6 +5,7 @@ import {
   parseIsle, isleHash, CURATED_ISLES, checkCommunityIsle, toCommunityFile, checkDailyIsle,
   TIERS, TIER_IDS, tierOf, tierById, auditIsle, provisionalTier, provisionalPrior, observedScore, difficultyScore,
   harderHints, gutMismatch, PRIOR_WEIGHT, timeBucket, TIME_BUCKETS, playSummary,
+  CHAPTERS, skyOf, confluenceState, constellation, CONFLUENCE, CONFLUENCE_NEED, FAMILIES, mechanicsUsed,
   dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate, DAILY_EPOCH,
 } from '../src/isle/index.js';
 
@@ -192,6 +193,33 @@ t('daily: share text', dailyShareText({ no:42, moves:18, par:17, stars:2 }) === 
   const none = playSummary(null, 9);
   t('summary: no stats', none.plays === 0 && none.clears === 0 && none.clearRate === null && none.medianMoves === null);
   t('summary: no par → no par rate', playSummary({ started:9, cleared:9, moves:{ 4:9 } }, null).parRate === null); }
+
+/* ---------------- Your Sky + Confluence (Phase 5) ---------------- */
+{ const chs = [{ theme:'oasis', title:'Mirage' }, { id:'windward', theme:'mountain', title:'Windward' }, { id:CONFLUENCE, theme:'oasis', title:'Confluence' }];
+  const isles = [{ id:'a', theme:'oasis' }, { id:'b', theme:'oasis' }, { id:'c', theme:'oasis' }, { id:'tw', theme:'oasis', twist:true },
+    { id:'w1', chapter:'windward' }, { id:'x', chapter:CONFLUENCE, joins:['oasis', 'windward'] }];
+  const sky = skyOf(chs, isles, { a:3, b:1, tw:2, w1:1, x:3 });
+  t('sky: one constellation per chapter, Confluence excluded', sky.length === 2 && sky.every(c => c.key !== CONFLUENCE));
+  t('sky: stars counted, side paths shown but not lit-counted', sky[0].stars === 6 && sky[0].cleared === 2 && !sky[0].lit && sky[0].points.find(p => p.id === 'tw').side);
+  const lit = skyOf(chs, isles, { a:1, b:1, c:1 });
+  t(`sky: ${CONFLUENCE_NEED} main clears light a constellation`, lit[0].lit && !lit[1].lit);
+  const st = confluenceState(isles[5], lit);
+  t('confluence: locked until both chapters are lit', !st.open && st.need.length === 2 && st.need[1].cleared === 0 && st.need[1].title === 'Windward');
+  t('confluence: opens when both are lit', confluenceState({ joins:['oasis', 'oasis'] }, lit).open && !confluenceState({}, lit).open);
+  const pts = constellation('oasis', 5);
+  t('constellation: deterministic, in the unit box', JSON.stringify(pts) === JSON.stringify(constellation('oasis', 5)) && pts.every(([x, y]) => x >= 0 && x <= 1 && y >= 0 && y <= 1)
+    && JSON.stringify(pts) !== JSON.stringify(constellation('mountain', 5))); }
+
+// Every official Confluence isle names two real chapters and its route uses both families.
+{ const keys = new Set(CHAPTERS.map(c => c.id || c.theme)), conf = CURATED_ISLES.filter(i => i.joins);
+  t('Confluence chapter exists when Confluence isles do', !conf.length || keys.has(CONFLUENCE));
+  for(const isle of conf){
+    t(`${isle.id}: in the Confluence chapter, joins two real chapters`, isle.chapter === CONFLUENCE && isle.joins.length === 2 && isle.joins[0] !== isle.joins[1] && isle.joins.every(k => keys.has(k) && FAMILIES[k]));
+    const used = new Set(mechanicsUsed(parseIsle(isle).level, isle.solution));
+    for(const k of isle.joins) t(`${isle.id}: needs + route reach into ${k}`, (isle.needs || []).some(n => FAMILIES[k].includes(n) && used.has(n)));
+    const a = auditIsle(parseIsle(isle).level);
+    t(`${isle.id}: gut call and audit agree within a tier (${isle.tier} vs ${provisionalTier(a).id})`, TIER_IDS.includes(isle.tier) && !a.capped && gutMismatch(isle.tier, a) === null);
+  } }
 
 console.log(`\nDIFFICULTY pass=${pass} fail=${fail}`);
 process.exit(fail ? 1 : 0);
