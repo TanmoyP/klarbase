@@ -154,6 +154,16 @@ the vent (pans by base), stopped by rock, tree, gate, door, ramp, the sky or the
 lines may not share a tile (`E_GUSTS`). Also `level.buoys / posts / piles / seeds`. Hashing is
 unchanged (same v6 canonical form).
 
+**Cozy hazards (Phase 4, K5) — map-only too:** `H` boulder ↔ (rolls east first), `I` boulder ↕
+(south first), `Y` thorn sweeper (a solid bush), theme `night`. The parser precomputes
+`level.hazards` — `{kind:'boulder', at, lane, from, period}` (lane = the straight run of same-height
+ground/goal/plate/ice/lever/vent/post/pile through the tile, period 2·(len − 1)) or
+`{kind:'thorn', at, arms[4], period:4}` (arm = `THORN_ARM` = 2 tiles N/E/S/W, inside the storey) —
+plus `level.hazardZone` (every tile a hazard can ever cover) and `level.cycle` (lcm of the periods).
+`hazardCellsAt(level, t)` is the one place positions come from (engine, lab, client). Errors:
+`E_CYCLE` (cycle > `MAX_CYCLE` = 12), `E_HAZARD_LANE` (lanes cross/share), `E_HAZARD_START` (Pip
+starts under a hazard), `E_HAZARD_PIECE` (a crate or buoy starts in the zone). Hashing unchanged.
+
 **`tier` (2026-10-19, K3):** optional gut call — `breeze · easy · tricky · hard · fiendish · mythic`
 — on official isles (all 29 declare one), community files, daily files (required there) and online
 shares (publish payload). Presentation only: never part of the hash (`core/test/difficulty.mjs`
@@ -218,7 +228,18 @@ against the push needs `pipWeight > GUST (1)`. Balloon-Pip never pushes. **Seeds
 `seedsTouched(level, r)` (cells Pip stood on during a step) and `solveSeeds(level)` (BFS over state
 + seed bitmask) give the seed par; official isles store `seedPar`, verified by tests + `author.mjs`.
 
-**State:** `{p, crates[], filled[], keys, got[], opened[], flip, hold, buoys[], posts[]}` — everything that can change.
+**Cozy hazards (K5, Phase 4):** every successful move is one **beat**: `state.t` = (t + 1) mod
+`level.cycle`, and hazards sit at `hazardCellsAt(level, t)`. After a move settles, if a hazard
+covers Pip's tile at the new beat — or Pip and a hazard swapped tiles — `step` returns
+`{ok:false, bonk:{at, turn}}` and nothing changes (the move doesn't count; only the final tile of a
+slide/glide/teleport is judged). Use (`X`) with nothing to use on a hazard isle **waits** a beat
+(`wait{at}`); a lever, post, pile or held balloon still takes priority. `crateCanEnter`/`buoyCanEnter`
+refuse every `hazardZone` tile, so hazards are static fences for pieces and timed doors for Pip.
+Each beat emits `hazard{turn, near}`; it counts as the `hazard` mechanic (community gate) only when
+a hazard is next to Pip on the new beat. Positions depend only on `t`, so the state grows by one
+small counter (≤ 12×).
+
+**State:** `{p, crates[], filled[], keys, got[], opened[], flip, hold, buoys[], posts[], t}` — everything that can change.
 `step(level, state, move)` is pure and total: it returns `{ok:false}` for a blocked move or
 `{ok, state, events, won}` where `events` (`walk/slide/tp/push/cslide/sink/fall/key/door/toggle/gate/win`)
 (+ `scales`, and `tp` may carry `gateway:true`) drive animation in order. **Solver:** BFS over `stateKey(state)` from any state (`solveFrom`) —
@@ -330,6 +351,22 @@ solution doesn't use its featured mechanic, and the two glacier mazes were found
 solver-driven search over random rock layouts (kept: longest routes with the most sliding).
 Each chapter introduces one idea and ends by combining it with earlier ones.
 
+**Nightfall (Phase 4, 2026-10-23)** — chapter `night` (theme `night`), six one-storey v6 maps with
+cozy hazards. Each catch is written above the isle in `isles.js` and **proven with `tools/isle-lab.mjs
+--must`**; `core/test/isles.mjs` also checks every Nightfall isle's hazards are **load-bearing**
+(boulders → ground, thorns → rock: the stripped isle's shortest route must bonk on the real one), and
+`core/test/difficulty.mjs` that gut and audit agree within a tier. Isles 52–53 were found by
+hill-climbing filler tiles around pinned catch tiles (solver + audit + load-bearing in the loop).
+
+| # | Isle | Gut | Par | Seed par | Cycle | States | Traps | Greedy | Routes | Audit | Catch (short) | Proven (`--must`) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 48 | Wait a Beat | Breeze | 8 | 10 | 4 | 38 | 1 | wins | 4 | Breeze | the boulder is on the crossing every beat you could walk there; wait one | `wait` |
+| 49 | Sweeper | Easy | 7 | 16 | 4 | 36 | 0 | wins | 1 | Breeze | both ways past the bush are swept; shelter in the corner between two arms | `cell@2,2` |
+| 50 | In Its Wake | Tricky | 12 | — | 10 | 114 | 4 | fails | 1 | Easy | drop in right behind the boulder; duck into the one nook before it rolls back | `cell@5,0` |
+| 51 | Lever Lane | Tricky | 13 | — | 8 | 178 | 3 | fails | 1 | Easy | the lever is in the lane and pulling takes a beat: duck below, let it pass, pull | `toggle`, `cell@3,4` |
+| 52 | Bramble Bridge | Hard | 26 | — | 4 | 842 | 2 | fails | 1 | Tricky | the spring under the arm can never be filled; sink the far one, go round the arm's tip | `sink@2,0`, `cell@3,0`, `push@5,3` |
+| 53 | Needle’s Eye | Fiendish | 30 | — | 8 | 8,312 | 4 | fails | 1 | Hard | one gap between the lane and the bramble's reach; the last push is made from inside the lane | `push@6,2`, `push@3,3`, `cell@7,3`, `cell@3,2` |
+
 **Community isles** live in `isles/community/` and reach players on the next build.
 **Daily Isles:** `/daily` plays `isles/daily/<UTC today>.json` if it exists (hand-made, checked by
 the same gate with `checkDailyIsle`: id = `daily-<date>`, `tier` required, optional `catch` shown
@@ -390,7 +427,7 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
   Q/E turn, Esc back; touch d-pad + swipe on coarse pointers.
 - **Persistence (per browser, localStorage):** progress (stars, best moves/time), effort for
   solution unlocks, settings (sound, timer), builder draft, GitHub username for exports.
-- **Builder:** palette (22 tools), click/drag paint, right-click erase, raise/lower, rotating
+- **Builder:** palette (33 tools), click/drag paint, right-click erase, raise/lower, rotating
   stairs, size 3–14, theme chips, remix any official isle, two-way "Isle code" text, live
   verdict (60k states; Deep check 300k), Test, Share online, Export for GitHub, JSON import/export.
 - **Difficulty (Phase 1):** every card (official, community, online) and the in-game title show
@@ -413,6 +450,12 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
   tracked by the `Session` (not engine state) with undo; HUD shows `seeds n/N`. Win modal: seed
   line (seed par from `isle.seedPar`, else `solveSeeds` once after load) and the **moves
   histogram** (par … par+8+, your bar lit; shown once an isle has ≥ 3 clears in `GET /api/plays`).
+- **Cozy hazards (Phase 4):** mossy sleepy boulders that roll (with a spin) along their lane,
+  thorn bushes whose arm turns a quarter per beat, soft pulsing **rings on every tile a hazard will
+  cover after your next move**, a red flash + bonk + one-time toast on a hit, Pip **ducks** when an
+  arm swings over the safe tile between two arms, a little in-place hop for a wait. Night theme
+  (moonlight, fireflies). Help modal + hint toast ("Use or wait (Space)"). Builder tools 🪨 ↔ / ↕ and
+  🌵 thorns.
 - **Dev only:** `/daily/YYYY-MM-DD` plays that date's daily (playtesting drafts, K10 agent).
 - **Bundle:** ~600 KB / ~166 KB gzip (mostly three.js). Code-splitting the builder is a cheap
   future win.
@@ -460,8 +503,8 @@ must move to a shared store before running more than one replica.
 
 ## 10. Current state & numbers
 
-- ✅ Engine: 453 isle assertions + 150 difficulty/daily + 57 legacy, green (CI's `engine` job runs
-  all three). 47 official isles (24 + 5 Twist + 8 Hanging Gardens + 10 Windward maps) verified;
+- ✅ Engine: 518 isle assertions + 156 difficulty/daily + 57 legacy, green (CI's `engine` job runs
+  all three). 53 official isles (24 + 5 Twist + 8 Hanging Gardens + 10 Windward + 6 Nightfall maps) verified;
   artifacts deterministic.
 - ✅ Client: all screens verified in the browser (title, picker with real mini-map thumbnails,
   play, replay, win, lock modal, builder with live verdict, community tab). Phone-width layout done; the phone builder is a bottom sheet (paint tools first) and the 3D isle is framed above it (`World.setInsetBottom`).
@@ -476,8 +519,8 @@ must move to a shared store before running more than one replica.
 | **Builder bot** | "Describe your isle" → LLM writes `rows` → `parseIsle`/`solveIsle`/`checkCommunityIsle` → repair loop → draft in the builder. Never ships unverified output. Claude Haiku for cost. | login, rate limits, cost cap |
 | **Isle drafts** | server-side drafts with 5 versioned slots per isle (v1 §8.1 design, renamed) | — |
 | **Daily isle** | ✅ Phase 1 (`/daily`, share text) · ✅ moves histogram (Phase 3) · ✅ local daily isle agent `/daily-isle` (K10). Next: run it on a schedule | — |
-| **More tiles** | e.g. moving platforms, colour-matched plates/gates, one-way doors. Each one is a schema decision: rules + solver + tests + art + builder tool + docs together | design review |
-| **Themes** | snow-night, cherry blossom, deep-sea | art time |
+| **More tiles** | ✅ cozy hazards (Phase 4). Next ideas: moving platforms, colour-matched plates/gates, one-way doors. Each one is a schema decision: rules + solver + tests + art + builder tool + docs together | design review |
+| **Themes** | ✅ night (Phase 4) · cherry blossom, deep-sea | art time |
 | **World (v1 idea)** | stitch isles into a walkable archipelago | strong demand |
 | **Accessibility** | colour-blind-safe arch/plate markers, reduced motion, screen-reader isle summary | — |
 
@@ -509,6 +552,25 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-10-23 (t) — Phase 4 · Cozy hazards (K5) + Nightfall
+- **Schema decision (CLAUDE.md rule 4), shipped together:** map-only tiles `H` / `I` boulders and
+  `Y` thorn sweeper + theme `night` (§3), the hazard rules (§4: one beat per move, bonk = move
+  undone, Use waits, crates/buoys never enter a hazard's tiles, shared cycle ≤ 12), `state.t` in the
+  solver state (`stateKey` grew `|t` for every isle; always 0 without hazards), lab frames (`!` =
+  hazard this beat, BONK), art, builder tools, help text, `isles/README.md`, and every official isle
+  re-verified (pars unchanged; Nightfall added). Isle assertions 453 → 518 (hazard rules + errors,
+  the six isles, load-bearing checks); difficulty 150 → 156 (Nightfall gut vs audit).
+- **Engine fixes on the WIP:** `E_HAZARD_PIECE` (a crate or buoy may not *start* in a hazard's path —
+  it would be rolled through and could never move); the `hazard` event carries `near` and only counts
+  as a mechanic for the community gate when a hazard is next to Pip (a far-off boulder no longer
+  lets plain walking pass the "≥ 1 real mechanic" rule).
+- **Client:** §7. Pip **ducks** when a thorn arm swings over his tile — the diagonal between two
+  arms is safe by the rules, and the arm (y ≈ 0.42) otherwise passed visibly through him.
+- **Content:** Nightfall chapter, 6 isles (§5), every catch proven with `isle-lab --must`.
+- **Caveats:** a slide/glide/teleport is judged only at its final tile (Pip can slide "through" a
+  boulder's tile); a thorn arm reaches across heights and void. The daily pool now includes
+  Nightfall's Tricky+ isles, so pool picks for undated days reshuffle with this build (as in Phases 2–3).
 
 ### 2026-10-20 (s) — Phase 3 · Weight II (K1, K6, K9)
 - **Schema decision (CLAUDE.md rule 4), shipped together:** map-only tiles `B P u n e s w +`

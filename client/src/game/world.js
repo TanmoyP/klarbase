@@ -316,9 +316,15 @@ export class World {
     this.warnings.forEach((w, k) => { const i = cells[k]; w.visible = i != null && this.level.cells[i].kind !== 'void';
       if(w.visible){ w.position.copy(this.cellPos(i)); w.position.y += 0.03; } });
   }
-  // One beat: boulders roll a tile, thorn arms turn a quarter.
-  stepHazards(t0, t1, speed){
-    const L = this.level, jobs = [];
+  // One beat: boulders roll a tile, thorn arms turn a quarter. Pip (at p) ducks when an arm
+  // swings over a tile between two arms — those tiles are safe, so it must not look like a hit.
+  stepHazards(t0, t1, speed, p){
+    const L = this.level, jobs = [], W = L.w;
+    const QUAD = [[1, -1], [1, 1], [-1, 1], [-1, -1]];          // the quarter swept leaving N, E, S, W
+    const under = hz => { if(p == null || L.sid[p] !== L.sid[hz.at]) return false;
+      const dx = p % W - hz.at % W, dz = ((p / W) | 0) - ((hz.at / W) | 0), [qx, qz] = QUAD[t0 % 4];
+      return dx * qx > 0 && dz * qz > 0 && dx * dx + dz * dz <= 5; };
+    if((L.hazards || []).some(hz => hz.kind === 'thorn' && under(hz))) jobs.push(this.pip.duck(0.24 * speed));
     (L.hazards || []).forEach((hz, k) => {
       const m = this.hazardMeshes[k];
       if(hz.kind === 'boulder'){
@@ -597,7 +603,7 @@ export class World {
     }
     await crateJobs;
     const sc = ev.find(e => e.t === 'scales'), hz = ev.find(e => e.t === 'hazard');
-    const beat = hz ? this.stepHazards((hz.turn - 1 + this.level.cycle) % this.level.cycle, hz.turn, speed) : null;
+    const beat = hz ? this.stepHazards((hz.turn - 1 + this.level.cycle) % this.level.cycle, hz.turn, speed, res.state.p) : null;
     if(hz) sfx.roll();
     if(sc){ sfx.scales(sc.tilt > sc.from); await this.settleScales(sc.from, sc.tilt, res.state); }
     if(beat) await beat;

@@ -700,6 +700,95 @@
       ],
       "hash": "0839058202ad250ec9d975b1757e6bcde0943436f9ec0d7c3fff2aef4fe3ad6b",
       "file": "47-windward.json"
+    },
+    {
+      "order": 48,
+      "id": "wait-a-beat",
+      "name": "Wait a Beat",
+      "theme": "night",
+      "tier": "breeze",
+      "par": 8,
+      "mechanics": [
+        "walk:down",
+        "hazard",
+        "wait"
+      ],
+      "hash": "384510c602a3e3df3e4216ca2abe22686774b1b7d86aeefbd366809c34305d82",
+      "file": "48-wait-a-beat.json"
+    },
+    {
+      "order": 49,
+      "id": "sweeper",
+      "name": "Sweeper",
+      "theme": "night",
+      "tier": "easy",
+      "par": 7,
+      "mechanics": [
+        "hazard",
+        "wait"
+      ],
+      "hash": "7a3420dc51cd6278a1d06dade2020ad34826330cc88cee3fff724b9375997872",
+      "file": "49-sweeper.json"
+    },
+    {
+      "order": 50,
+      "id": "in-its-wake",
+      "name": "In Its Wake",
+      "theme": "night",
+      "tier": "tricky",
+      "par": 12,
+      "mechanics": [
+        "walk:down",
+        "hazard"
+      ],
+      "hash": "b0ca895d09311db2f47218048bb287841d1859e202dec1142b7b01c3e0a94c2a",
+      "file": "50-in-its-wake.json"
+    },
+    {
+      "order": 51,
+      "id": "lever-lane",
+      "name": "Lever Lane",
+      "theme": "night",
+      "tier": "tricky",
+      "par": 13,
+      "mechanics": [
+        "walk:down",
+        "toggle",
+        "hazard"
+      ],
+      "hash": "301bc6e58a5093e5ad4e361452698737ce9ee849b58692b6ad7c10ab03f74fe8",
+      "file": "51-lever-lane.json"
+    },
+    {
+      "order": 52,
+      "id": "bramble-bridge",
+      "name": "Bramble Bridge",
+      "theme": "night",
+      "tier": "hard",
+      "par": 26,
+      "mechanics": [
+        "push",
+        "sink",
+        "gate",
+        "hazard"
+      ],
+      "hash": "74722195dba8c46bc60dd75a005db67e6d6774c09a53911b5eb3723e8191c3cf",
+      "file": "52-bramble-bridge.json"
+    },
+    {
+      "order": 53,
+      "id": "needles-eye",
+      "name": "Needle’s Eye",
+      "theme": "night",
+      "tier": "fiendish",
+      "par": 30,
+      "mechanics": [
+        "push",
+        "gate",
+        "hazard"
+      ],
+      "hash": "de2e8e17af9079dbbd7a312ff9fa9f8ab4143d8e43236ec9ebc3c3bb4689a720",
+      "file": "53-needles-eye.json"
     }
   ]
 }

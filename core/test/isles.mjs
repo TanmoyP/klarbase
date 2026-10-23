@@ -297,6 +297,16 @@ t('E_HAZARD_LANE: crossing boulder lanes', code({ storeys:[{ rows:['S . I . G', 
   const r = solveIsle(lv);
   t('timing: the shortest route waits for the boulder', r.solvable && r.solution.includes('X') && !simulate(lv, 'RDDDD').won); }
 
+// Nightfall: every isle's hazards are load-bearing — take the boulders off (H/I -> ground) and the
+// thorns' arms off (Y -> rock) and the stripped isle's shortest route must bonk on the real one.
+{ const night = CURATED_ISLES.filter(i => i.chapter === 'night');
+  const strip = d => ({ ...d, storeys:d.storeys.map(st => ({ ...st, rows:st.rows.map(r => r.trim().split(/\s+/).map(tk => /^[HI]/.test(tk) ? '.' + tk.slice(1) : tk[0] === 'Y' ? '#' + tk.slice(1) : tk).join(' ')) })) });
+  t('Nightfall: six hazard maps', night.length === 6 && night.every(i => Array.isArray(i.storeys) && parseIsle(i).level.hazards.length));
+  for(const isle of night){
+    const lv = parseIsle(isle).level, bare = solveIsle(parseIsle(strip(isle)).level);
+    t(`${isle.id}: hazards are load-bearing`, bare.solvable && !simulate(lv, bare.solution).won);
+  } }
+
 /* ---------------- hash stability: v5 isles keep their identity forever ---------------- */
 const FROZEN = {
   'first-steps':'3727fc423dff6394079bc314af8f522391d8f98a0834f5720f2d43360879902c', 'ledge-drop':'99c5f735c6050a3938d545f248b57a284afc86d5db90ed6460120d643df8defd',

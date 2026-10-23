@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 6,
+  "id": "wait-a-beat",
+  "name": "Wait a Beat",
+  "theme": "night",
+  "tier": "breeze",
+  "hint": "The glowing ring shows where the boulder will be next. Press Space to wait a beat.",
+  "storeys": [
+    {
+      "rows": [
+        "- ,1 T1 - -",
+        "S1 .1 .1 - -",
+        "- - .1 - -",
+        "- . H + -",
+        "- - . , -",
+        "- - - G -"
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "par": 8,
+  "solution": "RRDXDDRD",
+  "seedPar": 10
+}

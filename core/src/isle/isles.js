@@ -15,7 +15,9 @@ export const CHAPTERS = [{"theme":"jungle","title":"Canopy"},{"theme":"oasis","t
   // Phase 2 (K1 + K4): a chapter keyed by id, not theme — its isles say `chapter:'gardens'`.
   {"id":"gardens","theme":"jungle","title":"Hanging Gardens","blurb":"Sky Scales and gateways: isles on vines, weighed against each other."},
   // Phase 3 (K1, K6, K9): Weight II — what Pip carries decides where Pip can go.
-  {"id":"windward","theme":"mountain","title":"Windward","blurb":"Balloons, stones, buoys and gusts: what Pip carries decides where Pip can go."}];
+  {"id":"windward","theme":"mountain","title":"Windward","blurb":"Balloons, stones, buoys and gusts: what Pip carries decides where Pip can go."},
+  // Phase 4 (K5): cozy hazards — boulders and thorn sweepers keep time; Pip keeps out of the way.
+  {"id":"night","theme":"night","title":"Nightfall","blurb":"Rolling boulders and thorn sweepers move one beat per move. Read the rings, wait a beat, never get bonked."}];
 
 export const CURATED_ISLES = [
   // ---- Canopy (jungle) ----
@@ -616,6 +618,84 @@ export const CURATED_ISLES = [
       '-  -  -  -  -  -  -',
       '-  -  -  -  .  -  -',
       '-  -  -  ,  G  -  -',
+    ] }] },
+  // ---- Nightfall (Phase 4, cozy hazards: K5) — maps of one storey: boulders, thorn sweepers, waiting ----
+  // catch: Intro: the boulder is on the crossing every beat you could walk there — only waiting a beat changes that.
+  { id:'wait-a-beat', name:'Wait a Beat', theme:'night', chapter:'night', tier:'breeze', par:8, solution:'RRDXDDRD', seedPar:10,
+    needs:["wait","hazard"],
+    hint:'The glowing ring shows where the boulder will be next. Press Space to wait a beat.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      '-  ,1 T1 -  -',
+      'S1 .1 .1 -  -',
+      '-  -  .1 -  -',
+      '-  .  H  +  -',
+      '-  -  .  ,  -',
+      '-  -  -  G  -',
+    ] }] },
+  // catch: Both ways past the bush are swept; the corner between two arms is never touched — shelter there while it turns.
+  { id:'sweeper', name:'Sweeper', theme:'night', chapter:'night', tier:'easy', par:7, solution:'RRUXRUU', seedPar:16,
+    needs:["wait","hazard"],
+    hint:'A thorn arm reaches two tiles straight out. The tiles between its arms are always safe.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      '-  -  -  G  -  -',
+      '-  -  -  .  .  -',
+      '-  -  ,  .  ,  -',
+      'S  .  .  Y  .  +',
+      '-  -  T  .  -  -',
+      '-  -  -  ,  -  -',
+    ] }] },
+  // catch: The lane is the only road: drop in right behind the boulder, and duck into the one nook before it rolls back.
+  // (The low pocket is a trap — no way back up.)
+  { id:'in-its-wake', name:'In Its Wake', theme:'night', chapter:'night', tier:'tricky', par:12, solution:'RRDRRRUDRRDD',
+    needs:["walk:down","hazard"],
+    hint:'Follow the boulder closely — and find a nook before it comes back.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      'S2 .2 .2 -  -  ,1 -  -',
+      '-  -  H1 .1 .1 .1 .1 .1',
+      '-  -  -  -  .  -  -  .',
+      '-  -  -  -  -  -  -  G',
+    ] }] },
+  // catch: The lever sits in the boulder's lane and pulling it takes a beat: duck into the nook below it, let the boulder pass, then pull.
+  { id:'lever-lane', name:'Lever Lane', theme:'night', chapter:'night', tier:'tricky', par:13, solution:'DRDRRDUXRRUUU',
+    needs:["toggle","hazard"],
+    hint:'Pulling a lever takes a beat — and the boulder doesn’t wait.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      '.1 .1 ,1 -  -  G  -',
+      'S1 -  ,1 -  -  _  -',
+      ',1 .1 -  -  #  .  -',
+      '-  H  .  L  .  .  -',
+      '-  -  -  .  -  ,  -',
+    ] }] },
+  // catch: Crates never enter a thorn's reach — so the spring under its north arm can never be filled. Sink the crate in
+  // the far spring instead and go round through the arm's tip, there and back, between its passes.
+  // (The crate beside the arm can only go north, onto your road — leave it be.)
+  { id:'bramble-bridge', name:'Bramble Bridge', theme:'night', chapter:'night', tier:'hard', par:26, solution:'UUURRRRRDDLDRUUULLLDDDDRDD',
+    needs:["push","sink","gate","hazard"],
+    hint:'A crate can’t go anywhere a thorn arm can reach — not even into water.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      '.  C  ~  ,  .  .  -',
+      ',  .  .  ~  C  .  -',
+      '.  -  .  Y  .  .  ,',
+      'S  -  .  -  .  C  o',
+      '.  .  ,  .  ~  .  -',
+      '-  -  -  D  -  -  -',
+      '-  -  -  G  -  -  -',
+    ] }] },
+  // catch: The crate can't cross the boulder's lane or enter the bramble's reach — there is one gap between them.
+  // Push it east and down through the gap, back west from under the thorn's north arm, and onto the plate from
+  // inside the lane, each push on a beat the hazards leave free.
+  { id:'needles-eye', name:'Needle’s Eye', theme:'night', chapter:'night', tier:'fiendish', par:30, solution:'RRUUURRRURDDURRDDLLLLULDLDDRDD',
+    needs:["push","gate","hazard"],
+    hint:'Neither the boulder’s lane nor the thorn’s reach will take a crate. Find the one gap between them.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      '-  -  .  .  -  .  .  .  -',
+      '-  -  ,  C  ,  .  .  .  .',
+      'H  .  .  .  .  #  .  -  .',
+      '-  -  .  .  ,  .  .  .  .',
+      'S  ,  .  o  ~  -  -  Y  .',
+      '-  ~  .  .  .  .  .  .  .',
+      '-  -  -  D  -  -  -  -  -',
+      '-  -  -  G  -  -  -  -  -',
     ] }] },
 ];
 

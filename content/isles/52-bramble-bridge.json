@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 6,
+  "id": "bramble-bridge",
+  "name": "Bramble Bridge",
+  "theme": "night",
+  "tier": "hard",
+  "hint": "A crate can’t go anywhere a thorn arm can reach — not even into water.",
+  "storeys": [
+    {
+      "rows": [
+        ". C ~ , . . -",
+        ", . . ~ C . -",
+        ". - . Y . . ,",
+        "S - . - . C o",
+        ". . , . ~ . -",
+        "- - - D - - -",
+        "- - - G - - -"
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "par": 26,
+  "solution": "UUURRRRRDDLDRUUULLLDDDDRDD"
+}
