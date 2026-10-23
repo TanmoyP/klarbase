@@ -55,7 +55,8 @@ Everything it says comes from `@klar/core`, so it can't disagree with the game o
    Is the first move obvious (bad) or inviting (good)? Would a player who finds the trick feel
    clever, or that they were tricked? Does the hint point at the catch without giving it away?
 8. **Write** `isles/daily/<date>.json` with `schemaVersion`, `id: daily-<date>`, `name` (2–3 words,
-   evocative, unused), `theme`, `tier`, `hint` (≤ 1 sentence, nudges, never spoils), `catch`
+   evocative, unused), `theme`, `author: "TanmoyP"` (the founder — dailies are credited to them on
+   the Community tab's Past Daily Isles shelf), `tier`, `hint` (≤ 1 sentence, nudges, never spoils), `catch`
    (≤ 200 chars, plain text), `rows` (or `storeys`), and `par`/`solution` exactly as the lab prints.
    Then `node tools/check-isles.mjs isles/daily/<date>.json` must PASS.
 

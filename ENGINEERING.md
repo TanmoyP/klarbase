@@ -346,6 +346,12 @@ Brief = weekday tier rotation (Mon easy · Tue tricky · Wed hard · Thu tricky 
 fiendish · Sun tricky) adjusted by recent dailies' clear rates, plus a catch type unused in 7 days.
 After a clear the share text `Klarbase Daily #N · M moves (par P) · ★★☆` + `/daily` link is
 copied (no route). See `isles/daily/README.md`.
+**Past Daily Isles (2026-10-23):** once its UTC day has passed, a dated daily appears on the
+Community tab's *Past Daily Isles* shelf (newest first, `#N` badge, credited to its `author`) and
+plays at `/daily/<date>` with the same stats key, Daily number and share text (link → that date).
+The live site never opens a future date; the dev server opens any (K10 playtests). Dailies are
+credited `"author": "TanmoyP"` (isle-smith writes it). Undated days were pool picks of isles
+already in the game, so there is nothing else to archive.
 **Online isles** live in the database (`Puzzle` rows, `json` = canonical isle + par + solution).
 Legacy v4 maquette rows may still exist in prod; the client tells players those links are
 from an older version.
@@ -509,6 +515,14 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-10-23 (t) — Past Daily Isles + per-isle player stats
+- **Past Daily Isles** shelf on the Community tab, `/daily/<date>` live for past dated files (§5).
+  Tipping Pass now credits `@TanmoyP`; isle-smith always writes `author`.
+- **Player stats on every card:** `▶ N plays · X% clear · Y% at par` from the existing anonymous
+  `IslePlay` sums via `playSummary()` in `core/src/isle/difficulty.js` (rates wait for ≥ 5 plays /
+  ≥ 3 clears). Win screen adds "Played N times · X% clear it · Y% at par — you're among the Y% who
+  hit par". No migration, no new data collected. 4 new difficulty tests (154).
 
 ### 2026-10-20 (s) — Phase 3 · Weight II (K1, K6, K9)
 - **Schema decision (CLAUDE.md rule 4), shipped together:** map-only tiles `B P u n e s w +`

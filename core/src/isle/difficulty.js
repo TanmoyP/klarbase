@@ -172,6 +172,21 @@ export function observedScore(stats){
   return Math.round(score * 10) / 10;
 }
 
+/* ---------------- player-facing numbers (cards, win screen) ---------------- */
+// Read off the same anonymous sums. Rates stay null until enough plays exist
+// to mean something, so a card never shouts "0% cleared" after one visit.
+// -> { plays, clears, clearRate, parRate, medianMoves } (rates 0..100 or null)
+export const SUMMARY_MIN = { clearRate:5, parRate:3 };
+export function playSummary(stats, par){
+  const plays = stats && +stats.started || 0, clears = Math.min(stats && +stats.cleared || 0, plays);
+  let atPar = 0, total = 0;
+  for(const [k, c] of Object.entries(stats && stats.moves || {})){ const n = +c || 0; total += n; if(par > 0 && +k <= par) atPar += n; }
+  return { plays, clears,
+    clearRate:plays >= SUMMARY_MIN.clearRate ? Math.round(100 * clears / plays) : null,
+    parRate:par > 0 && total >= SUMMARY_MIN.parRate ? Math.round(100 * atPar / total) : null,
+    medianMoves:total ? histMedian(stats.moves) : null };
+}
+
 /* ---------------- the score ---------------- */
 // score = (K·prior + n·observed) / (K + n), K = 20, n = attempts.
 // prior = midpoint of the declared tier (the maker's gut call), else the
