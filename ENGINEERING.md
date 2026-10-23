@@ -568,6 +568,10 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 - **Client:** §7. Pip **ducks** when a thorn arm swings over his tile — the diagonal between two
   arms is safe by the rules, and the arm (y ≈ 0.42) otherwise passed visibly through him.
 - **Content:** Nightfall chapter, 6 isles (§5), every catch proven with `isle-lab --must`.
+- **Verified in the browser:** all 6 Nightfall isles cleared at par (★★★) through real key input;
+  bonk = move not counted + toast; undo after a bonk restores the beat (the timed finish still wins
+  at par); builder solves + audits a pasted hazard isle identically to the lab (par 14 · 144
+  positions · 4 traps · 1 route). Keys sent faster than the hop animation are dropped (pre-existing).
 - **Caveats:** a slide/glide/teleport is judged only at its final tile (Pip can slide "through" a
   boulder's tile); a thorn arm reaches across heights and void. The daily pool now includes
   Nightfall's Tricky+ isles, so pool picks for undated days reshuffle with this build (as in Phases 2–3).
