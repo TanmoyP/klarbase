@@ -13,7 +13,7 @@ const json = f => JSON.parse(fs.readFileSync(f, 'utf8'));
 const dirs = d => fs.readdirSync(d, { withFileTypes:true }).filter(e => e.isDirectory()).map(e => e.name);
 function sitemapXml(){
   const today = new Date().toISOString().slice(0, 10);
-  const paths = ['/', '/play', '/daily', '/community', '/create', '/how-to-build'];
+  const paths = ['/', '/play', '/daily', '/community', '/create', '/how-to-build', '/privacy'];
   for(const ch of json(path.join(ISLES, 'official/chapters.json'))) for(const id of ch.isles) paths.push(`/isle/${id}`);
   for(const a of dirs(path.join(ISLES, 'community')))
     for(const f of fs.readdirSync(path.join(ISLES, 'community', a)).filter(f => f.endsWith('.json'))){

@@ -26,5 +26,6 @@
 
 ## Optional
 
+- [Privacy](https://klarbase.dev/privacy): what the game stores and how to get an account deleted
 - [Engineering notes](https://raw.githubusercontent.com/TanmoyP/klarbase/main/ENGINEERING.md): architecture, data model and decisions
 - [Security policy](https://raw.githubusercontent.com/TanmoyP/klarbase/main/SECURITY.md): how to report a vulnerability

@@ -29,6 +29,7 @@ model User {
   puzzles  Puzzle[]
   reports  Report[]
   plots    Plot[]
+  feedback Feedback[]
 }
 
 model Session {
@@ -125,4 +126,21 @@ model IslePlay {
   moves     Json     @default("{}")         // { "<moves to clear>": count }, moves clamped to 1..500
   times     Json     @default("{}")         // { "<bucket>": count } — buckets = TIME_BUCKETS in @klar/core
   updatedAt DateTime @default(now()) @updatedAt
+}
+
+// Player feedback (POST /api/feedback). Personal data: the message, an optional
+// reply email the player typed, and the user if they were signed in — deleted
+// with the account (Cascade). Never an IP: the rate limiter keeps IPs in memory
+// for its window only. Read by the maintainer via GET /api/feedback (STATS_TOKEN).
+model Feedback {
+  id        String   @id @default(cuid())
+  message   String                         // 1..2000 chars, trimmed
+  email     String?                        // optional, only if the player wants a reply
+  page      String                         // path the form was sent from, e.g. /isle/root-bridge
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
 }

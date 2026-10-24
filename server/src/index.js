@@ -11,6 +11,7 @@ import { puzzles } from './routes/puzzles.js';
 import { world } from './routes/world.js';
 import { stats } from './routes/stats.js';
 import { plays } from './routes/plays.js';
+import { feedback } from './routes/feedback.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -31,6 +32,7 @@ app.use('/api/puzzles', puzzles);
 app.use('/api/world', world);
 app.use('/api/stats', stats);
 app.use('/api/plays', plays);     // anonymous per-isle play sums (K7)
+app.use('/api/feedback', feedback);
 
 // ---- static client (production build) ----
 const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
