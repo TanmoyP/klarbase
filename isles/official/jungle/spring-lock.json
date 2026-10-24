@@ -1,0 +1,21 @@
+{
+  "id": "spring-lock",
+  "name": "Spring Lock",
+  "theme": "jungle",
+  "par": 33,
+  "solution": "UURLULDLLLUURDLDRRDRRRRULLULDUUUU",
+  "twist": true,
+  "needs": ["push", "sink", "gate"],
+  "tier": "fiendish",
+  "hint": "Two plates, three crates. Not every crate gets to keep its place.",
+  "catch": "the gate needs a crate on BOTH plates, but the east plate can only be loaded by pushing north from the spring below it. A crate has to drown so you can stand there — and the one that can reach the spring is the one you parked on the south plate. Spend it, then refill that plate with the far-west crate. (Phase 1, K2: written first.)",
+  "rows": [
+    "-  -  #  G  #  -  -",
+    "-  #  #  D  #  .  -",
+    ".  .  ~  .  .  ~  ,",
+    ".  C  ~  .  ,  T  o",
+    ".  .  .  C  .  C  .",
+    ".  ~  .  o  .  .  ~",
+    "-  ~  .  .  S  .  -"
+  ]
+}

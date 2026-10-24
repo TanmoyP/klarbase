@@ -1,0 +1,25 @@
+{
+  "id": "own-weight",
+  "name": "Own Weight",
+  "theme": "jungle",
+  "chapter": "gardens",
+  "tier": "hard",
+  "par": 23,
+  "solution": "RRDDLLDRRULLURRURDURRRU",
+  "needs": ["scales"],
+  "hint": "One crate lifts the bridge — until you step on it. You weigh as much as a crate.",
+  "catch": "your own weight is in the way. The bridge pan must stay HIGH while you stand on it: one crate on the far pan lifts it only until you step on — it takes two. And a crate pushed along the far pan's row strands you on it when it sinks.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "#3 #3 -  -  -  -  -",
+        "-  -  .3 .3 -  -  G3",
+        "S3 .3 .3 .3 a2 .3 .3",
+        "C3 C3 .3 .3 -  -  -",
+        ".3 .3 .3 b3 -  -  -",
+        ".3 C3 .3 b3 -  -  -"
+      ]
+    }
+  ]
+}

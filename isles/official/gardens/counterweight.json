@@ -1,0 +1,24 @@
+{
+  "id": "counterweight",
+  "name": "Counterweight",
+  "theme": "jungle",
+  "chapter": "gardens",
+  "tier": "tricky",
+  "par": 15,
+  "solution": "DRUURDLDRURRRUU",
+  "needs": ["scales"],
+  "hint": "The near pan sinks under you alone. Weigh down the other one first.",
+  "catch": "the pan to the star sinks under Pip alone. Weigh the other pan first — then the near pan is lifted, so you must board it from the high ledge and ride it down. The crate in front is in the way; the one behind it is the counterweight.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "T3 .3 .3 -  -  G2",
+        "T3 .3 .3 T3 -  .2",
+        "S3 C3 C3 .3 a2 .2",
+        ".3 .3 .3 b3 -  T2",
+        "-  T3 .3 -  -  -"
+      ]
+    }
+  ]
+}

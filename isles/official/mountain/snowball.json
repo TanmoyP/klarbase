@@ -1,0 +1,17 @@
+{
+  "id": "snowball",
+  "name": "Snowball",
+  "theme": "mountain",
+  "par": 11,
+  "solution": "RUUDLLLUURU",
+  "needs": ["slide", "push"],
+  "tier": "easy",
+  "hint": "No rock where you need one? Bring a crate.",
+  "rows": [
+    "#  #  G  #  #  #",
+    ".  *  *  *  *  .",
+    ".  #  #  .  #  .",
+    ".  ,  .  C  .  .",
+    "T  .  S  .  .  #"
+  ]
+}

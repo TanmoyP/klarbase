@@ -12,6 +12,7 @@ import { sha256hex, stableStringify } from '../src/schema.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadOfficial, renderModule, MODULE } from '../../tools/official.mjs';
 
 let pass = 0, fail = 0;
 const t = (name, cond) => { if(cond) pass++; else { fail++; console.error('FAIL:', name); } };
@@ -337,6 +338,11 @@ t('every pre-map official isle is frozen here', Object.keys(FROZEN).filter(k => 
 /* ---------------- curated isles ---------------- */
 t('at least 20 curated isles', CURATED_ISLES.length >= 20);
 t('ids unique', new Set(CURATED_ISLES.map(i => i.id)).size === CURATED_ISLES.length);
+// The isles under test are core/src/isle/official.js, rendered from isles/official/*.json —
+// so a JSON edit without `node tools/author.mjs` must fail here, not pass on stale data.
+{ let fresh = false; try { fresh = renderModule(loadOfficial()) === fs.readFileSync(MODULE, 'utf8'); } catch(e){ console.error(e.message); }
+  if(!fresh) console.error('core/src/isle/official.js is stale or isles/official/ is malformed — run `node tools/author.mjs`');
+  t('official.js matches isles/official/', fresh); }
 t('every chapter has isles', CHAPTERS.every(c => CURATED_ISLES.some(i => (i.chapter || i.theme) === (c.id || c.theme))));
 for(const isle of CURATED_ISLES){
   const { ok, errors, level } = parseIsle(isle);

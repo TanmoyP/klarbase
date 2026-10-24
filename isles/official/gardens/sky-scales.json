@@ -1,0 +1,33 @@
+{
+  "id": "sky-scales",
+  "name": "Sky Scales",
+  "theme": "tropical",
+  "chapter": "gardens",
+  "tier": "mythic",
+  "par": 43,
+  "solution": "DRRUUURRRDDLDLRURUULLLDDRDRULLDLLDUUURDRRRU",
+  "needs": ["scales", "gateway"],
+  "hint": "Load the lower isle to lift the upper one.",
+  "catch": "The chapter's signature: the pans hang on different isles. Load the LOWER isle to lift the upper one — but the low pan only takes a crate pushed up from below, and the crates crowding the upper isle must be cleared without blocking the pan.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        ".1 -  .1 .1 .1 .1",
+        ".1 C1 .1 -  b1 .1",
+        "S1 T1 .1 C1 .1 .1",
+        ".1 C1 .1 .1 .1 -",
+        "p1 -  .1 -  -  T1"
+      ]
+    },
+    {
+      "at": [1, 1, 10],
+      "rows": [
+        ".3 C3 .3 -  G2",
+        ".3 C3 .3 a2 .2",
+        ".3 .3 #3 -  T2",
+        "p3 T3 #3 -  -"
+      ]
+    }
+  ]
+}

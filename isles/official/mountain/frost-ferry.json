@@ -1,0 +1,20 @@
+{
+  "id": "frost-ferry",
+  "name": "Frost Ferry",
+  "theme": "mountain",
+  "par": 20,
+  "solution": "LDRURUUURDLULDRDLLUU",
+  "twist": true,
+  "needs": ["slide", "push", "cslide", "gate"],
+  "tier": "hard",
+  "hint": "On ice, a push is a promise: the crate goes until something stops it.",
+  "catch": "one push along the ice row glides a crate straight onto the plate, but the only crate that can reach that row starts two rows away, and every push on ice overshoots. Ferry it — with the other crate moved aside first — onto the single tile that lines it up, then slide up the same ice to the gate.",
+  "rows": [
+    "#  #  G  #  #  #",
+    "*  *  D  *  *  *",
+    "#  .  *  .  C  *",
+    ".  o  *  S  *  #",
+    "*  *  .  C  .  .",
+    ".  .  .  *  *  *"
+  ]
+}

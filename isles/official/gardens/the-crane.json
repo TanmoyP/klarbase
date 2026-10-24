@@ -1,0 +1,34 @@
+{
+  "id": "the-crane",
+  "name": "The Crane",
+  "theme": "jungle",
+  "chapter": "gardens",
+  "tier": "hard",
+  "par": 38,
+  "solution": "URRDRDDRDDRLUULUULURLLLDRRRLLDLDLLUUUU",
+  "needs": ["scales", "gateway", "sink"],
+  "hint": "No push can lift a crate. A pan can — if it's loaded before the other side is.",
+  "catch": "no push ever lifts a crate — but a pan can. Park the upstairs crate on its pan while the pan is level, THEN weigh the downstairs pan with two crates: the crate rides up to the spring's height and you can tip it in. In the wrong order the raised pan takes no crate (and a loaded crate sinks its pan, lifting the far one out of reach).",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        ".2 T2 T2 #2 #2",
+        ".2 C2 .2 .2 b1",
+        "S2 C2 .2 .2 b1",
+        ".2 .2 C2 .2 #2",
+        "p2 T2 T2 .2 q2"
+      ]
+    },
+    {
+      "at": [0, 0, 11],
+      "rows": [
+        "-  -  G3 -  -",
+        "q2 -  .3 -  -",
+        ".2 -  ~3 -  -",
+        ".2 C2 a2 -  -",
+        "-  #2 .3 .3 p3"
+      ]
+    }
+  ]
+}

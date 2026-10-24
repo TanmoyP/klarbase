@@ -1,0 +1,21 @@
+{
+  "id": "frost-mirage",
+  "name": "Frost Mirage",
+  "theme": "mountain",
+  "chapter": "confluence",
+  "joins": ["oasis", "mountain"],
+  "tier": "tricky",
+  "par": 17,
+  "solution": "URDRLDDRDRUUULURU",
+  "needs": ["tp", "slide", "cslide", "sink"],
+  "hint": "An arch catches whatever the ice carries, but only you go through.",
+  "catch": "The glacier loops through its arches, so nothing stops you under the star. Crates can't ride arches: sink one crate to reach the other, then shove it east to park at the far arch.",
+  "rows": [
+    "-  -  -  -  G  -  -",
+    "p  *  *  *  *  *  p",
+    ".  C  .  S  -  -  -",
+    ".  -  ~  -  -  -  -",
+    ".  C  .  .  -  -  -",
+    ".  .  .  -  -  -  -"
+  ]
+}

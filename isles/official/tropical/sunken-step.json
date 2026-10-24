@@ -1,0 +1,20 @@
+{
+  "id": "sunken-step",
+  "name": "Sunken Step",
+  "theme": "tropical",
+  "par": 35,
+  "solution": "LDDRRDLULDUUURDDDDLLULDLURRXLLUURUU",
+  "twist": true,
+  "needs": ["push", "sink", "toggle", "fall"],
+  "tier": "hard",
+  "hint": "A bridge that sinks with a crate on it keeps the crate.",
+  "catch": "the lever raises the goal's bridge but sinks the west bridge, your only way back north. A crate waiting on that bridge at the flip drops in and stays as a step — but the one crate that can get there is walled in. First drown the other two in the south springs to pave a path around it, push it onto the bridge, then pull the lever.",
+  "rows": [
+    "-  ,  G  ,  -  -  -",
+    ".  #  _  #  .  S  -",
+    ".  .  .  #  .  C  ~",
+    "~  =  #  .  .  =  .",
+    "~  .  C  L  .  C  .",
+    "-  .  ~  .  .  ~  -"
+  ]
+}

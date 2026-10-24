@@ -1,0 +1,17 @@
+{
+  "id": "twin-mirages",
+  "name": "Twin Mirages",
+  "theme": "oasis",
+  "par": 7,
+  "solution": "RRUURUL",
+  "needs": ["tp"],
+  "tier": "breeze",
+  "hint": "Two pairs of arches. Ride them in the right order.",
+  "rows": [
+    "G  .  -  -  .  q",
+    ",  q  -  -  .  .",
+    "-  -  -  -  p  T",
+    "-  .  .  -  -  -",
+    "S  .  p  -  -  -"
+  ]
+}

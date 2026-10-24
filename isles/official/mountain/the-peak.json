@@ -1,0 +1,21 @@
+{
+  "id": "the-peak",
+  "name": "The Peak",
+  "theme": "mountain",
+  "par": 27,
+  "solution": "LLUDRRUULUULLLLRRRRRRUULLUU",
+  "needs": ["push", "tp", "key", "door", "walk:ramp"],
+  "tier": "tricky",
+  "hint": "Everything you have learned, on one mountain.",
+  "rows": [
+    "-  -  -  G3 -  k2 q2",
+    "-  -  -  ^2 -  -  -",
+    "-  -  .2 .2 K2 .2 -",
+    "-  -  -  -  -  ^1 -",
+    "q1 .1 .1 .1 .1 .1 -",
+    "-  #  #  ^  #  #  -",
+    "-  *  *  *  *  *  .",
+    "-  .  C  #  .  .  .",
+    "-  .  .  .  S  .  -"
+  ]
+}

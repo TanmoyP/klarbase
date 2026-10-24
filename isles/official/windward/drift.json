@@ -1,0 +1,25 @@
+{
+  "id": "drift",
+  "name": "Drift",
+  "theme": "tropical",
+  "chapter": "windward",
+  "tier": "hard",
+  "par": 15,
+  "solution": "RRRRDULDRRRRDDD",
+  "seedPar": 19,
+  "needs": ["push", "gust", "float"],
+  "hint": "The wind carries the buoy. A crate in the gust stills the wind behind it.",
+  "catch": "Push the buoy in, then shelter the gust at the exact move the buoy reaches the crossing.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "S  .  .  .  .  -  -  .  +  -  -",
+        ".  .  .  C  u  .  .  .  .  .  #",
+        "e  ~  ~  .  ~  ~  ~  ~  ~  ~  #",
+        "#  #  #  #  #  #  #  .  #  #  #",
+        "-  -  -  -  -  -  -  G  -  -  -"
+      ]
+    }
+  ]
+}

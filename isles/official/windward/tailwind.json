@@ -1,0 +1,26 @@
+{
+  "id": "tailwind",
+  "name": "Tailwind",
+  "theme": "oasis",
+  "chapter": "windward",
+  "tier": "tricky",
+  "par": 25,
+  "solution": "RUURRRRRDULLLLLDDXRRRRDDD",
+  "needs": ["push", "take", "glide"],
+  "hint": "With a balloon you can’t walk into the wind. Quiet the vent first.",
+  "catch": "Cap the vent with the crate from behind, and only then take the balloon.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "-  .3 .3 .3 .3 .3 .3",
+        "-  .3 -  -  -  -  C3",
+        "S3 B3 .3 .3 .3 .3 w3",
+        "-  -  -  -  -  .3 -",
+        "-  -  -  -  -  -  -",
+        "-  -  -  -  ,1 .1 -",
+        "-  -  -  -  -  G1 -"
+      ]
+    }
+  ]
+}

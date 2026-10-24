@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// tools/author.mjs — verify the OFFICIAL isles and write their JSON artifacts.
+// tools/author.mjs — build and verify the OFFICIAL isles, and write their JSON artifacts.
 //
-//   node tools/author.mjs                          verify + write content/isles/*.json
+//   node tools/author.mjs                          render isles/official/ -> core/src/isle/official.js,
+//                                                  verify, write content/isles/*.json
 //   node --env-file=.env tools/author.mjs --seed   also publish them to the database
 //
 // Each official isle must parse, be solvable, have par == the solver's
@@ -12,9 +13,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
+import { loadOfficial, renderModule, MODULE } from './official.mjs';
+
+// The JSON sources are the truth; core's data module is rendered from them before anything
+// imports it, so the checks below always judge what the files say.
+fs.writeFileSync(MODULE, renderModule(loadOfficial()));
+const {
   CURATED_ISLES, parseIsle, solveIsle, solveSeeds, simulate, isleHash, canonicalIsle, stableStringify, mechanicsUsed, schemaOf,
-} from '../core/src/index.js';
+} = await import('../core/src/index.js');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'content', 'isles');

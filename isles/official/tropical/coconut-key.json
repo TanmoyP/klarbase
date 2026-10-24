@@ -1,0 +1,17 @@
+{
+  "id": "coconut-key",
+  "name": "Coconut Key",
+  "theme": "tropical",
+  "par": 17,
+  "solution": "RRUDLLUURRRRLLLUU",
+  "needs": ["key", "door"],
+  "tier": "easy",
+  "hint": "Every door wants a key. Some keys want a bridge first.",
+  "rows": [
+    ",  G  ,  -  -",
+    "#  K  #  -  -",
+    ".  .  .  ~  k",
+    ".  T  C  ~  .",
+    "S  .  .  ,  ."
+  ]
+}

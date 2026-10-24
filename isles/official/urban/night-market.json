@@ -1,0 +1,17 @@
+{
+  "id": "night-market",
+  "name": "Night Market",
+  "theme": "urban",
+  "par": 17,
+  "solution": "RRURUULDRDDLUUULU",
+  "needs": ["tp", "push", "gate"],
+  "tier": "easy",
+  "hint": "One plate here, one across the arches. The crate cannot travel — you can.",
+  "rows": [
+    "#  G  #  -  .  .",
+    "#  D  o  -  C  .",
+    ".  .  .  -  o  .",
+    ".  T  .  -  p  .",
+    "S  .  p  -  -  -"
+  ]
+}

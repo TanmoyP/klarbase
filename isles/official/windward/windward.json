@@ -1,0 +1,27 @@
+{
+  "id": "windward",
+  "name": "Windward",
+  "theme": "mountain",
+  "chapter": "windward",
+  "tier": "fiendish",
+  "par": 28,
+  "solution": "DXRRRDURLLLLXRDDLXRUURRDRDDD",
+  "needs": ["take", "drop", "push", "scales", "glide"],
+  "hint": "Height is range: the higher the pan, the farther the glide.",
+  "catch": "A crate on A (pushed into the wind, so: stone) lifts balloon-Pip’s pan B to the one height the glide can reach from — and a second crate must stand beside B, or the gust blows balloon-Pip straight off it.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "S3 .3 .3 .3 .3 -  -",
+        "P3 .3 C3 .3 .3 a2 w3",
+        "T3 .3 #3 C3 .3 -  -",
+        "B3 .3 .3 .3 b2 w3 -",
+        "-  -  -  -  -  -  -",
+        "-  -  -  -  -  -  -",
+        "-  -  -  -  .  -  -",
+        "-  -  -  ,  G  -  -"
+      ]
+    }
+  ]
+}

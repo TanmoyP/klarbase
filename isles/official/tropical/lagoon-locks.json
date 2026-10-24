@@ -1,0 +1,17 @@
+{
+  "id": "lagoon-locks",
+  "name": "Lagoon Locks",
+  "theme": "tropical",
+  "par": 16,
+  "solution": "RRRRRUULUURLLLLL",
+  "needs": ["key", "door"],
+  "tier": "easy",
+  "hint": "Two keys, three doors. One door is a trap.",
+  "rows": [
+    "G  .  K  .  .  k",
+    "#  #  #  #  K  #",
+    ".  .  K  .  .  .",
+    ".  #  #  #  #  .",
+    "S  .  .  k  .  ."
+  ]
+}

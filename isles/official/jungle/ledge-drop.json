@@ -1,0 +1,17 @@
+{
+  "id": "ledge-drop",
+  "name": "Ledge Drop",
+  "theme": "jungle",
+  "par": 11,
+  "solution": "URRRUUULLLL",
+  "needs": ["walk:ramp", "walk:down"],
+  "tier": "breeze",
+  "hint": "You can hop down a ledge, but never climb one. Take the high road.",
+  "rows": [
+    "G  .  .1 .1 .1",
+    ".  ,  .1 #  .1",
+    "#  #  #  #  ^",
+    ",  .  .  .  .",
+    "T  S  .  ,  ."
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "id": "wait-a-beat",
+  "name": "Wait a Beat",
+  "theme": "night",
+  "chapter": "night",
+  "tier": "breeze",
+  "par": 8,
+  "solution": "RRDXDDRD",
+  "seedPar": 10,
+  "needs": ["wait", "hazard"],
+  "hint": "The glowing ring shows where the boulder will be next. Press Space to wait a beat.",
+  "catch": "Intro: the boulder is on the crossing every beat you could walk there — only waiting a beat changes that.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "-  ,1 T1 -  -",
+        "S1 .1 .1 -  -",
+        "-  -  .1 -  -",
+        "-  .  H  +  -",
+        "-  -  .  ,  -",
+        "-  -  -  G  -"
+      ]
+    }
+  ]
+}

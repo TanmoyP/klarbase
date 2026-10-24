@@ -1,0 +1,32 @@
+{
+  "id": "high-arch",
+  "name": "High Arch",
+  "theme": "tropical",
+  "chapter": "gardens",
+  "tier": "tricky",
+  "par": 31,
+  "solution": "RRRUULLDDRRDDLLULURRRDRUDDULLUL",
+  "needs": ["scales", "gateway"],
+  "hint": "Crates can't take the arch. Whatever weighs the far pan must be set before you leave.",
+  "catch": "the star is upstairs past a pan that sinks under you; its partner pan is downstairs, and crates never ride an arch. Set the counterweight before you go up — the short lane to the pan runs past a spring that would swallow the only crate.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "#1 .1 .1 .1 -",
+        "-  C1 ~1 .1 b1",
+        "S1 .1 .1 .1 .1",
+        ".1 .1 -  .1 .1",
+        "-  .1 .1 .1 p1"
+      ]
+    },
+    {
+      "at": [1, 0, 10],
+      "rows": [
+        "G2 .2 -  -",
+        "-  a2 .3 .3",
+        "-  T3 -  p3"
+      ]
+    }
+  ]
+}

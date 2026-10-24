@@ -45,6 +45,8 @@ for(let i = 0; i < argv.length; i++){
 }
 if(!target){ console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 24).map(l => l.replace(/^\/\/ ?/, '')).join('\n')); process.exit(1); }
 
+// an isles/official/ file is studied as its official id (it is that CURATED_ISLES entry)
+if(fs.existsSync(target) && path.resolve(target).startsWith(path.join(ROOT, 'isles', 'official') + path.sep)) target = path.basename(target, '.json');
 let doc, file = null;
 if(fs.existsSync(target)){ file = path.resolve(target); doc = JSON.parse(fs.readFileSync(file, 'utf8')); }
 else {
@@ -189,7 +191,8 @@ function gridSim(A, B){
 function loadAllIsles(){
   const all = CURATED_ISLES.map(i => ({ name:`official “${i.name}” (${i.id})`, doc:i }));
   const walk = dir => fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes:true }).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name)) : e.name.endsWith('.json') ? [path.join(dir, e.name)] : []) : [];
-  for(const f of walk(path.join(ROOT, 'isles'))){
+  // isles/official/ is CURATED_ISLES already — walking it too would make every official isle its own twin
+  for(const f of walk(path.join(ROOT, 'isles')).filter(f => !path.relative(ROOT, f).split(path.sep).join('/').startsWith('isles/official/'))){
     try { const d = JSON.parse(fs.readFileSync(f, 'utf8')); all.push({ name:path.relative(ROOT, f).split(path.sep).join('/'), doc:d, file:f }); } catch {}
   }
   return all;

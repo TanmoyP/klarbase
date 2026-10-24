@@ -1,0 +1,24 @@
+{
+  "id": "ballast",
+  "name": "Ballast",
+  "theme": "tropical",
+  "chapter": "windward",
+  "tier": "tricky",
+  "par": 14,
+  "solution": "RDDRUULLUURRRR",
+  "needs": ["push", "scales"],
+  "hint": "A buoy on a pan lifts it. Pip and a buoy together weigh nothing.",
+  "catch": "The crate on B lifts A only while the buoy rides A with Pip.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        ".3 .3 a2 .3 G3",
+        "^2 -  a2 -  -",
+        "S2 .2 u2 .2 -",
+        "-  .2 .2 .2 -",
+        "-  .2 C2 b2 -"
+      ]
+    }
+  ]
+}

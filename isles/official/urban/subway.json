@@ -1,0 +1,17 @@
+{
+  "id": "subway",
+  "name": "Subway",
+  "theme": "urban",
+  "par": 13,
+  "solution": "URRDRULDRRULL",
+  "needs": ["tp", "key", "door"],
+  "tier": "easy",
+  "hint": "Ride the arches out for the key, then ride them home.",
+  "rows": [
+    "G  K  .  -  q  .",
+    ".  #  p  -  .  k",
+    "-  -  -  -  -  -",
+    ".  .  q  -  .  .",
+    "S  .  .  .  p  ."
+  ]
+}

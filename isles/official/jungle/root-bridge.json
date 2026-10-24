@@ -1,0 +1,18 @@
+{
+  "id": "root-bridge",
+  "name": "Root Bridge",
+  "theme": "jungle",
+  "par": 12,
+  "solution": "RRUULLDLUUUU",
+  "needs": ["push", "sink", "walk:down"],
+  "tier": "easy",
+  "hint": "Crates can be pushed off a ledge too. Choose where it lands.",
+  "rows": [
+    ",  G  .  T  -",
+    ".  .  .  .  -",
+    "~  ~  #  #  #",
+    ".1 .1 .1 C1 .1",
+    "T  .1 .1 .1 ^",
+    "-  .  S  .  ."
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "heavy-heart",
+  "name": "Heavy Heart",
+  "theme": "mountain",
+  "chapter": "windward",
+  "tier": "easy",
+  "par": 8,
+  "solution": "RRXDRDRR",
+  "needs": ["take", "push", "scales"],
+  "hint": "A stone weighs two. Take one from the pile before you ride the scales.",
+  "catch": "The crate you must clear lands on the other pan; only stone-Pip outweighs it and rides low enough to hop off.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "S3 .3 P3 -  -  -",
+        "-  .3 C3 .3 -  -",
+        "-  -  b2 a2 .  G"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+[
+  {
+    "theme": "jungle",
+    "title": "Canopy",
+    "isles": [
+      "first-steps",
+      "ledge-drop",
+      "mossy-crate",
+      "root-bridge",
+      "fern-gate",
+      "spring-lock"
+    ]
+  },
+  {
+    "theme": "oasis",
+    "title": "Mirage",
+    "isles": [
+      "mirage",
+      "twin-mirages",
+      "sunken-well",
+      "palm-plates",
+      "revolving-arch"
+    ]
+  },
+  {
+    "theme": "tropical",
+    "title": "Lagoon",
+    "isles": [
+      "tide-lever",
+      "low-tide",
+      "coconut-key",
+      "lagoon-locks",
+      "sunken-step"
+    ]
+  },
+  {
+    "theme": "urban",
+    "title": "Rooftops",
+    "isles": [
+      "rooftops",
+      "canal-lift",
+      "subway",
+      "night-market",
+      "crosswalk",
+      "street-drop"
+    ]
+  },
+  {
+    "theme": "mountain",
+    "title": "Summit",
+    "isles": [
+      "first-frost",
+      "glacier-stops",
+      "snowball",
+      "glacier-maze",
+      "frozen-gate",
+      "the-peak",
+      "frost-ferry"
+    ]
+  },
+  {
+    "id": "gardens",
+    "theme": "jungle",
+    "title": "Hanging Gardens",
+    "blurb": "Sky Scales and gateways: isles on vines, weighed against each other.",
+    "isles": [
+      "counterweight",
+      "high-arch",
+      "three-storeys",
+      "own-weight",
+      "the-crane",
+      "spend-a-crate",
+      "garden-lift",
+      "sky-scales"
+    ]
+  },
+  {
+    "id": "windward",
+    "theme": "mountain",
+    "title": "Windward",
+    "blurb": "Balloons, stones, buoys and gusts: what Pip carries decides where Pip can go.",
+    "isles": [
+      "lift-off",
+      "let-it-go",
+      "heavy-heart",
+      "buoy-bay",
+      "glide-or-push",
+      "tailwind",
+      "ballast",
+      "drift",
+      "brace",
+      "windward"
+    ]
+  },
+  {
+    "id": "night",
+    "theme": "night",
+    "title": "Nightfall",
+    "blurb": "Rolling boulders and thorn sweepers move one beat per move. Read the rings, wait a beat, never get bonked.",
+    "isles": [
+      "wait-a-beat",
+      "sweeper",
+      "in-its-wake",
+      "lever-lane",
+      "bramble-bridge",
+      "needles-eye"
+    ]
+  },
+  {
+    "id": "confluence",
+    "theme": "oasis",
+    "title": "Confluence",
+    "blurb": "Where two chapters meet: light both constellations to open each isle.",
+    "isles": [
+      "frost-mirage",
+      "drowned-gangway",
+      "squall-line"
+    ]
+  }
+]

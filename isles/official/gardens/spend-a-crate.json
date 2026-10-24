@@ -1,0 +1,25 @@
+{
+  "id": "spend-a-crate",
+  "name": "Spend a Crate",
+  "theme": "jungle",
+  "chapter": "gardens",
+  "tier": "fiendish",
+  "par": 31,
+  "solution": "URRRURDDULLDLDDRUULURRURDDDURRU",
+  "needs": ["scales", "sink"],
+  "hint": "The spring keeps the first crate it gets. Make it worth it.",
+  "catch": "the far pan sits past a spring, at the end of the only lane a crate can travel. The first crate down that lane is lost to the spring — spend it, and the next one rolls across onto the pan. Weighed, the bridge pan meets you at your height and settles to the star's; unweighed, it sinks under you.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        ".2 C2 .2 .2 .2 -  -",
+        ".2 C2 .2 .2 .2 -  G1",
+        "S2 .2 .2 -  .2 a1 .1",
+        "~2 .2 C2 ~2 ~2 -  -",
+        "~2 .2 .2 ~2 b2 -  -",
+        "~2 .2 .2 .2 .2 -  -"
+      ]
+    }
+  ]
+}
