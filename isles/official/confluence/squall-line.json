@@ -1,0 +1,26 @@
+{
+  "id": "squall-line",
+  "name": "Squall Line",
+  "theme": "mountain",
+  "chapter": "confluence",
+  "joins": ["mountain", "windward"],
+  "tier": "fiendish",
+  "par": 20,
+  "solution": "DDRURDLLULDXURDRURDD",
+  "needs": ["slide", "cslide", "take", "gust", "glide"],
+  "hint": "On ice you never stop where you’d like, but the wind always gets the last word.",
+  "catch": "The crate above the star can only slide downwind, onto the post: drop a crate in the lane first to stop it. Then, balloon in hand, slide onto the vent and let the gust set you on the launch tile.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        ",3 S3 .3 .3 .3 ,3",
+        "*3 *3 *3 C3 *3 *3",
+        "*3 C3 *3 *3 #3 *3",
+        "B3 *3 *3 *3 C3 w3",
+        "-  -  -  -  -  -",
+        "-  -  -  -  G1 -"
+      ]
+    }
+  ]
+}

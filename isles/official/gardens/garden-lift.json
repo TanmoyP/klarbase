@@ -1,0 +1,33 @@
+{
+  "id": "garden-lift",
+  "name": "Garden Lift",
+  "theme": "tropical",
+  "chapter": "gardens",
+  "tier": "fiendish",
+  "par": 27,
+  "solution": "RDRRURRUULLLDRDDLLDLRUURRRU",
+  "needs": ["scales", "gateway"],
+  "hint": "Only one crate downstairs can reach the pan. Which one, and from where?",
+  "catch": "pans on different isles, and both isles crowded. Downstairs only one crate has a clean run at the low pan, from the west; upstairs two crates hem in the arch and the bridge pan — clear them without parking one on the pan, whose weight would sink it.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        ".1 C1 .1 .1 .1 .1",
+        ".1 T1 .1 .1 b1 .1",
+        "S1 .1 -  C1 .1 .1",
+        "C1 .1 .1 .1 .1 .1",
+        "p1 .1 T1 .1 .1 .1"
+      ]
+    },
+    {
+      "at": [1, 1, 10],
+      "rows": [
+        "-  .3 -  -  G2",
+        ".3 C3 .3 a2 .2",
+        "#3 .3 .3 -  -",
+        "p3 C3 .3 -  -"
+      ]
+    }
+  ]
+}

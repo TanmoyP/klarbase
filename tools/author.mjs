@@ -1,28 +1,26 @@
 #!/usr/bin/env node
-// tools/author.mjs — verify the OFFICIAL isles and write their JSON artifacts.
+// tools/author.mjs — build and verify the OFFICIAL isles.
 //
-//   node tools/author.mjs                          verify + write content/isles/*.json
+//   node tools/author.mjs                          render isles/official/ -> core/src/isle/official.js, verify
 //   node --env-file=.env tools/author.mjs --seed   also publish them to the database
 //
 // Each official isle must parse, be solvable, have par == the solver's
 // shortest, a stored solution that replays to a win, and load-bearing
-// featured mechanics. Output is deterministic (no timestamps), so CI can run
-// this and `git diff --exit-code content/isles` to prove artifacts are current.
+// featured mechanics. The JSON files in isles/official/ are the artifacts; the
+// rendered module is deterministic, so CI can run this and
+// `git diff --exit-code core/src/isle/official.js` to prove it is current.
 // (Community isles are checked by tools/check-isles.mjs instead.)
 import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import {
-  CURATED_ISLES, parseIsle, solveIsle, solveSeeds, simulate, isleHash, canonicalIsle, stableStringify, mechanicsUsed, schemaOf,
-} from '../core/src/index.js';
+import { loadOfficial, renderModule, MODULE } from './official.mjs';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = path.join(ROOT, 'content', 'isles');
-fs.mkdirSync(OUT, { recursive:true });
-for(const f of fs.readdirSync(OUT)) if(f.endsWith('.json')) fs.unlinkSync(path.join(OUT, f));
+// The JSON sources are the truth; core's data module is rendered from them before anything
+// imports it, so the checks below always judge what the files say.
+fs.writeFileSync(MODULE, renderModule(loadOfficial()));
+const {
+  CURATED_ISLES, parseIsle, solveIsle, solveSeeds, simulate, isleHash, canonicalIsle, stableStringify, mechanicsUsed,
+} = await import('../core/src/index.js');
 
 let fail = 0;
-const manifest = { schemaVersion:5, isles:[] };
 CURATED_ISLES.forEach((isle, i) => {
   const errs = [];
   const { ok, errors, level } = parseIsle(isle);
@@ -40,18 +38,14 @@ CURATED_ISLES.forEach((isle, i) => {
     if(sp ? sp.par !== isle.seedPar : isle.seedPar) errs.push(`seedPar ${isle.seedPar} != ${sp && sp.par}`);
   }
   const tag = errs.length ? 'FAIL' : 'PASS';
-  console.log(`${tag}  ${String(i + 1).padStart(2)} ${isle.name.padEnd(14)} ${isle.theme.padEnd(9)} par ${String(isle.par).padStart(2)}  ${errs.join('; ')}`);
-  if(errs.length){ fail++; return; }
-  const file = `${String(i + 1).padStart(2, '0')}-${isle.id}.json`;
-  const norm = rows => rows.map(r => r.trim().split(/\s+/).join(' '));
-  const doc = { schemaVersion:schemaOf(isle), id:isle.id, name:isle.name, theme:isle.theme, tier:isle.tier, ...(isle.twist ? { twist:true } : {}), hint:isle.hint,
-                ...(isle.storeys ? { storeys:isle.storeys.map(s => ({ rows:norm(s.rows), at:s.at })) } : { rows:norm(isle.rows) }), par:isle.par, solution:isle.solution, ...(isle.seedPar ? { seedPar:isle.seedPar } : {}) };
-  fs.writeFileSync(path.join(OUT, file), JSON.stringify(doc, null, 2) + '\n');
-  manifest.isles.push({ order:i + 1, id:isle.id, name:isle.name, theme:isle.theme, tier:isle.tier, ...(isle.twist ? { twist:true } : {}), par:isle.par, mechanics:used, hash:isleHash(isle), file });
+  const info = errs.length ? errs.join('; ') : `${isleHash(isle).slice(0, 12)}  ${used.join(', ')}`;
+  console.log(`${tag}  ${String(i + 1).padStart(2)} ${isle.name.padEnd(15)} ${isle.theme.padEnd(9)} par ${String(isle.par).padStart(2)}  ${info}`);
+  if(errs.length) fail++;
 });
-if(fail){ console.log(`\n${fail} official isle(s) FAILED`); process.exit(1); }
-fs.writeFileSync(path.join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-console.log(`\n${CURATED_ISLES.length} official isles verified — artifacts in content/isles/`);
+if(fail){ console.log(`
+${fail} official isle(s) FAILED`); process.exit(1); }
+console.log(`
+${CURATED_ISLES.length} official isles verified — core/src/isle/official.js is current`);
 
 // --seed: publish the official isles as immutable rows owned by a system user.
 // Writes to whatever DATABASE_URL points at: local for testing, prod only on purpose.

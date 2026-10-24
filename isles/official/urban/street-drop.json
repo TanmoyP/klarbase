@@ -1,0 +1,20 @@
+{
+  "id": "street-drop",
+  "name": "Street Drop",
+  "theme": "urban",
+  "par": 23,
+  "solution": "ULDRDLLLUURDULDDRLUUUUU",
+  "twist": true,
+  "needs": ["walk:ramp", "walk:down", "push", "gate"],
+  "tier": "hard",
+  "hint": "Crates can drop off a roof, but they never come back up.",
+  "catch": "crates only ever go DOWN. The first crate you can drop lands right on the near street plate — but it is the only one that can ever reach the far plate, so push it off and all the way down the street, then refill the near plate from the roof, shuffling the rooftop crates so the one stair back up stays clear.",
+  "rows": [
+    "-  -  G2 -  -  -",
+    "-  -  ^1 -  -  -",
+    ".  .  D1 .1 .  .",
+    ".  .  .1 .1 C1 .1",
+    ".  .  ^  C1 C1 S1",
+    ".  o  .  .  o  ."
+  ]
+}

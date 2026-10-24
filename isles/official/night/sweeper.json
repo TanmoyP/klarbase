@@ -1,0 +1,26 @@
+{
+  "id": "sweeper",
+  "name": "Sweeper",
+  "theme": "night",
+  "chapter": "night",
+  "tier": "easy",
+  "par": 7,
+  "solution": "RRUXRUU",
+  "seedPar": 16,
+  "needs": ["wait", "hazard"],
+  "hint": "A thorn arm reaches two tiles straight out. The tiles between its arms are always safe.",
+  "catch": "Both ways past the bush are swept; the corner between two arms is never touched — shelter there while it turns.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "-  -  -  G  -  -",
+        "-  -  -  .  .  -",
+        "-  -  ,  .  ,  -",
+        "S  .  .  Y  .  +",
+        "-  -  T  .  -  -",
+        "-  -  -  ,  -  -"
+      ]
+    }
+  ]
+}

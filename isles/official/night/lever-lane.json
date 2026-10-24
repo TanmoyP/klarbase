@@ -1,0 +1,24 @@
+{
+  "id": "lever-lane",
+  "name": "Lever Lane",
+  "theme": "night",
+  "chapter": "night",
+  "tier": "tricky",
+  "par": 13,
+  "solution": "DRDRRDUXRRUUU",
+  "needs": ["toggle", "hazard"],
+  "hint": "Pulling a lever takes a beat — and the boulder doesn’t wait.",
+  "catch": "The lever sits in the boulder's lane and pulling it takes a beat: duck into the nook below it, let the boulder pass, then pull.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        ".1 .1 ,1 -  -  G  -",
+        "S1 -  ,1 -  -  _  -",
+        ",1 .1 -  -  #  .  -",
+        "-  H  .  L  .  .  -",
+        "-  -  -  .  -  ,  -"
+      ]
+    }
+  ]
+}

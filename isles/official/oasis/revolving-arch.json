@@ -1,0 +1,19 @@
+{
+  "id": "revolving-arch",
+  "name": "Revolving Arch",
+  "theme": "oasis",
+  "par": 30,
+  "solution": "DLLLRUUUURDLDDDLRRRULDLLULURUU",
+  "twist": true,
+  "needs": ["tp", "push", "gate"],
+  "tier": "hard",
+  "hint": "Standing on a plate only helps if you can stay there.",
+  "catch": "the arches are a revolving door. The only way onto the east plates' lane is out through one arch and back through the other, and crates can't ride arches — so standing on a plate is useless: both east plates must hold crates, each pushed from the one side that doesn't drive it into the spring, before you take the door home.",
+  "rows": [
+    "#  G  #  -  .  .  .",
+    "#  D  .  -  .  C  .",
+    ".  .  .  -  .  o  ~",
+    ".  C  ~  -  o  C  S",
+    "~  .  p  -  p  .  ."
+  ]
+}

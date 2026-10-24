@@ -1,0 +1,22 @@
+{
+  "id": "let-it-go",
+  "name": "Let It Go",
+  "theme": "mountain",
+  "chapter": "windward",
+  "tier": "easy",
+  "par": 8,
+  "solution": "RXRRRXRR",
+  "needs": ["take", "glide", "release", "gate"],
+  "hint": "A balloon weighs nothing — not even enough to press a plate.",
+  "catch": "You need the balloon for the glide, then must let it go to weigh enough for the plate.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "-  ,3 -  -  -  -  -  -",
+        "S3 B3 .3 -  .1 o1 D1 G1",
+        "-  .3 .3 -  ,1 .1 -  -"
+      ]
+    }
+  ]
+}

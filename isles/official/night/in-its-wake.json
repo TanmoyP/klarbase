@@ -1,0 +1,23 @@
+{
+  "id": "in-its-wake",
+  "name": "In Its Wake",
+  "theme": "night",
+  "chapter": "night",
+  "tier": "tricky",
+  "par": 12,
+  "solution": "RRDRRRUDRRDD",
+  "needs": ["walk:down", "hazard"],
+  "hint": "Follow the boulder closely — and find a nook before it comes back.",
+  "catch": "The lane is the only road: drop in right behind the boulder, and duck into the one nook before it rolls back. (The low pocket is a trap — no way back up.)",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "S2 .2 .2 -  -  ,1 -  -",
+        "-  -  H1 .1 .1 .1 .1 .1",
+        "-  -  -  -  .  -  -  .",
+        "-  -  -  -  -  -  -  G"
+      ]
+    }
+  ]
+}

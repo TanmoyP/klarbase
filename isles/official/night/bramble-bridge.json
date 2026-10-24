@@ -1,0 +1,26 @@
+{
+  "id": "bramble-bridge",
+  "name": "Bramble Bridge",
+  "theme": "night",
+  "chapter": "night",
+  "tier": "hard",
+  "par": 26,
+  "solution": "UUURRRRRDDLDRUUULLLDDDDRDD",
+  "needs": ["push", "sink", "gate", "hazard"],
+  "hint": "A crate can’t go anywhere a thorn arm can reach — not even into water.",
+  "catch": "Crates never enter a thorn's reach — so the spring under its north arm can never be filled. Sink the crate in the far spring instead and go round through the arm's tip, there and back, between its passes. (The crate beside the arm can only go north, onto your road — leave it be.)",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        ".  C  ~  ,  .  .  -",
+        ",  .  .  ~  C  .  -",
+        ".  -  .  Y  .  .  ,",
+        "S  -  .  -  .  C  o",
+        ".  .  ,  .  ~  .  -",
+        "-  -  -  D  -  -  -",
+        "-  -  -  G  -  -  -"
+      ]
+    }
+  ]
+}

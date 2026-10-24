@@ -1,0 +1,26 @@
+{
+  "id": "brace",
+  "name": "Brace",
+  "theme": "mountain",
+  "chapter": "windward",
+  "tier": "hard",
+  "par": 33,
+  "solution": "DLXRRURRRLLLDRLLLXRUULXRDRRRRDDDD",
+  "needs": ["take", "drop", "push", "gate", "glide"],
+  "hint": "Only a stone is heavy enough to push into the wind. Hands full? A pile takes it back.",
+  "catch": "Stone-Pip caps one gust and loads the plate; the stone must go back before the balloon can come out.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "B3 D3 -  -  -  -  -",
+        "-  S3 .3 C3 .3 .3 w3",
+        "P3 .3 C3 .3 o3 .3 w3",
+        "-  -  -  -  -  .3 -",
+        "-  -  -  -  -  -  -",
+        "-  -  -  -  -  .1 -",
+        "-  -  -  -  -  G1 -"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "needles-eye",
+  "name": "Needle’s Eye",
+  "theme": "night",
+  "chapter": "night",
+  "tier": "fiendish",
+  "par": 30,
+  "solution": "RRUUURRRURDDURRDDLLLLULDLDDRDD",
+  "needs": ["push", "gate", "hazard"],
+  "hint": "Neither the boulder’s lane nor the thorn’s reach will take a crate. Find the one gap between them.",
+  "catch": "The crate can't cross the boulder's lane or enter the bramble's reach — there is one gap between them. Push it east and down through the gap, back west from under the thorn's north arm, and onto the plate from inside the lane, each push on a beat the hazards leave free.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "-  -  .  .  -  .  .  .  -",
+        "-  -  ,  C  ,  .  .  .  .",
+        "H  .  .  .  .  #  .  -  .",
+        "-  -  .  .  ,  .  .  .  .",
+        "S  ,  .  o  ~  -  -  Y  .",
+        "-  ~  .  .  .  .  .  .  .",
+        "-  -  -  D  -  -  -  -  -",
+        "-  -  -  G  -  -  -  -  -"
+      ]
+    }
+  ]
+}

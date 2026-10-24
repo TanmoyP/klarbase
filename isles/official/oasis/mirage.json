@@ -1,0 +1,17 @@
+{
+  "id": "mirage",
+  "name": "Mirage",
+  "theme": "oasis",
+  "par": 3,
+  "solution": "RRU",
+  "needs": ["tp"],
+  "tier": "breeze",
+  "hint": "Step into an arch to appear at its twin.",
+  "rows": [
+    "-  -  -  ,  G  .",
+    "-  -  -  .  p  .",
+    "~  ~  ~  ~  ~  ~",
+    ".  T  .  -  -  -",
+    "S  .  p  -  -  -"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "first-steps",
+  "name": "First Steps",
+  "theme": "jungle",
+  "par": 4,
+  "solution": "URUU",
+  "needs": ["walk:ramp"],
+  "tier": "breeze",
+  "hint": "Ramps only work along their slope. Find the one facing the goal.",
+  "rows": [
+    "-  -  G1 -",
+    "-  .  ^  -",
+    ",  .  .  ,",
+    "-  S  .  T"
+  ]
+}

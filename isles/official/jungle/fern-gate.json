@@ -1,0 +1,17 @@
+{
+  "id": "fern-gate",
+  "name": "Fern Gate",
+  "theme": "jungle",
+  "par": 15,
+  "solution": "URRUULDRDLLLUUU",
+  "needs": ["push", "gate"],
+  "tier": "easy",
+  "hint": "Gates open while every plate is pressed — and you can only stand in one place.",
+  "rows": [
+    "#  G  #  ,  T",
+    "#  D  #  .  .",
+    ".  .  .  C  .",
+    "o  .  ,  .  .",
+    "T  .  S  .  #"
+  ]
+}

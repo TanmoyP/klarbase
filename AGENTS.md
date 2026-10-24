@@ -15,14 +15,14 @@ v1 history (a camera-illusion "maquette" game) is in `docs/archive/`.
 
 ## Layout
 ```
-core/src/isle/   format.js (parse, hash) · rules.js (step) · solve.js (BFS) · contrib.js (PR rules) · isles.js (24 official)
+core/src/isle/   format.js (parse, hash) · rules.js (step) · solve.js (BFS) · contrib.js (PR rules) · isles.js + official.js (generated)
 core/src/*.js    legacy voxel engine — only for the deferred world API
 core/test/       isles.mjs · run.mjs
 client/src/      main.js (app) · builder.js · game/{world,props,pip,session,audio,themes}.js
 server/src/      index.js · auth.js · routes/puzzles.js (isle gate) · routes/world.js (deferred)
 isles/community/ <github-user>/<id>.json — bundled into the client
-content/isles/   generated official-isle artifacts (deterministic)
-tools/           check-isles.mjs (PR gate) · author.mjs (artifacts, --seed)
+isles/official/  chapters.json + <chapter>/<id>.json — the official isles (source of truth)
+tools/           check-isles.mjs (PR gate) · author.mjs (render + verify official, --seed)
 .github/         ci.yml (engine, isles, sanity) · CODEOWNERS · ruleset-main.json · PR template
 ```
 

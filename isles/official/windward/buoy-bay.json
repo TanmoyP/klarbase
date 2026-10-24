@@ -1,0 +1,24 @@
+{
+  "id": "buoy-bay",
+  "name": "Buoy Bay",
+  "theme": "tropical",
+  "chapter": "windward",
+  "tier": "easy",
+  "par": 12,
+  "solution": "RRUUDLLUURRR",
+  "seedPar": 14,
+  "needs": ["push", "sink", "float"],
+  "hint": "Buoys float up a step that crates can’t climb — and they float on water.",
+  "catch": "The crate fills the low spring; only the buoy can rise to the high one.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        ".1 .1 ~1 G1",
+        "^  T  u  .",
+        "~  C  .  .",
+        "S  .  .  +"
+      ]
+    }
+  ]
+}

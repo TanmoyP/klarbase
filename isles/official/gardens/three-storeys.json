@@ -1,0 +1,40 @@
+{
+  "id": "three-storeys",
+  "name": "Three Storeys",
+  "theme": "tropical",
+  "chapter": "gardens",
+  "tier": "hard",
+  "par": 46,
+  "solution": "UURUURRRUULLLDLDRRLUURRRDDDLULLDDLDDDRRRRDRRRU",
+  "needs": ["scales", "gateway"],
+  "hint": "The pan at the top answers to the pan at the bottom.",
+  "catch": "three isles, and Pip starts in the middle. The arch up leads straight to the high pan — which sinks under you, stranding you, unless the low pan two storeys down was weighed first. Down first: one crate, a cramped yard, and the pan only takes it pushed up from the south.",
+  "storeys": [
+    {
+      "at": [0, 0, 0],
+      "rows": [
+        "-  .1 .1 .1 .1",
+        ".1 C1 -  b1 .1",
+        ".1 .1 .1 .1 .1",
+        "-  .1 T1 .1 .1",
+        "p1 .1 .1 -  .1"
+      ]
+    },
+    {
+      "at": [6, 0, 5],
+      "rows": [
+        "p2 .2 -  -",
+        ".2 #2 #2 -",
+        "S2 -  -  -",
+        ".2 .2 .2 q2"
+      ]
+    },
+    {
+      "at": [2, 1, 14],
+      "rows": [
+        "q4 .4 #4 -  G3",
+        "T4 .4 .4 a3 .3"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "glacier-maze",
+  "name": "Glacier Maze",
+  "theme": "mountain",
+  "par": 13,
+  "solution": "URURDLULURULU",
+  "needs": ["slide"],
+  "tier": "easy",
+  "hint": "Count your stops — the shortest route zig-zags.",
+  "rows": [
+    "-  G  -  -  -  -  -  -",
+    "-  *  *  *  #  *  *  -",
+    "-  #  *  *  *  *  *  -",
+    "-  *  *  #  #  *  *  -",
+    "-  *  *  *  *  *  *  -",
+    "-  #  #  *  *  *  *  -",
+    "-  *  *  *  *  *  #  -",
+    "-  -  S  -  -  -  -  -"
+  ]
+}

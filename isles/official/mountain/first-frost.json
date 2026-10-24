@@ -1,0 +1,17 @@
+{
+  "id": "first-frost",
+  "name": "First Frost",
+  "theme": "mountain",
+  "par": 4,
+  "solution": "LURU",
+  "needs": ["slide"],
+  "tier": "breeze",
+  "hint": "Ice keeps you sliding. Rocks are your brakes.",
+  "rows": [
+    "#  #  G  #  #",
+    "#  *  *  #  #",
+    ".  *  #  *  .",
+    ".  *  *  *  .",
+    ".  .  S  .  ."
+  ]
+}
