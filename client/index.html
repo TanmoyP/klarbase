@@ -56,6 +56,7 @@
   #authchip .who{ font-weight:800; font-size:13px; padding:7px 12px; }
   /* padding:0 — .btn's 10px/16px padding squeezed the glyph off-centre (bottom-right) */
   .icon-btn{ width:40px; height:40px; padding:0; border-radius:50%; display:grid; place-items:center; font-size:18px; line-height:1; }
+  .icon-btn.small{ width:34px; height:34px; padding:0; font-size:15px; }   /* .btn.small's padding outranks .icon-btn */
 
   /* ---------- title ---------- */
   #scr-title .hero{ position:absolute; left:50%; top:50%; transform:translate(-50%, -54%); text-align:center; width:min(560px, 92vw); padding:34px 30px 28px; }
@@ -93,10 +94,9 @@
   .card .body{ padding:10px 12px 12px; }
   .card .name{ font-family:Fredoka, Nunito, ui-rounded, "Segoe UI", system-ui, sans-serif; font-weight:600; font-size:17px; line-height:1.15; }
   .card .meta{ display:flex; justify-content:space-between; align-items:center; margin-top:6px; color:var(--ink-3); font-size:12.5px; font-weight:800; }
-  /* difficulty tier (K3): Breeze → Mythic, "settling" until 20 plays */
+  /* difficulty tier (K3): Breeze → Mythic; an early estimate until 20 plays (said in the tooltip only) */
   .tier{ display:inline-block; padding:2px 8px; border-radius:999px; font-family:Nunito, ui-sans-serif, system-ui, sans-serif; font-size:11.5px; font-weight:800;
     color:#fff; background:#8d859b; white-space:nowrap; vertical-align:middle; letter-spacing:.2px; }
-  .tier i{ font-style:normal; font-weight:700; opacity:.85; }
   .tier.t-breeze{ background:#3fae86; } .tier.t-easy{ background:#4f93d6; } .tier.t-tricky{ background:#d99528; }
   .tier.t-hard{ background:#e0663a; } .tier.t-fiendish{ background:#c93f68; } .tier.t-mythic{ background:#7a4bd0; }
   .card .sky .tier{ position:absolute; left:8px; bottom:7px; max-width:calc(100% - 16px); overflow:hidden; text-overflow:ellipsis; box-shadow:0 2px 6px rgba(30,20,50,.18); }
@@ -154,7 +154,8 @@
   .keystrip .k.done{ opacity:.35; }
   .keystrip .k.now{ background:var(--accent); color:var(--accent-ink); transform:scale(1.18); }
   .dpad{ position:absolute; right:16px; bottom:max(80px, calc(env(safe-area-inset-bottom) + 74px)); display:none; grid-template-columns:repeat(3, 54px); grid-template-rows:repeat(3, 54px); gap:4px; }
-  .dpad button{ border-radius:16px; font-size:22px; font-weight:800; }
+  /* padding:0 + centred — same .btn padding squeeze as .icon-btn pushed the glyphs (and USE most) right */
+  .dpad button{ padding:0; justify-content:center; line-height:1; border-radius:16px; font-size:22px; font-weight:800; }
   .dpad .use{ font-size:12px; }
   @media (pointer:coarse){ .dpad{ display:grid; } .legend{ display:none; } }
 
@@ -270,7 +271,7 @@
   <section class="screen" id="scr-select">
     <div class="panel glass">
       <div class="panel-head">
-        <button class="btn small ghost" data-go="/">←</button>
+        <button class="btn small ghost icon-btn" data-go="/" title="Home">←</button>
         <h2>Choose an isle</h2>
         <button class="btn small primary" id="btnContinue">Continue ▶</button>
         <div class="tabs"><button data-tab="official" class="on">Official</button><button data-tab="community">Community</button></div>

@@ -457,7 +457,7 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
   stairs, size 3–14, theme chips, remix any official isle, two-way "Isle code" text, live
   verdict (60k states; Deep check 300k), Test, Share online, Export for GitHub, JSON import/export.
 - **Difficulty (Phase 1):** every card (official, community, online) and the in-game title show
-  a tier badge + score, "· settling" until 20 plays. Inputs: declared tier, else the audit (computed
+  a tier badge + score (tooltip: "early estimate" until 20 plays). Inputs: declared tier, else the audit (computed
   client-side for community isles, stored by the server for online shares), plus `GET /api/plays`
   (fetched at most once a minute). Play events go to `POST /api/plays` (fire-and-forget,
   `credentials:'omit'`): `start` = first real move of a visit or after a clear, `clear` with moves
