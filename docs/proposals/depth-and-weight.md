@@ -1,6 +1,6 @@
 # Proposal — Depth, difficulty and one new physics: **Weight**
 
-> Status: **accepted 2026-10-19 — see [§0 Decisions](#0-decisions-2026-10-19).** Phases 1–3 and K10 shipped (2026-10-19/20); Phase 4 (cozy hazards) in progress; Phase 5 (Confluence: Your Sky + Confluence isles, no new tiles) built 2026-10-23 — see ENGINEERING.md §11 and §13.
+> Status: **accepted 2026-10-19 — see [§0 Decisions](#0-decisions-2026-10-19).** Phases 1–5 and K10 shipped (2026-10-19/20/23; Phase 4 = cozy hazards + the Nightfall chapter; Phase 5 = Confluence: Your Sky + Confluence isles, no new tiles) — see ENGINEERING.md §11 and §13.
 > Every new tile here is a schema decision (CLAUDE.md rule 4). Written after the first
 > real-player feedback: *"not challenging enough, no new or novel mechanic."* Data from
 > `node tools/difficulty.mjs`; research sources at the end.

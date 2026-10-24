@@ -38,7 +38,7 @@ export class Session {
     while(this.queue.length && !this.won){
       const m = this.queue.shift();
       const r = step(this.level, this.state, m);
-      if(!r.ok){ await this.world.bonk(); continue; }
+      if(!r.ok){ if(r.bonk) this.hooks.onHazard && this.hooks.onHazard(r.bonk); await this.world.bonk(r.bonk); continue; }
       if(this.t0 == null && !this.won) this.t0 = performance.now();
       // effort sensing: only time spent actually moving counts (idle gaps > 20 s are ignored)
       const now = performance.now(), gap = this.lastMove ? (now - this.lastMove) / 1000 : 0;

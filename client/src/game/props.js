@@ -581,3 +581,42 @@ export function makeSeed(T){
   g.userData = { spin };
   return g;
 }
+
+/* ---------------- cozy hazards (Phase 4, K5) ---------------- */
+// A rolling boulder: round, mossy and a little sleepy — it bonks, it never hurts.
+// `spin` rolls; the face stays upright on `body`.
+export function makeBoulder(T){
+  const g = new THREE.Group(), body = new THREE.Group(); body.position.y = 0.36; g.add(body);
+  const spin = new THREE.Group(); body.add(spin);
+  const stone = mesh(new THREE.IcosahedronGeometry(0.36, 1), flat(T.rock)); spin.add(stone);
+  const moss = mesh(new THREE.TorusGeometry(0.33, 0.06, 6, 16), flat(T.leafAlt), false); moss.rotation.y = Math.PI / 2; spin.add(moss);
+  const ink = new THREE.MeshStandardMaterial({ color:'#1d1724', roughness:0.4 });
+  for(const s of [-1, 1]){ const lid = mesh(new THREE.CapsuleGeometry(0.018, 0.06, 3, 6), ink, false); lid.rotation.z = Math.PI / 2; lid.position.set(s * 0.1, 0.06, 0.33); body.add(lid); }
+  g.userData = { body, spin };
+  return g;
+}
+// A thorn sweeper: a round bramble with one long thorny arm along +Z (turned by the world).
+export function makeThorn(T, arm = 2){
+  const g = new THREE.Group();
+  const bush = flat(T.leaf), dark = flat(T.trunk), thornMat = flat('#f4e7c8');
+  for(const [x, y, z, s] of [[0, 0.3, 0, 0.32], [0.16, 0.22, 0.1, 0.2], [-0.15, 0.24, -0.08, 0.22]]){ const b = mesh(new THREE.IcosahedronGeometry(s, 0), bush); b.position.set(x, y, z); g.add(b); }
+  const pivot = new THREE.Group(); pivot.position.y = 0.42; g.add(pivot);
+  const len = arm + 0.25;
+  const stem = mesh(new THREE.CylinderGeometry(0.05, 0.07, len, 6), dark); stem.rotation.x = Math.PI / 2; stem.position.z = len / 2; pivot.add(stem);
+  for(let k = 0; k < arm * 4; k++){
+    const t = mesh(new THREE.ConeGeometry(0.035, 0.16, 4), thornMat, false);
+    const a = k * 2.1; t.position.set(Math.cos(a) * 0.07, Math.sin(a) * 0.07, 0.35 + k * (len - 0.4) / (arm * 4));
+    t.rotation.z = a - Math.PI / 2; pivot.add(t);                 // spikes point out from the stem
+  }
+  const bud = mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshStandardMaterial({ color:'#ff8fb1', emissive:'#ff6f9a', emissiveIntensity:0.3 }), false);
+  bud.position.z = len; pivot.add(bud);
+  g.userData = { pivot };
+  return g;
+}
+// Where a hazard will be after your next move: a soft pulsing ring on the tile.
+export function makeWarning(){
+  const m = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.4, 28),
+    new THREE.MeshBasicMaterial({ color:'#ff9a7a', transparent:true, opacity:0.55, depthWrite:false, side:THREE.DoubleSide }));
+  m.rotation.x = -Math.PI / 2; m.position.y = 0.03;
+  return m;
+}

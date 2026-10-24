@@ -181,6 +181,11 @@ t('daily: share text', dailyShareText({ no:42, moves:18, par:17, stars:2 }) === 
     const g = auditIsle(parseIsle(isle).level);
     t(`${isle.id}: gut call and audit agree within a tier (${isle.tier} vs ${provisionalTier(g).id})`, !g.capped && gutMismatch(isle.tier, g) === null);
   }
+  const night = CURATED_ISLES.filter(i => i.chapter === 'night');
+  for(const isle of night){
+    const g = auditIsle(parseIsle(isle).level);
+    t(`${isle.id}: gut call and audit agree within a tier (${isle.tier} vs ${provisionalTier(g).id})`, !g.capped && gutMismatch(isle.tier, g) === null);
+  }
   const daily6 = { schemaVersion:6, id:'daily-2026-10-21', name:'Vine Lift', theme:'jungle', storeys:map.storeys, par:6, solution:'RDLRRR', tier:'tricky' };
   t('daily: a v6 map passes', checkDailyIsle(daily6, { date:'2026-10-21' }).ok);
   t('daily: a map must say schemaVersion 6', !checkDailyIsle({ ...daily6, schemaVersion:5 }, { date:'2026-10-21' }).ok); }

@@ -30,7 +30,8 @@ export const MAP_SCHEMA = 6;                   // archipelago map: { storeys:[{ 
 export const SCHEMAS = [ISLE_SCHEMA, MAP_SCHEMA];
 export const MAX_W = 14, MAX_H = 14, MAX_LEVEL = 5, MAX_CRATES = 8, MAX_SEEDS = 3;
 export const MAX_STOREYS = 3, MAX_AT = 40, MAX_ALT = 24, STOREY_GAP = 8;
-export const THEMES = ['jungle', 'oasis', 'tropical', 'urban', 'mountain'];
+export const THEMES = ['jungle', 'oasis', 'tropical', 'urban', 'mountain', 'night'];
+export const MAX_CYCLE = 12, THORN_ARM = 2;     // cozy hazards (K5): the shared cycle a turn counter runs on
 
 // Which schema a document is written in: a map has "storeys", an isle has "rows".
 export const schemaOf = doc => doc && doc.storeys !== undefined ? MAP_SCHEMA : ISLE_SCHEMA;
@@ -72,6 +73,10 @@ export const TILES = {
   's': { kind:'vent', blow:'D', label:'Vent ↓', v6:true },
   'w': { kind:'vent', blow:'L', label:'Vent ←', v6:true },
   '+': { kind:'ground', seed:true, label:'Seed', v6:true },     // optional collectible, never part of the rules
+  // Cozy hazards (K5) — maps only. Turn-based and telegraphed; a hit bonks Pip and undoes the move.
+  'H': { kind:'ground', roll:'R', label:'Boulder ↔', v6:true },  // rolls east first, back and forth along its row
+  'I': { kind:'ground', roll:'D', label:'Boulder ↕', v6:true },  // rolls south first, back and forth along its column
+  'Y': { kind:'thorn', label:'Thorn sweeper', v6:true },        // a bush whose arm turns a quarter clockwise each move
   '-': { kind:'void',   label:'Empty' },
 };
 
@@ -79,7 +84,7 @@ export const MOVE_DIRS = { U:[0,-1], D:[0,1], L:[-1,0], R:[1,0] };
 export const OPP  = { U:'D', D:'U', L:'R', R:'L' };
 export const MOVES = ['U','D','L','R','X'];   // X = use (pull a lever you stand on)
 
-const TOKEN = /^([.,SG#T~*^v<>CoDL=_kKpqrabBPunesw+-])([0-5])?$/;
+const TOKEN = /^([.,SG#T~*^v<>CoDL=_kKpqrabBPunesw+HIY-])([0-5])?$/;
 const PAIRS = ['p', 'q', 'r'];
 
 export const ERR = {
@@ -102,6 +107,10 @@ export const ERR = {
   E_PAN_PLAIN:'a pan is plain ground — it cannot also be water, ice, a plate, a crate, a start, a goal or a key',
   E_SEEDS:`at most ${MAX_SEEDS} seeds`,
   E_GUSTS:'two gusts cross or overlap — each tile may be in at most one gust line',
+  E_CYCLE:`hazards must repeat within ${MAX_CYCLE} moves together — shorten a boulder lane (at most 7 tiles) or use fewer kinds`,
+  E_HAZARD_START:'Pip would start inside a hazard',
+  E_HAZARD_LANE:'two boulder lanes cross or share a tile',
+  E_HAZARD_PIECE:'a crate or buoy starts in a hazard’s path — move it off the boulder lane or thorn arm',
 };
 
 const validAt = at => Array.isArray(at) && at.length === 3 && at.every(Number.isInteger)
@@ -164,6 +173,7 @@ export function parseIsle(doc){
       if(t.kind === 'bridge') cell.on = t.on;
       if(t.flora) cell.flora = true;
       if(t.blow) cell.blow = t.blow;
+      if(t.roll) cell.roll = t.roll;
       if(t.pan){ cell.pan = t.pan; if(cell.h < 1 || cell.h > MAX_LEVEL - 1) fail('E_PAN_H', at); }
       cells[i] = cell;
     }
@@ -171,7 +181,7 @@ export function parseIsle(doc){
 
   const start = [], goals = [], crates = [], keys = [], plates = [],
         gates = [], doors = [], levers = [], bridges = [], portals = { p:[], q:[], r:[] }, pans = { a:[], b:[] },
-        buoys = [], posts = [], piles = [], vents = [], seeds = [];
+        buoys = [], posts = [], piles = [], vents = [], seeds = [], rollers = [], thorns = [];
   for(let i = 0; i < cells.length; i++){
     const c = cells[i], t = TILES[c.ch];
     if(t.start) start.push(i);
@@ -190,6 +200,8 @@ export function parseIsle(doc){
     if(t.kind === 'pile') piles.push(i);
     if(t.blow) vents.push(i);
     if(t.seed) seeds.push(i);
+    if(t.roll) rollers.push(i);
+    if(t.kind === 'thorn') thorns.push(i);
   }
   if(start.length !== 1) fail('E_START');
   if(!goals.length) fail('E_GOAL');
@@ -221,12 +233,55 @@ export function parseIsle(doc){
     gusts.push({ dir:cells[v].blow, cells:line });
   }
 
+  // Hazards (K5). A boulder's LANE is the run of same-height floor through its tile along
+  // its axis; it rolls one tile per move, bouncing at the ends (period 2·(len − 1)). A thorn's
+  // arm covers THORN_ARM tiles in one direction, starting north, turning clockwise (period 4).
+  // Their positions depend only on the turn number, so the state gains one counter mod CYCLE.
+  const LANE = ['ground', 'goal', 'plate', 'ice', 'lever', 'vent', 'post', 'pile'];
+  const hazards = [], zone = new Set();
+  const at = (x, z, k) => x >= 0 && z >= 0 && x < W && z < H && sid[z*W + x] === k ? z*W + x : -1;
+  for(const i of rollers){
+    const [dx, dz] = MOVE_DIRS[cells[i].roll], k = sid[i], h0 = cells[i].h, ok = j => j >= 0 && LANE.includes(cells[j].kind) && cells[j].h === h0;
+    let x = i % W, z = (i / W) | 0;
+    while(ok(at(x - dx, z - dz, k))){ x -= dx; z -= dz; }
+    const lane = [];
+    for(let j = at(x, z, k); ok(j); x += dx, z += dz, j = at(x, z, k)) lane.push(j);
+    hazards.push({ kind:'boulder', at:i, lane, from:lane.indexOf(i), period:Math.max(1, 2 * (lane.length - 1)) });
+  }
+  for(const i of thorns){
+    const k = sid[i], x = i % W, z = (i / W) | 0;
+    const arms = ['U', 'R', 'D', 'L'].map(d => { const out = []; for(let r = 1; r <= THORN_ARM; r++){ const j = at(x + MOVE_DIRS[d][0] * r, z + MOVE_DIRS[d][1] * r, k); if(j >= 0) out.push(j); } return out; });
+    hazards.push({ kind:'thorn', at:i, arms, period:4 });
+  }
+  const gcd = (a, b) => b ? gcd(b, a % b) : a, cycle = hazards.reduce((c, hz) => c / gcd(c, hz.period) * hz.period, 1);
+  if(cycle > MAX_CYCLE) fail('E_CYCLE');
+  const lanes = new Set();
+  for(const hz of hazards) for(const j of hz.kind === 'boulder' ? hz.lane : hz.arms.flat()){
+    if(hz.kind === 'boulder'){ if(lanes.has(j)) fail('E_HAZARD_LANE'); lanes.add(j); }
+    zone.add(j);
+  }
+  for(const j of [...crates, ...buoys]) if(zone.has(j)) fail('E_HAZARD_PIECE', cellAt(storeys, sid, W, j, map));
+
   const level = { w:W, h:H, theme, cells, start:start[0], goals, crates, keys, plates,
                   gates, doors, levers, bridges, twin, buoys, posts, piles, seeds, gusts, inGust,
+                  hazards, hazardZone:zone, cycle,
                   pans: pans.a.length && pans.b.length ? pans : null,
                   storeys: storeys.map(({ w, h, at, x0 }) => ({ w, h, at, x0 })), sid,
                   name: String(doc.name || 'Untitled isle').slice(0, 60) };
+  if(hazards.length && hazardCellsAt(level, 0).includes(level.start)) fail('E_HAZARD_START');
   return { ok: errors.length === 0, errors, level };
+}
+
+// Every tile a hazard covers at turn t (positions are a pure function of t).
+export function hazardCellsAt(level, t){
+  const out = [];
+  for(const hz of level.hazards || []){
+    if(hz.kind === 'boulder'){
+      const n = hz.lane.length, u = hz.period > 1 ? (hz.from + t) % hz.period : 0;
+      out.push(hz.lane[n > 1 ? (u < n ? u : hz.period - u) : 0]);
+    } else out.push(...hz.arms[t % 4]);
+  }
+  return out;
 }
 
 // Error position [x, z(, storey)] of flattened cell i.

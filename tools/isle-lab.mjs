@@ -25,7 +25,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CURATED_ISLES, MOVES, parseIsle, cellPlace, isleHash, initialState, step, stateKey, simulate,
          solveIsle, solveSeeds, auditIsle, provisionalTier, tierById, harderHints, gutMismatch, mechanicsUsed,
-         checkCommunityIsle, checkDailyIsle, bridgeUp, gatesOpen, panTilt, heightAt } from '../core/src/isle/index.js';
+         checkCommunityIsle, checkDailyIsle, bridgeUp, gatesOpen, panTilt, heightAt, hazardCellsAt } from '../core/src/isle/index.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BUDGET = 300000;
@@ -211,9 +211,11 @@ function nearest(n = 5){
 
 /* ---------------- text frames ---------------- */
 // One two-character token per tile: the tile (current form) + its current height.
-// @ Pip   C crate   F filled water / sunk crate   d open gate   K closed door   = up bridge   _ down bridge
+// @ Pip   ! hazard this beat   C crate   u buoy   F filled water / sunk crate   d open gate
+// K closed door   = up bridge   _ down bridge
 function frame(s){
   const tilt = panTilt(level, s), open = gatesOpen(level, s), lines = [];
+  const hz = new Set(level.hazards.length ? hazardCellsAt(level, s.t) : []);
   level.storeys.forEach((st, k) => {
     if(multi) lines.push(`storey ${k} at [${st.at.join(', ')}]`);
     lines.push('    ' + Array.from({ length:st.w }, (_, x) => String(x).padEnd(3)).join(''));
@@ -228,9 +230,11 @@ function frame(s){
         if(c.kind === 'door') ch = s.opened.includes(i) ? '.' : 'K';
         if(level.keys.includes(i)) ch = s.got.includes(i) ? '.' : 'k';
         if(c.ch === 'S') ch = '.';
-        if(c.ch === 'C') ch = '.';
+        if(c.ch === 'C' || c.ch === 'u' || c.ch === 'H' || c.ch === 'I') ch = '.';
         if(s.filled.includes(i)) ch = 'F';
+        if(hz.has(i)) ch = '!';
         if(s.crates.includes(i)) ch = 'C';
+        if(s.buoys.includes(i)) ch = 'u';
         if(s.p === i) ch = '@';
         const hh = heightAt(level, i, tilt);
         row += (ch + (hh ? hh : ' ')).padEnd(3);
@@ -245,10 +249,10 @@ function replay(moves){
   const out = ['start\n' + frame(s)];
   for(let k = 0; k < moves.length; k++){
     const r = step(level, s, moves[k]);
-    if(!r.ok){ out.push(`move ${k + 1} ${moves[k]}: BLOCKED`); break; }
+    if(!r.ok){ out.push(`move ${k + 1} ${moves[k]}: ${r.bonk ? 'BONK (a hazard is there next beat)' : 'BLOCKED'}`); break; }
     s = r.state;
-    const ev = r.events.filter(e => e.t !== 'walk').map(e => e.t).join(' ');
-    out.push(`move ${k + 1} ${moves[k]}${ev ? '  · ' + ev : ''}\n` + frame(s));
+    const ev = r.events.filter(e => e.t !== 'walk' && e.t !== 'hazard').map(e => e.t).join(' ');
+    out.push(`move ${k + 1} ${moves[k]}${ev ? '  · ' + ev : ''}${level.hazards.length ? `  (beat ${s.t})` : ''}\n` + frame(s));
     if(r.won){ out.push('WON'); break; }
   }
   return out.join('\n\n');

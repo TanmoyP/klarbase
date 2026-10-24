@@ -139,6 +139,10 @@ export class Pip {
     await this.tween(0.26, p => { this.body.scale.setScalar(Math.max(0.001, easeOutBack(p))); this.body.rotation.y = (1 - p) * -6; });
     this.body.rotation.y = 0; this.body.scale.setScalar(1);
   }
+  // A thorn arm swings overhead: squash down flat, then pop back up.
+  duck(dur = 0.24){
+    return this.tween(dur, p => { const k = Math.sin(p * Math.PI); this.body.scale.set(1 + 0.25 * k, 1 - 0.5 * k, 1 + 0.25 * k); });
+  }
   bonk(){
     return this.tween(0.22, p => { this.body.rotation.x = Math.sin(p * Math.PI * 3) * 0.18 * (1 - p); this.body.scale.set(1 + 0.06 * Math.sin(p * Math.PI), 1 - 0.08 * Math.sin(p * Math.PI), 1); });
   }

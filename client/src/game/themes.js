@@ -67,6 +67,20 @@ export const THEMES = {
     prop:'pine', particles:'snow', critter:'bird',
     chord:[164.81, 196.00, 246.94], scale:[164.81, 196.00, 220.00, 246.94, 293.66],
   },
+  // Phase 4 (K5): mood without gore — moonlight, fireflies, pale moths.
+  night: {
+    label:'Night', chapter:'Nightfall', blurb:'Moonlit isles, rolling boulders and thorny sweepers — cozy, never cruel.',
+    sky:['#070b24', '#22306a', '#4a4486'], fog:'#26306a',
+    sun:{ color:'#c3d0ff', intensity:1.7, dir:[-0.4, 1, 0.35] },
+    hemi:{ sky:'#9aa8ff', ground:'#1a1838', intensity:0.95 },
+    top:'#46806a', topAlt:'#518c74', lip:'#3a6a58', strata:['#5a5280', '#4a446c', '#3b3657'], keel:'#2a2540',
+    water:'#4a7fe0', waterDeep:'#24479a', ice:'#c4dcff',
+    rock:'#6a7096', rockTop:'#5a8a74', crystal:'#a8dcff', accent:'#ffd27a',
+    wood:'#86634a', woodDark:'#563f2d', metal:'#d8c690',
+    flora:['#ffe9a8', '#c2b2ff', '#9fe8ff', '#ffffff'], leaf:'#2f6450', leafAlt:'#3d7862', trunk:'#563f2d',
+    prop:'broadleaf', particles:'fireflies', critter:'butterfly',
+    chord:[146.83, 174.61, 220.00], scale:[146.83, 174.61, 196.00, 220.00, 261.63],
+  },
 };
 
 export const PORTAL_COLORS = { p:'#4ff0ff', q:'#ff72d8', r:'#a6ff5c' };   // r = arch C (maps only)

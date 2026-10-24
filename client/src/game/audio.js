@@ -65,6 +65,10 @@ export const sfx = {
   glide:() => { noise({ dur:0.5, gain:0.035, freq:900, sweep:500, type:'lowpass' }); tone(note(7) * 2, { dur:0.45, type:'sine', gain:0.03, to:note(2) * 2 }); },
   gust:() => { noise({ dur:0.45, gain:0.05, freq:1400, sweep:600 }); },
   float:() => { tone(330, { dur:0.2, gain:0.05, to:440 }); for(let i = 0; i < 3; i++) tone(900 + i * 200, { dur:0.04, gain:0.02, at:0.08 + i * 0.05 }); },
+  // cozy hazards
+  roll:() => { noise({ dur:0.22, gain:0.03, freq:250, type:'lowpass' }); tone(70, { dur:0.2, gain:0.05, to:60 }); },
+  thorn:() => { noise({ dur:0.12, gain:0.05, freq:3200 }); tone(520, { dur:0.1, type:'triangle', gain:0.04, to:380 }); },
+  wait:() => { tone(note(2) * 2, { dur:0.12, type:'sine', gain:0.035 }); },
   seed:() => { [7, 9, 12].forEach((n, i) => tone(note(n) * 2, { dur:0.18, type:'triangle', gain:0.04, at:i * 0.05 })); },
   undo:() => { tone(note(3) * 2, { dur:0.08, type:'sine', gain:0.04, to:note(1) * 2 }); },
   ui:() => { tone(note(5) * 2, { dur:0.06, type:'triangle', gain:0.035 }); },

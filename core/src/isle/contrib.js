@@ -18,13 +18,13 @@ export const CONTRIB = {
   AUTHOR: /^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/,   // a GitHub login
   NAME: /^[\p{L}\p{N}][\p{L}\p{N} '’&.,!?:-]{1,38}[\p{L}\p{N}!?.]$/u,
   // events that count as a real mechanic (plain flat walking does not)
-  MECHANICS: ['walk:ramp', 'walk:down', 'push', 'sink', 'slide', 'cslide', 'tp', 'toggle', 'fall', 'key', 'door', 'gate', 'scales', 'gateway', 'glide', 'gust', 'float', 'take', 'drop', 'release'],
+  MECHANICS: ['walk:ramp', 'walk:down', 'push', 'sink', 'slide', 'cslide', 'tp', 'toggle', 'fall', 'key', 'door', 'gate', 'scales', 'gateway', 'glide', 'gust', 'float', 'take', 'drop', 'release', 'hazard', 'wait'],
 };
 
 const cleanText = (s, max) => typeof s === 'string' && s.length <= max && !/[\u0000-\u001f]/.test(s) && !/https?:|www\./i.test(s);
 
 // The mechanic an engine event stands for (an arch ride between storeys is a gateway).
-export const eventMechanic = e => e.t === 'walk' ? 'walk:' + e.kind : e.t === 'tp' && e.gateway ? 'gateway' : e.t;
+export const eventMechanic = e => e.t === 'walk' ? 'walk:' + e.kind : e.t === 'tp' && e.gateway ? 'gateway' : e.t === 'hazard' && !e.near ? 'beat' : e.t;
 
 // Which mechanics a move string actually exercises.
 export function mechanicsUsed(level, moves){
@@ -106,7 +106,7 @@ function checkIsleFile(doc, { existing = new Map(), bytes = 0 } = {}, spec = CON
   else if(sim.applied !== doc.solution.length) err('solution has extra moves after the goal is reached');
   else if(doc.solution.length !== r.par) err(`solution is ${doc.solution.length} moves but par is ${r.par} — submit a shortest solution (e.g. "${r.solution}")`);
   report.mechanics = mechanicsUsed(level, sim.won ? doc.solution : r.solution);
-  if(!report.mechanics.length) err('the solution is plain flat walking — use at least one mechanic (ramps, ledges, crates, ice, plates, levers, keys, portals, gateways, scales, balloons, stones, buoys or gusts)');
+  if(!report.mechanics.length) err('the solution is plain flat walking — use at least one mechanic (ramps, ledges, crates, ice, plates, levers, keys, portals, gateways, scales, balloons, stones, buoys, gusts or hazards)');
   return { ok:errors.length === 0, errors, report };
 }
 

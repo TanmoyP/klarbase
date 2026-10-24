@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 6,
+  "id": "needles-eye",
+  "name": "Needle’s Eye",
+  "theme": "night",
+  "tier": "fiendish",
+  "hint": "Neither the boulder’s lane nor the thorn’s reach will take a crate. Find the one gap between them.",
+  "storeys": [
+    {
+      "rows": [
+        "- - . . - . . . -",
+        "- - , C , . . . .",
+        "H . . . . # . - .",
+        "- - . . , . . . .",
+        "S , . o ~ - - Y .",
+        "- ~ . . . . . . .",
+        "- - - D - - - - -",
+        "- - - G - - - - -"
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "par": 30,
+  "solution": "RRUUURRRURDDURRDDLLLLULDLDDRDD"
+}

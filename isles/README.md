@@ -48,10 +48,14 @@ Each token is **one tile character + an optional height digit** (`0`–`5`, defa
 | `u` | buoy (maps only) — a crate on a balloon, weight −1 |
 | `n` `e` `s` `w` | gust vent blowing north / east / south / west (maps only) |
 | `+` | seed (maps only) — optional collectible, at most 3 |
+| `H` | boulder rolling ↔ (maps only) — east first, back and forth along its lane |
+| `I` | boulder rolling ↕ (maps only) — south first, back and forth along its lane |
+| `Y` | thorn sweeper (maps only) — a solid bush whose arm turns a quarter clockwise each move |
 | `-` | empty sky (no tile) |
 
 Moves in a `solution`: `U` `D` `L` `R` = north / south / west / east, `X` = use (a lever, a
-balloon post, a stone pile, or letting a balloon go).
+balloon post, a stone pile, or letting a balloon go — and on an isle with hazards, Use with
+nothing to use **waits a beat**).
 
 ## Archipelago maps (schemaVersion 6)
 
@@ -75,7 +79,7 @@ that share map tiles must be at least **8 levels** apart so the lower one stays 
 - Movement never crosses a storey's edge. The only way between storeys is a **gateway**:
   an arch pair (`p`, `q` or `r`) whose two arches stand on different storeys. A pair on
   one storey is an ordinary arch. Crates never ride arches, so they never change storey.
-- Pans (`a`, `b`), arch C (`r`) and the Weight II tiles (`B P u n e s w +`) exist only in maps. A one-storey map at `[0, 0, 0]` is
+- Pans (`a`, `b`), arch C (`r`), the Weight II tiles (`B P u n e s w +`) and the hazards (`H I Y`) exist only in maps. A one-storey map at `[0, 0, 0]` is
   fine when you want scales on a single isle.
 - A v5 isle (`"rows"`) is valid forever and keeps its exact content hash.
 - A pan is plain ground: one token can't be a pan and water, ice, a plate, a crate, a
@@ -150,6 +154,25 @@ back (a stone goes back only on a pile). Use anywhere else while holding a ballo
   wind *into* the wind needs weight 2 (a stone).
 - **Seeds** are optional: they never change the rules or par. The game also shows a *seed par* —
   the shortest clear that picks every seed.
+
+**Cozy hazards** (maps only). Every move is one **beat**; on each beat every boulder rolls one
+tile and every thorn arm turns a quarter. Their timing never depends on what you do, and the
+game rings every tile a hazard will cover after your next move.
+
+- **Boulder** (`H` ↔, `I` ↕): its **lane** is the straight run of same-height floor through its
+  tile (ground, flowers, goal, plate, ice, lever, vent, post, pile, seed — stopped by anything
+  else, a height change or the edge). It rolls east (`H`) or south (`I`) first and bounces at the
+  ends: a lane of *n* tiles repeats every 2·(*n* − 1) beats. Lanes may not cross (`E_HAZARD_LANE`).
+- **Thorn sweeper** (`Y`): the bush is solid. Its arm reaches **two tiles** straight out — north
+  first, then east, south, west, one quarter per beat (repeats every 4). The tiles between two
+  arms (the diagonals) are never touched.
+- **Bonk:** if after a move a hazard covers your tile — or you and a boulder swap tiles — Pip
+  bonks and the move is **undone**: it doesn't count, nothing else moved.
+- **Wait:** Use (`X`, Space) with nothing to use spends a beat standing still.
+- Crates and buoys never enter a hazard's tiles (a lane or any tile an arm can reach), and none
+  may start on one (`E_HAZARD_PIECE`). Pip may not start where a hazard is (`E_HAZARD_START`).
+- **Cycle limit:** all hazards on an isle must repeat together within **12 beats**
+  (`E_CYCLE`): boulder lanes of 2–7 tiles, and with a thorn on the isle, lanes of 2, 3, 4, 5 or 7.
 
 These rules are implemented once, in `core/src/isle/rules.js`, and used by the game, the
 solver, the PR checks and the server.

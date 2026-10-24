@@ -17,6 +17,7 @@ export const FAMILIES = {
   mountain: ['slide', 'cslide'],
   gardens:  ['scales', 'gateway'],
   windward: ['glide', 'gust', 'float', 'take', 'drop', 'release'],
+  night:    ['wait', 'hazard'],
 };
 
 const chapterKey = c => c.id || c.theme;

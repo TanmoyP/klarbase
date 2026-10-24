@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 6,
+  "id": "lever-lane",
+  "name": "Lever Lane",
+  "theme": "night",
+  "tier": "tricky",
+  "hint": "Pulling a lever takes a beat — and the boulder doesn’t wait.",
+  "storeys": [
+    {
+      "rows": [
+        ".1 .1 ,1 - - G -",
+        "S1 - ,1 - - _ -",
+        ",1 .1 - - # . -",
+        "- H . L . . -",
+        "- - - . - , -"
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "par": 13,
+  "solution": "DRDRRDUXRRUUU"
+}

@@ -6,7 +6,7 @@ import {
   parseIsle, solveIsle, simulate, step, initialState, starsFor,
   canonicalIsle, isleHash, CURATED_ISLES, CHAPTERS, MAX_W,
   checkCommunityIsle, toCommunityFile,
-  panTilt, heightAt, stateKey, mechanicsUsed, eventMechanic, neighbor, cellPlace, solveSeeds, seedsTouched,
+  panTilt, heightAt, stateKey, mechanicsUsed, eventMechanic, neighbor, cellPlace, solveSeeds, seedsTouched, hazardCellsAt,
 } from '../src/isle/index.js';
 import { sha256hex, stableStringify } from '../src/schema.js';
 import fs from 'node:fs';
@@ -250,6 +250,62 @@ t('E_GUSTS: crossing gust lines', code({ storeys:[{ rows:['S . s .', 'e . . .', 
   t('seed par: the shortest route through every seed', sp.solvable && sp.par === 5);
   t('seedsTouched reports a seed stood on', seedsTouched(lv, step(lv, initialState(lv), 'D')).length === 0 && seedsTouched(lv, step(lv, { ...initialState(lv), p:lv.w }, 'R')).length === 1); }
 t('no seeds -> no seed par', solveSeeds(L(['S . G'])) === null);
+
+/* ---------------- cozy hazards (Phase 4, K5) ---------------- */
+t('E_V6: boulders need a map', code({ rows:['S H . G'] }, 'E_V6'));
+t('E_V6: thorns need a map', code({ rows:['S Y . G'] }, 'E_V6'));
+t('night theme is a theme', parseIsle({ theme:'night', rows:['S . G'] }).ok);
+t('E_CYCLE: periods 6 and 8 never line up within 12', code({ storeys:[{ rows:['S . . . . . G', 'H . . . - - -', '- - - - - - -', 'H . . . . - -'], at:[0, 0, 0] }] }, 'E_CYCLE'));
+t('E_HAZARD_START: Pip may not start in a hazard', code({ storeys:[{ rows:['. . . G', '. Y . .', '. S . .'], at:[0, 0, 0] }] }, 'E_HAZARD_START') === false
+  && code({ storeys:[{ rows:['. S . G', '. Y . .', '. . . .'], at:[0, 0, 0] }] }, 'E_HAZARD_START'));
+t('E_HAZARD_PIECE: a crate may not start on a boulder lane or thorn arm', code({ storeys:[{ rows:['S . . G', 'H . C .'], at:[0, 0, 0] }] }, 'E_HAZARD_PIECE')
+  && code({ storeys:[{ rows:['S . . G', '. Y C .'], at:[0, 0, 0] }] }, 'E_HAZARD_PIECE') && !code({ storeys:[{ rows:['S C . G', 'H . . .'], at:[0, 0, 0] }] }, 'E_HAZARD_PIECE'));
+{ const far = M1(['S . . . G', '- - - - -', '- - - - -', 'H . . - -']);   // a boulder nowhere near the route
+  t('a far-off hazard is not a mechanic', !mechanicsUsed(far, 'RRRR').includes('hazard'));
+  const near = M1(['S . . G', 'H . . .']);   // Pip (1,0) above the boulder at (1,1)
+  t('passing beside a hazard is', mechanicsUsed(near, 'R').includes('hazard')); }
+t('E_HAZARD_LANE: crossing boulder lanes', code({ storeys:[{ rows:['S . I . G', 'H . . . .', '. . . . .'], at:[0, 0, 0] }] }, 'E_HAZARD_LANE'));
+{ const lv = M1(['S . . . G', 'H . . . -']);   // lane (0,1)…(3,1), period 6
+  const b = lv.hazards[0], at = tt => hazardCellsAt(lv, tt)[0] - lv.w;
+  t('boulder lane runs the same-height floor through its tile', b.lane.length === 4 && b.period === 6 && lv.cycle === 6);
+  t('boulder rolls east, bounces, rolls back', [0, 1, 2, 3, 4, 5, 6].map(at).join() === '0,1,2,3,2,1,0');
+  const cl = M1(['. S . G', '. C . .', 'H . . .']);
+  t('crates never enter a hazard tile', !step(cl, initialState(cl), 'D').ok && step(M1(['. S . G', '. C . .', '. . . .']), initialState(M1(['. S . G', '. C . .', '. . . .'])), 'D').ok); }
+{ const lv = M1(['S . . G', '. H . .']);        // boulder (1,1) → (2,1) at t1, (3,1) t2 …
+  const r = step(lv, initialState(lv), 'D');      // Pip to (0,1): boulder moves away east — fine
+  t('a hazard moving away is no hit', r.ok && r.state.t === 1 && r.events.some(e => e.t === 'hazard'));
+  const s1 = step(lv, initialState(lv), 'R').state;   // Pip (1,0); t1 boulder at (2,1)
+  const hit = step(lv, s1, 'R');                       // Pip → (2,0)? not the lane — fine
+  t('walking beside the lane is safe', hit.ok);
+  const lv2 = M1(['S . . G', '. . . .', 'H . . .']);
+  const into = step(lv2, { ...initialState(lv2), p:lv2.w * 1 + 1 }, 'D');   // Pip (1,1) → (1,2) while boulder (0,2) → (1,2)
+  t('stepping into the boulder\'s next tile bonks and undoes the move', !into.ok && into.bonk && into.bonk.at === lv2.w * 2 + 1);
+  const swap = step(lv2, { ...initialState(lv2), p:lv2.w * 2 + 1 }, 'L');   // Pip (1,2) → (0,2) while boulder (0,2) → (1,2)
+  t('swapping tiles with a hazard bonks too', !swap.ok && swap.bonk); }
+{ const lv = M1(['S . . G', '. . . .', 'H . . .']);
+  const w = step(lv, initialState(lv), 'X');
+  t('Use with nothing to use waits a beat on a hazard isle', w.ok && w.state.p === lv.start && w.state.t === 1 && w.events.some(e => e.t === 'wait'));
+  t('the turn counter is part of the state', stateKey(w.state) !== stateKey(initialState(lv)));
+  t('waiting counts as a mechanic', mechanicsUsed(lv, 'X').includes('wait')); }
+{ const lv = M1(['. . . G', '. Y . .', 'S . . .']);   // thorn at (1,1): arm N (1,0)(—), E (2,1)(3,1), S (1,2), W (0,1)
+  t('thorn arm starts north and turns clockwise', hazardCellsAt(lv, 0).join() === [1].join() && hazardCellsAt(lv, 1).join() === [lv.w + 2, lv.w + 3].join() && hazardCellsAt(lv, 2).join() === [lv.w * 2 + 1].join() && hazardCellsAt(lv, 3).join() === [lv.w].join());
+  t('thorn bush is solid', !step(lv, { ...initialState(lv), p:lv.w * 2 + 1 }, 'U').ok);
+  const r = solveIsle(lv);
+  t('the solver times its way past a thorn', r.solvable && simulate(lv, r.solution).won); }
+{ // a crossing that only works on the right beat: wait, then go
+  const lv = M1(['S  .  -', '-  .  -', 'H  .  .', '-  .  -', '-  G  -']);
+  const r = solveIsle(lv);
+  t('timing: the shortest route waits for the boulder', r.solvable && r.solution.includes('X') && !simulate(lv, 'RDDDD').won); }
+
+// Nightfall: every isle's hazards are load-bearing — take the boulders off (H/I -> ground) and the
+// thorns' arms off (Y -> rock) and the stripped isle's shortest route must bonk on the real one.
+{ const night = CURATED_ISLES.filter(i => i.chapter === 'night');
+  const strip = d => ({ ...d, storeys:d.storeys.map(st => ({ ...st, rows:st.rows.map(r => r.trim().split(/\s+/).map(tk => /^[HI]/.test(tk) ? '.' + tk.slice(1) : tk[0] === 'Y' ? '#' + tk.slice(1) : tk).join(' ')) })) });
+  t('Nightfall: six hazard maps', night.length === 6 && night.every(i => Array.isArray(i.storeys) && parseIsle(i).level.hazards.length));
+  for(const isle of night){
+    const lv = parseIsle(isle).level, bare = solveIsle(parseIsle(strip(isle)).level);
+    t(`${isle.id}: hazards are load-bearing`, bare.solvable && !simulate(lv, bare.solution).won);
+  } }
 
 /* ---------------- hash stability: v5 isles keep their identity forever ---------------- */
 const FROZEN = {

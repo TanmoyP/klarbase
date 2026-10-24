@@ -16,10 +16,11 @@ const TOOLS = [
   ['G', '⭐', 'Goal'], ['-', '✕', 'Erase'], ['^+', '▲', 'Raise'], ['^h', '▼', 'Lower'],
   ['a', '⚖', 'Pan A'], ['b', '⚖', 'Pan B'], ['r', '⛩', 'Arch C'],     // maps only (schemaVersion 6)
   ['B', '🎈', 'Balloon'], ['P', '🥌', 'Stones'], ['u', '🛟', 'Buoy'], ['vent', '⇑', 'Vent'], ['+', '🌱', 'Seed'],   // Weight II (maps only)
+  ['H', '🪨', 'Boulder ↔'], ['I', '🪨', 'Boulder ↕'], ['Y', '🌵', 'Thorns'],   // cozy hazards (maps only)
 ];
 const RAMP_DIRS = ['^', '>', 'v', '<'], RAMP_ARROW = { '^':'⬆', '>':'➡', 'v':'⬇', '<':'⬅' };
 const VENT_DIRS = ['n', 'e', 's', 'w'], VENT_ARROW = { n:'⇑', e:'⇒', s:'⇓', w:'⇐' };
-const GLYPH = { ',':'🌼', '#':'🪨', 'T':'🌳', 'C':'📦', 'o':'◎', 'D':'▥', 'L':'🕹', '=':'═', '_':'┄', 'k':'🔑', 'K':'🚪', 'p':'⛩', 'q':'⛩', 'r':'⛩', 'S':'🐣', 'G':'⭐', '*':'', 'a':'A', 'b':'B', 'B':'🎈', 'P':'🥌', 'u':'🛟', '+':'🌱' };
+const GLYPH = { ',':'🌼', '#':'🪨', 'T':'🌳', 'C':'📦', 'o':'◎', 'D':'▥', 'L':'🕹', '=':'═', '_':'┄', 'k':'🔑', 'K':'🚪', 'p':'⛩', 'q':'⛩', 'r':'⛩', 'S':'🐣', 'G':'⭐', '*':'', 'a':'A', 'b':'B', 'B':'🎈', 'P':'🥌', 'u':'🛟', '+':'🌱', 'H':'↔', 'I':'↕', 'Y':'🌵' };
 const store = { get:(k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set:(k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
 const template = () => ({ name:'My isle', theme:'jungle', rows:[

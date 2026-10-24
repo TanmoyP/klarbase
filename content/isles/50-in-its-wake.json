@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 6,
+  "id": "in-its-wake",
+  "name": "In Its Wake",
+  "theme": "night",
+  "tier": "tricky",
+  "hint": "Follow the boulder closely — and find a nook before it comes back.",
+  "storeys": [
+    {
+      "rows": [
+        "S2 .2 .2 - - ,1 - -",
+        "- - H1 .1 .1 .1 .1 .1",
+        "- - - - . - - .",
+        "- - - - - - - G"
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "par": 12,
+  "solution": "RRDRRRUDRRDD"
+}
