@@ -27,6 +27,11 @@ const template = () => ({ name:'My isle', theme:'jungle', rows:[
   '-  .  .  G  .  .  -', '.  .  .  .  .  .  .', '.  .  ,  .  T  .  .', '.  .  .  .  .  .  .',
   '.  T  .  .  .  ,  .', '.  .  .  .  .  .  .', '-  .  .  S  .  .  -' ] });
 
+// "Propose on GitHub" prefills the isle into a URL. Real isles land ~2k chars, a
+// maxed 3-storey map ~6k; GitHub refuses request lines near 8 KB, so past this
+// the file downloads instead.
+const MAX_GITHUB_URL = 7500;
+
 export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, communityHashes, canSeeSolutions = () => false }){
   const root = document.getElementById('builderPanel');
   let draft = store.get('klarbase.v2.draft', null) || template();
@@ -73,7 +78,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     <div class="field"><label>Contribute to the official repo</label>
       <input id="bAuthor" placeholder="your GitHub username">
       <div class="row-btns" style="margin-top:6px">
-        <button class="btn small" id="bGithub">⤓ Export for GitHub</button>
+        <button class="btn small" id="bGithub">⇪ Propose on GitHub</button>
         <button class="btn small ghost" id="bExport">⤓ JSON</button>
         <button class="btn small ghost" id="bImport">⤒ Import</button>
       </div>
@@ -250,10 +255,20 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     const existing = new Map([...CURATED_ISLES.map(i => [isleHash(i), `official isle “${i.name}”`]), ...communityHashes()]);
     const v = checkCommunityIsle(file, { existing });
     if(!v.ok){ note.innerHTML = '<b>Not ready yet — the repo checks would reject it:</b><br>• ' + v.errors.map(esc).join('<br>• '); return; }
-    download(`${file.id}.json`, JSON.stringify(file, null, 2) + '\n');
-    note.innerHTML = `✓ Passes every check (par ${file.par}, uses ${v.report.mechanics.join(', ')}).<br>
-      Add it to <code>isles/community/${esc(author)}/${file.id}.json</code> and open a pull request —
-      <a href="${repoUrl}/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">how to contribute</a>.`;
+    const text = JSON.stringify(file, null, 2) + '\n', path = `isles/community/${author}/${file.id}.json`;
+    const passed = `✓ Passes every check (par ${file.par}, uses ${v.report.mechanics.join(', ')}).<br>`;
+    const how = `<a href="${repoUrl}/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">how to contribute</a>`;
+    // GitHub's new-file page prefills from the URL, signs the player in, forks for
+    // non-collaborators and opens the PR — no OAuth on our side.
+    const url = `${repoUrl}/new/main/isles/community/${author}?filename=${file.id}.json&value=${encodeURIComponent(text)}`;
+    if(url.length <= MAX_GITHUB_URL){
+      note.innerHTML = passed + `<a class="btn small primary" style="text-decoration:none" href="${esc(url)}" target="_blank" rel="noopener">⇪ Open the pull request on GitHub</a><br>
+        It opens <code>${esc(path)}</code> prefilled — sign in, then “Commit changes…” → “Propose changes” → “Create pull request” (${how}).`;
+      return;
+    }
+    download(`${file.id}.json`, text);
+    note.innerHTML = passed + `Too big to prefill on GitHub, so it downloaded instead.
+      Add it to <code>${esc(path)}</code> and open a pull request — ${how}.`;
   };
   $('#bExport').onclick = () => download(`${(draft.name || 'isle').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`,
     JSON.stringify(docOf(), null, 2) + '\n');

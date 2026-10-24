@@ -335,7 +335,7 @@ function selectScreen(which){
   } else {
     list.innerHTML = `<div class="chapter"><div class="chapter-head"><h3>Made by players</h3><span>merged on GitHub · every one checked solvable</span></div>
       <div class="grid">${community.map(e => cardHtml(e)).join('') || '<div class="empty">No community isles yet — yours could be first.</div>'}</div>
-      <p class="note" style="margin-top:14px">Build an isle in <a href="/create" data-go="/create">Create</a>, press <b>Export for GitHub</b>, and open a pull request.
+      <p class="note" style="margin-top:14px">Build an isle in <a href="/create" data-go="/create">Create</a>, press <b>Propose on GitHub</b>, and GitHub opens the pull request for you.
         Automated checks make sure it's solvable and fair, and you're credited by name. <a href="${REPO_URL}/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing guide →</a></p></div>
       ${pastDailies().length ? `<div class="chapter"><div class="chapter-head"><h3>Past Daily Isles</h3><span>hand-made for one day · still here to play</span></div>
         <div class="grid">${pastDailies().map(e => cardHtml(e, '#' + dailyNumber(e.date, DAILY_EPOCH_DATE))).join('')}</div></div>` : ''}

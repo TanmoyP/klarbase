@@ -6,7 +6,7 @@
 - **The idea in one line:** <!-- what's the "aha"? -->
 
 - [ ] My file is at `isles/community/<my-github-username>/<id>.json`
-- [ ] I ran `node tools/check-isles.mjs` (or used **Export for GitHub**) and it passed
+- [ ] I ran `node tools/check-isles.mjs` (or used **Propose on GitHub**) and it passed
 - [ ] This isle is my own work
 
 ### 🛠️ Code change

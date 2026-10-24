@@ -1,5 +1,5 @@
 // @klar/core — community isle rules. The SAME checks run in three places:
-// the in-game "Export for GitHub" button, `node tools/check-isles.mjs`, and the
+// the in-game "Propose on GitHub" button, `node tools/check-isles.mjs`, and the
 // required CI check on every pull request. If a stranger's isle passes here,
 // it is valid, solvable, uses real mechanics, is credited, and is unique.
 // Pure: data in, verdict out. No contributor code is ever executed.
