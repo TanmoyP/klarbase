@@ -1,0 +1,31 @@
+# Klarbase
+
+> Klarbase is a free, open-source, cozy puzzle game that runs in the browser. Pip hops across small floating isles — turn-based grid puzzles with stairs, ledges, crates, ice, plates and gates, levers and bridges, keys and doors, portal arches, sky scales, balloons and gentle hazards. Every isle is checked by a solver, so each one is solvable and has a known par. Anyone can build isles in the in-game builder and share them online or add them to the game by GitHub pull request. No account is needed to play or build.
+
+- Play: https://klarbase.dev/ (desktop and mobile; keyboard, touch d-pad)
+- Price: free; no ads; MIT-licensed source
+- Made with: JavaScript, three.js (all art and sound are procedural), Node.js/Express
+
+## Play
+
+- [Home](https://klarbase.dev/): the title screen
+- [Official isles](https://klarbase.dev/play): the hand-made campaign, in themed chapters
+- [Daily Isle](https://klarbase.dev/daily): one isle a day, the same for everyone
+- [Community isles](https://klarbase.dev/community): isles made by players and merged on GitHub
+
+## Build
+
+- [How to build](https://klarbase.dev/how-to-build): the in-game builder with its guide to every tile, rule and setting
+- [Isle format and rules](https://raw.githubusercontent.com/TanmoyP/klarbase/main/isles/README.md): the full text format, every tile, the seven rules, maps, weights, gusts and hazards
+- [Contributing](https://raw.githubusercontent.com/TanmoyP/klarbase/main/CONTRIBUTING.md): how to add an isle or code by pull request
+
+## Source
+
+- [GitHub repository](https://github.com/TanmoyP/klarbase): source code, issues and community isles
+- [README](https://raw.githubusercontent.com/TanmoyP/klarbase/main/README.md): project overview
+
+## Optional
+
+- [Privacy](https://klarbase.dev/privacy): what the game stores and how to get an account deleted
+- [Engineering notes](https://raw.githubusercontent.com/TanmoyP/klarbase/main/ENGINEERING.md): architecture, data model and decisions
+- [Security policy](https://raw.githubusercontent.com/TanmoyP/klarbase/main/SECURITY.md): how to report a vulnerability

@@ -7,7 +7,8 @@ Thanks for wanting to build here! The easiest and most loved contribution is an
 
 1. **Build it** at [klarbase.dev](https://klarbase.dev) → **Create** (or run the game locally, see below).
    Start from a blank meadow or remix any official isle. The status line tells you live
-   whether it's solvable and its par.
+   whether it's solvable and its par. Every tile and setting is explained in the builder's
+   **📖 How to build** guide ([klarbase.dev/how-to-build](https://klarbase.dev/how-to-build)).
 2. **Propose it** — type your GitHub username in the builder and press **Propose on GitHub**.
    The builder runs the *same checks as CI*; if anything would fail, it tells you what to fix.
    When it passes, press **Open the pull request on GitHub**: GitHub opens

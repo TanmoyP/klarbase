@@ -7,6 +7,9 @@ official isles (see [Official isles](#official-isles)). All three use the same f
 
 How to contribute one: press **Propose on GitHub** in the game's builder — it checks the isle
 and opens a prefilled pull request on GitHub. Details: [CONTRIBUTING.md](../CONTRIBUTING.md).
+Building in the game? The builder's **How to build** guide
+([klarbase.dev/how-to-build](https://klarbase.dev/how-to-build)) explains every tile with tips;
+this file is the exact format behind it.
 
 ## The format
 

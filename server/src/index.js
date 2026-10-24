@@ -37,6 +37,8 @@ app.use('/api/feedback', feedback);
 // ---- static client (production build) ----
 const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
 if(fs.existsSync(clientDist)){
+  // express.static skips dot-directories, so /.well-known (security.txt) is mounted on its own.
+  app.use('/.well-known', express.static(path.join(clientDist, '.well-known')));
   app.use(express.static(clientDist));
   app.get('*', (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
 }

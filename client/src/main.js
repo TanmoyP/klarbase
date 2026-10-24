@@ -10,7 +10,8 @@ import { World } from './game/world.js';
 import { Session } from './game/session.js';
 import { THEMES, themeOf } from './game/themes.js';
 import { unlockAudio, setSound, soundOn, sfx } from './game/audio.js';
-import { mountBuilder } from './builder.js';
+import { mountBuilder, TOOLS } from './builder.js';
+import { buildGuideHtml } from './buildguide.js';
 import { getSession, signIn, signOut } from './auth.js';
 import { api } from './net.js';
 
@@ -201,7 +202,7 @@ function syncInset(){
   world.setInsetBottom(on ? innerHeight - sheet.getBoundingClientRect().top : 0);
 }
 new ResizeObserver(syncInset).observe(sheet);
-const modal = { open(html){ $('#modalBody').innerHTML = html; $('#modal').classList.add('on'); }, close(){ $('#modal').classList.remove('on'); } };
+const modal = { open(html, wide = false){ $('#modalBody').innerHTML = html; $('#modalBody').classList.toggle('wide', wide); $('#modal').classList.add('on'); }, close(){ $('#modal').classList.remove('on'); } };
 $('#modal').addEventListener('click', e => { if(e.target.id === 'modal') modal.close(); });
 
 /* ---------------- top bar ---------------- */
@@ -213,7 +214,7 @@ function syncTopbar(){
 }
 $('#btnSound').onclick = () => { settings.sound = !settings.sound; setSound(settings.sound); store.set('klarbase.v2.settings', settings); syncTopbar(); };
 $('#btnTimer').onclick = () => { settings.timer = !settings.timer; store.set('klarbase.v2.settings', settings); syncTopbar(); toast(settings.timer ? 'Timer on — your times are saved' : 'Timer off — take it easy'); };
-$('#btnHelp').onclick = () => helpModal();
+$('#btnHelp').onclick = () => helpModal(onBuilder() ? 'build' : 'play');
 async function refreshAuth(){
   session = await getSession();
   const chip = $('#authchip'); chip.innerHTML = '';
@@ -232,11 +233,22 @@ async function refreshAuth(){
 document.addEventListener('click', e => {
   if(e.target.id === 'siGh') signIn('github'); if(e.target.id === 'siGo') signIn('google');
   const go = e.target.closest('[data-go]'); if(go){ e.preventDefault(); sfx.ui(); nav(go.dataset.go); }
+  const hp = e.target.closest('[data-help]'); if(hp){ sfx.ui(); helpModal(hp.dataset.help); }
   if(e.target.closest('.feedback-open')){ sfx.ui(); feedbackModal(); }
 });
 
-function helpModal(){
-  modal.open(`<h2>How to play</h2>
+// ? opens How to build in the builder, How to play everywhere else; the tabs switch in place.
+const onBuilder = () => ['/create', '/how-to-build'].includes(location.pathname.replace(/\/+$/, ''));
+const helpTabs = which => `<div class="help-tabs"><button class="${which === 'play' ? 'on' : ''}" data-help="play">How to play</button><button class="${which === 'build' ? 'on' : ''}" data-help="build">How to build</button></div>`;
+function helpModal(which = 'play'){
+  if(which === 'build'){
+    store.set('klarbase.v2.guideSeen', true);
+    return modal.open(`${helpTabs('build')}<h2>How to build</h2>
+      <p class="facts">Every tile in the palette, what it does, how it’s stored and how to use it. The full file format is in <a href="${REPO_URL}/blob/main/isles/README.md" target="_blank" rel="noopener">isles/README.md</a>.</p>
+      ${buildGuideHtml(TOOLS)}
+      <div class="row"><button class="btn primary" onclick="document.getElementById('modal').classList.remove('on')">Start building</button></div>`, true);
+  }
+  modal.open(`${helpTabs('play')}<h2>How to play</h2>
     <div class="rules">
       <div><span class="ico">🐣</span><span>Hop one tile per key. <b>↑ always means away from you</b> — turn the view with Q / E.</span></div>
       <div><span class="ico">⬆</span><span>Stairs climb one level. You can hop <b>down</b> a ledge, but never climb one.</span></div>
@@ -642,7 +654,7 @@ $('#stage').addEventListener('pointerup', e => {
 addEventListener('pointerdown', () => unlockAudio(), { once:true });
 
 /* ---------------- builder ---------------- */
-const builder = mountBuilder({ world, api, toast, repoUrl:REPO_URL, communityHashes, getSession:() => session, canSeeSolutions:() => !!session,
+const builder = mountBuilder({ world, api, toast, repoUrl:REPO_URL, communityHashes, getSession:() => session, canSeeSolutions:() => !!session, openGuide:() => helpModal('build'),
   onTest:doc => { play({ key:'draft', doc, name:doc.name, theme:doc.theme, par:doc.par, solution:doc.solution, tier:doc.tier, sub:'testing your isle', draft:true }); } });
 
 /* ---------------- routing ---------------- */
@@ -671,7 +683,12 @@ async function route(){
     const e = (past || import.meta.env.DEV) && dailyEntry(m[1]);
     return e ? play({ ...e, archived:past }) : nav('/community');
   }
-  if(h === '/create'){ stopGame(); world.setShowcase(false); show('create'); builder.show(); setAccent(builder.draft.theme); return; }
+  if(h === '/create' || h === '/how-to-build'){
+    stopGame(); world.setShowcase(false); show('create'); builder.show(); setAccent(builder.draft.theme);
+    if(h === '/how-to-build') helpModal('build');
+    else if(!store.get('klarbase.v2.guideSeen', false)) toast('New here? Press ? for How to build');
+    return;
+  }
   if((m = /^\/isle\/([\w-]+)$/.exec(h))){ const e = official.find(x => x.doc.id === m[1]); return e ? play(e) : nav('/play'); }
   if((m = /^\/c\/([\w-]+)\/([\w-]+)$/.exec(h))){ const e = community.find(x => x.author === m[1] && x.doc.id === m[2]); return e ? play(e) : nav('/community'); }
   if((m = /^\/(?:i|p)\/([0-9a-f]{64})$/.exec(h))){

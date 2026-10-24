@@ -8,8 +8,9 @@ import {
 } from '@klar/core';
 import { themeOf, PORTAL_COLORS } from './game/themes.js';
 import { sfx } from './game/audio.js';
+import { GUIDE } from './buildguide.js';
 
-const TOOLS = [
+export const TOOLS = [
   ['.', '▢', 'Ground'], [',', '🌼', 'Flowers'], ['#', '🪨', 'Rock'], ['T', '🌳', 'Tree'], ['~', '🌊', 'Water'], ['*', '🧊', 'Ice'],
   ['ramp', '⬆', 'Ramp'], ['C', '📦', 'Crate'], ['o', '◎', 'Plate'], ['D', '▥', 'Gate'], ['L', '🕹', 'Lever'], ['=', '═', 'Bridge'],
   ['_', '┄', 'Sunk br.'], ['k', '🔑', 'Key'], ['K', '🚪', 'Door'], ['p', '⛩', 'Arch A'], ['q', '⛩', 'Arch B'], ['S', '🐣', 'Start'],
@@ -32,7 +33,7 @@ const template = () => ({ name:'My isle', theme:'jungle', rows:[
 // the file downloads instead.
 const MAX_GITHUB_URL = 7500;
 
-export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, communityHashes, canSeeSolutions = () => false }){
+export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, communityHashes, canSeeSolutions = () => false, openGuide }){
   const root = document.getElementById('builderPanel');
   let draft = store.get('klarbase.v2.draft', null) || template();
   let grid = [], tool = '.', rampDir = 0, ventDir = 0, painting = false, stroke = new Set(), last = null, verdict = null;
@@ -51,6 +52,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
   loadDraft(draft);
 
   root.innerHTML = `
+    <button class="btn small ghost" id="bGuide" title="Every tile, its rules and how to use it">📖 How to build</button>
     <div class="field"><label>Name</label><input id="bName" maxlength="40"></div>
     <div class="field"><label>Theme</label><div class="chips" id="bThemes"></div></div>
     <div class="field"><label>Difficulty — your gut call</label><div class="chips" id="bTiers"></div></div>
@@ -93,10 +95,12 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
   const tools = $('#bTools');
   for(const [id, ico, label] of TOOLS){
     const b = document.createElement('button'); b.className = 'tool'; b.dataset.tool = id;
-    b.innerHTML = `<span>${ico}</span><small>${label}</small>`; b.title = label + (id === 'ramp' ? ' (click again or press R to turn)' : id === 'vent' ? ' (click again to turn the gust)' : '');
+    b.innerHTML = `<span>${ico}</span><small>${label}</small>`; b.title = label + (GUIDE[id] ? ' — ' + GUIDE[id].summary : '') + (id === 'ramp' ? ' (click again or press R to turn)' : id === 'vent' ? ' (click again to turn the gust)' : '');
     b.onclick = () => { if(id === 'ramp' && tool === 'ramp') rampDir = (rampDir + 1) % 4; if(id === 'vent' && tool === 'vent') ventDir = (ventDir + 1) % 4; tool = id; syncTools(); sfx.ui(); };
     tools.appendChild(b);
   }
+  if(import.meta.env.DEV) for(const [id, , label] of TOOLS) if(!GUIDE[id]) console.warn(`[klarbase] "${label}" has no How to build entry (buildguide.js)`);
+  $('#bGuide').onclick = () => openGuide && openGuide();
   const syncTools = () => {
     for(const b of tools.children){ b.classList.toggle('on', b.dataset.tool === tool); if(b.dataset.tool === 'ramp') b.firstChild.textContent = RAMP_ARROW[RAMP_DIRS[rampDir]]; if(b.dataset.tool === 'vent') b.firstChild.textContent = VENT_ARROW[VENT_DIRS[ventDir]]; }
   };
