@@ -55,7 +55,7 @@ S  ,  p  -  .  p
 
 <img src="docs/screenshots/builder.png" alt="The isle builder: paint tiles on a grid and watch the 3D isle update live" width="900">
 
-Build it in the game (**Create**), press **Export for GitHub**, and open a PR that adds
+Build it in the game (**Create**) and press **Propose on GitHub** — GitHub opens a prefilled PR that adds
 `isles/community/<your-username>/<id>.json`. Full guide: **[CONTRIBUTING.md](CONTRIBUTING.md)** ·
 tile reference and rules: **[isles/README.md](isles/README.md)**.
 
