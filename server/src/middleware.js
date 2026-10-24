@@ -19,6 +19,12 @@ export const playLimiter = rateLimit({
   windowMs: 10*60*1000, limit: 120,
   message: { error: 'too many play events — slow down' },
 });
+// Feedback: a person sends one now and then. Keyed by IP in memory only, like
+// plays — the IP is never written to the Feedback row.
+export const feedbackLimiter = rateLimit({
+  windowMs: 60*60*1000, limit: 10,
+  message: { error: 'too much feedback at once — try again in a while' },
+});
 export const worldLimiter = rateLimit({
   windowMs: 60*60*1000, limit: 60, keyGenerator: key,
   message: { error: 'too many world actions — slow down' },
