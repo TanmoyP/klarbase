@@ -86,7 +86,7 @@ graph TD
     F[format.js<br/>parseIsle · isleHash] --> R[rules.js<br/>step · simulate]
     R --> S[solve.js<br/>solveIsle · solveFrom]
     S --> C[contrib.js<br/>checkCommunityIsle]
-    I[isles.js<br/>official.js ← isles/official/]
+    I["isles.js<br/>official.js ← isles/official"]
   end
   subgraph client
     M[main.js] --> SE[session.js] --> W[world.js]
