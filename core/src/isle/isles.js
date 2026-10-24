@@ -17,7 +17,9 @@ export const CHAPTERS = [{"theme":"jungle","title":"Canopy"},{"theme":"oasis","t
   // Phase 3 (K1, K6, K9): Weight II — what Pip carries decides where Pip can go.
   {"id":"windward","theme":"mountain","title":"Windward","blurb":"Balloons, stones, buoys and gusts: what Pip carries decides where Pip can go."},
   // Phase 4 (K5): cozy hazards — boulders and thorn sweepers keep time; Pip keeps out of the way.
-  {"id":"night","theme":"night","title":"Nightfall","blurb":"Rolling boulders and thorn sweepers move one beat per move. Read the rings, wait a beat, never get bonked."}];
+  {"id":"night","theme":"night","title":"Nightfall","blurb":"Rolling boulders and thorn sweepers move one beat per move. Read the rings, wait a beat, never get bonked."},
+  // Phase 5: the combination layer — isles that fuse two chapters, opened by lighting both in Your Sky.
+  {"id":"confluence","theme":"oasis","title":"Confluence","blurb":"Where two chapters meet: light both constellations to open each isle."}];
 
 export const CURATED_ISLES = [
   // ---- Canopy (jungle) ----
@@ -696,6 +698,47 @@ export const CURATED_ISLES = [
       '-  ~  .  .  .  .  .  .  .',
       '-  -  -  D  -  -  -  -  -',
       '-  -  -  G  -  -  -  -  -',
+    ] }] },
+
+  // ---- Confluence (Phase 5): two chapters' mechanics in one isle. Existing tiles only; each
+  // opens once both joined constellations are lit (sky.js). Designed by isle-smith, every catch
+  // proven with `isle-lab --must` (both families load-bearing).
+  // catch: The glacier loops through its arches, so nothing stops you under the star. Crates can't ride
+  // arches: sink one crate to reach the other, then shove it east to park at the far arch.
+  { id:'frost-mirage', name:'Frost Mirage', theme:'mountain', chapter:'confluence', joins:['oasis', 'mountain'], tier:'tricky', par:17, solution:'URDRLDDRDRUUULURU',
+    needs:["tp","slide","cslide","sink"],
+    hint:'An arch catches whatever the ice carries, but only you go through.',
+    rows:[
+      '-  -  -  -  G  -  -',
+      'p  *  *  *  *  *  p',
+      '.  C  .  S  -  -  -',
+      '.  -  ~  -  -  -  -',
+      '.  C  .  .  -  -  -',
+      '.  .  .  -  -  -  -',
+    ] },
+  // catch: The lever lifts the star's bridge but sinks the gangway, the only high ground beside pan A.
+  // Leave a crate on it to keep a step, weigh pan B with the other, then board the pan and ride down.
+  { id:'drowned-gangway', name:'Drowned Gangway', theme:'tropical', chapter:'confluence', joins:['tropical', 'gardens'], tier:'hard', par:23, solution:'RULULLDRDRURXLLURLLLLLL',
+    needs:["toggle","fall","scales","push"],
+    hint:'Two crates, two jobs: one to weigh, one to stand on.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      '-  -  -  -  .3 .3 .3 .3',
+      'G2 _2 a2 =3 .3 C3 .3 b3',
+      '-  -  -  -  .3 .3 C3 L3',
+      '-  -  -  -  -  .3 S3 .3',
+    ] }] },
+  // catch: The crate above the star can only slide downwind, onto the post: drop a crate in the lane
+  // first to stop it. Then, balloon in hand, slide onto the vent and let the gust set you on the launch tile.
+  { id:'squall-line', name:'Squall Line', theme:'mountain', chapter:'confluence', joins:['mountain', 'windward'], tier:'fiendish', par:20, solution:'DDRURDLLULDXURDRURDD',
+    needs:["slide","cslide","take","gust","glide"],
+    hint:'On ice you never stop where you’d like, but the wind always gets the last word.',
+    storeys:[{ at:[0, 0, 0], rows:[
+      ',3 S3 .3 .3 .3 ,3',
+      '*3 *3 *3 C3 *3 *3',
+      '*3 C3 *3 *3 #3 *3',
+      'B3 *3 *3 *3 C3 w3',
+      '-  -  -  -  -  -',
+      '-  -  -  -  G1 -',
     ] }] },
 ];
 

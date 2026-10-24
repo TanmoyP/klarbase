@@ -7,7 +7,7 @@
 > cozy, turn-based **Isles**. The v1 document (voxel engine, illusion maths, the first deploy
 > day, sessions a–k) is preserved in [`docs/archive/v1/ENGINEERING-v1.md`](docs/archive/v1/ENGINEERING-v1.md).
 >
-> **Last updated:** 2026-10-19 · **Owner:** CTO · **Repo:** `TanmoyP/klarbase` (public, MIT)
+> **Last updated:** 2026-10-23 · **Owner:** CTO · **Repo:** `TanmoyP/klarbase` (public, MIT)
 
 ## 0. How to use this document
 - It is **living**. Every session that changes rules, data, infra or the roadmap updates the
@@ -367,6 +367,18 @@ hill-climbing filler tiles around pinned catch tiles (solver + audit + load-bear
 | 52 | Bramble Bridge | Hard | 26 | — | 4 | 842 | 2 | fails | 1 | Tricky | the spring under the arm can never be filled; sink the far one, go round the arm's tip | `sink@2,0`, `cell@3,0`, `push@5,3` |
 | 53 | Needle’s Eye | Fiendish | 30 | — | 8 | 8,312 | 4 | fails | 1 | Hard | one gap between the lane and the bramble's reach; the last push is made from inside the lane | `push@6,2`, `push@3,3`, `cell@7,3`, `cell@3,2` |
 
+**Confluence (Phase 5, 2026-10-23)** — chapter `confluence`, side path (no main number). Each isle
+carries `joins:[chapterA, chapterB]` and opens in the picker once both constellations are lit (Your
+Sky, §7). Existing tiles only; designed by three `isle-smith` runs in parallel, every catch **proven
+with `isle-lab --must`** for both families. `core/test/difficulty.mjs` enforces: two real chapters,
+`needs` reaching into both `FAMILIES` (sky.js) and used by the route, gut vs audit within a tier.
+
+| # | Isle | Joins | Gut | Par | States | Traps | Greedy | Routes | Audit | Catch (short) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 54 | Frost Mirage | Mirage × Summit | Tricky | 17 | 388 | 5 | fails | 1 | Tricky | the ice row loops through its arches; only a crate parked at the far arch stops you under the star |
+| 55 | Drowned Gangway | Lagoon × Hanging Gardens | Hard | 23 | 3,560 | 9 | fails | 1 | Hard | the lever lifts the star's bridge but sinks the gangway; leave a crate on it as a step, weigh pan B, ride A down |
+| 56 | Squall Line | Summit × Windward | Fiendish | 20 | 7,416 | 8 | fails | 1 | Hard | buffer the lane so the crate stops short of the post; slide onto the vent and let the gust set you on the launch tile |
+
 **Community isles** live in `isles/community/` and reach players on the next build.
 **Daily Isles:** `/daily` plays `isles/daily/<UTC today>.json` if it exists (hand-made, checked by
 the same gate with `checkDailyIsle`: id = `daily-<date>`, `tier` required, optional `catch` shown
@@ -383,6 +395,12 @@ Brief = weekday tier rotation (Mon easy · Tue tricky · Wed hard · Thu tricky 
 fiendish · Sun tricky) adjusted by recent dailies' clear rates, plus a catch type unused in 7 days.
 After a clear the share text `Klarbase Daily #N · M moves (par P) · ★★☆` + `/daily` link is
 copied (no route). See `isles/daily/README.md`.
+**Past Daily Isles (2026-10-23):** once its UTC day has passed, a dated daily appears on the
+Community tab's *Past Daily Isles* shelf (newest first, `#N` badge, credited to its `author`) and
+plays at `/daily/<date>` with the same stats key, Daily number and share text (link → that date).
+The live site never opens a future date; the dev server opens any (K10 playtests). Dailies are
+credited `"author": "TanmoyP"` (isle-smith writes it). Undated days were pool picks of isles
+already in the game, so there is nothing else to archive.
 **Online isles** live in the database (`Puzzle` rows, `json` = canonical isle + par + solution).
 Legacy v4 maquette rows may still exist in prod; the client tells players those links are
 from an older version.
@@ -456,7 +474,18 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
   arm swings over the safe tile between two arms, a little in-place hop for a wait. Night theme
   (moonlight, fireflies). Help modal + hint toast ("Use or wait (Space)"). Builder tools 🪨 ↔ / ↕ and
   🌵 thorns.
-- **Dev only:** `/daily/YYYY-MM-DD` plays that date's daily (playtesting drafts, K10 agent).
+- **`/daily/YYYY-MM-DD`:** live = a past hand-made daily (Community tab's *Past Daily Isles* shelf);
+  dev server = any date (playtesting drafts, K10 agent). Cards and the win modal show player stats
+  from `playSummary()` (plays · clear % · at-par %, see §13 (t)).
+- **Your Sky + Confluence (Phase 5):** a night-sky strip on the title screen (`#skyStrip`) draws
+  every chapter as a constellation (`skyOf` + `constellation` in `core/src/isle/sky.js`): one star per
+  isle, sized by stars earned, lines between cleared neighbours, the chapter accent once **lit**
+  (`CONFLUENCE_NEED` = 3 main-path clears). Tap → *Your sky* modal (big sky, each Confluence isle with
+  Play or what's still needed, **Daily stars**: a sunflower spiral of every daily cleared, stored in
+  `klarbase.v2.dailies`, no streaks). Confluence cards are dimmed with `🔒 Light A n/3 · B n/3` until
+  `confluenceState` opens them; a direct `/isle/<id>` link always plays. **Side paths:** Twist and
+  Confluence isles (`offPath`) have no main number and are skipped by Continue / Next isle. A clear
+  that lights a constellation says so on the win modal, with "✦ Play <isle>" when one opens.
 - **Bundle:** ~600 KB / ~166 KB gzip (mostly three.js). Code-splitting the builder is a cheap
   future win.
 
@@ -503,8 +532,8 @@ must move to a shared store before running more than one replica.
 
 ## 10. Current state & numbers
 
-- ✅ Engine: 518 isle assertions + 156 difficulty/daily + 57 legacy, green (CI's `engine` job runs
-  all three). 53 official isles (24 + 5 Twist + 8 Hanging Gardens + 10 Windward + 6 Nightfall maps) verified;
+- ✅ Engine: 540 isle assertions + 179 difficulty/daily/sky + 57 legacy, green (CI's `engine` job runs
+  all three). 56 official isles (24 + 5 Twist + 8 Hanging Gardens + 10 Windward + 6 Nightfall maps + 3 Confluence) verified;
   artifacts deterministic.
 - ✅ Client: all screens verified in the browser (title, picker with real mini-map thumbnails,
   play, replay, win, lock modal, builder with live verdict, community tab). Phone-width layout done; the phone builder is a bottom sheet (paint tools first) and the 3D isle is framed above it (`World.setInsetBottom`).
@@ -521,7 +550,11 @@ must move to a shared store before running more than one replica.
 | **Daily isle** | ✅ Phase 1 (`/daily`, share text) · ✅ moves histogram (Phase 3) · ✅ local daily isle agent `/daily-isle` (K10). Next: run it on a schedule | — |
 | **More tiles** | ✅ cozy hazards (Phase 4). Next ideas: moving platforms, colour-matched plates/gates, one-way doors. Each one is a schema decision: rules + solver + tests + art + builder tool + docs together | design review |
 | **Themes** | ✅ night (Phase 4) · cherry blossom, deep-sea | art time |
-| **World (v1 idea)** | stitch isles into a walkable archipelago | strong demand |
+| **World (v1 idea)** | stitch isles into a walkable archipelago — now **Sky Atlas** (below) | strong demand |
+| **Phase 5 · Confluence** | ✅ Your Sky + 3 Confluence isles (2026-10-23). Next: a Confluence isle for every pair worth fusing (Nightfall is a constellation now, so its pairs are open too) | — |
+| **Whispers** | secret isles found by insight (a riddle in a cleared catch, par + all seeds opens a door) — the hidden layer players come back for | Confluence |
+| **Sky Atlas** | Pip walks between isles on a map that is itself a puzzle; stuck on one isle → walk to another | Confluence, art time |
+| **Guest Isles** | a credited shelf for invited puzzle designers | outreach |
 | **Accessibility** | colour-blind-safe arch/plate markers, reduced motion, screen-reader isle summary | — |
 
 **Depth proposal (2026-10-19):** [`docs/proposals/depth-and-weight.md`](docs/proposals/depth-and-weight.md) —
@@ -553,7 +586,7 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
 
-### 2026-10-23 (t) — Phase 4 · Cozy hazards (K5) + Nightfall
+### 2026-10-23 (v) — Phase 4 · Cozy hazards (K5) + Nightfall
 - **Schema decision (CLAUDE.md rule 4), shipped together:** map-only tiles `H` / `I` boulders and
   `Y` thorn sweeper + theme `night` (§3), the hazard rules (§4: one beat per move, bonk = move
   undone, Use waits, crates/buoys never enter a hazard's tiles, shared cycle ≤ 12), `state.t` in the
@@ -575,6 +608,33 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 - **Caveats:** a slide/glide/teleport is judged only at its final tile (Pip can slide "through" a
   boulder's tile); a thorn arm reaches across heights and void. The daily pool now includes
   Nightfall's Tricky+ isles, so pool picks for undated days reshuffle with this build (as in Phases 2–3).
+- **Merged after Phase 5:** Nightfall joins Your Sky as a constellation (`FAMILIES.night` = `wait`, `hazard` in `sky.js`); official numbering is now Nightfall 48–53, Confluence 54–56 (`content/isles/` regenerated).
+
+### 2026-10-23 (u) — Phase 5 · Confluence: Your Sky + Confluence isles
+- **Why:** founder brief, inspired (not imitated) by *Order of the Sinking Star*: teach each mechanic
+  alone, then make the real game out of their combinations; keep progress always visible; never
+  demand completion. Klarbase's chapters already are complete mechanic sets, so the combination layer
+  needs **no new tile or rule** (constitution rule 4 untouched; `isles/README.md` unchanged).
+- **Core:** `core/src/isle/sky.js` (pure): `skyOf`, `confluenceState`, `constellation`, `FAMILIES`,
+  `CONFLUENCE_NEED = 3`. 12 new tests in `difficulty.mjs` (unit + every Confluence isle's families).
+- **Content:** chapter `confluence` + Frost Mirage, Drowned Gangway, Squall Line (§5). Adding official
+  Tricky+ isles reshuffles **undated** daily pool picks for this build (same caveat as Phases 2–3).
+- **Client:** Your Sky strip + modal, Confluence locks, daily stars (`klarbase.v2.dailies`), win
+  moment, side paths generalised (`offPath`), tall modals scroll (`max-height:92vh`) (§7).
+- **Verified in the browser:** all three Confluence isles cleared at par by real key input; seeded
+  progress → locked cards read `Light Mirage 3/3 · Summit 2/3`; clearing First Frost lit Summit and
+  opened Frost Mirage + Squall Line on the win modal; sky strip + modal at desktop and 375 px; a
+  daily clear wrote its daily star.
+- **Next (§11):** Confluence isles for the remaining pairs (Night when Phase 4 lands), Whispers,
+  Sky Atlas, Guest Isles.
+
+### 2026-10-23 (t) — Past Daily Isles + per-isle player stats
+- **Past Daily Isles** shelf on the Community tab, `/daily/<date>` live for past dated files (§5).
+  Tipping Pass now credits `@TanmoyP`; isle-smith always writes `author`.
+- **Player stats on every card:** `▶ N plays · X% clear · Y% at par` from the existing anonymous
+  `IslePlay` sums via `playSummary()` in `core/src/isle/difficulty.js` (rates wait for ≥ 5 plays /
+  ≥ 3 clears). Win screen adds "Played N times · X% clear it · Y% at par — you're among the Y% who
+  hit par". No migration, no new data collected. 4 new difficulty tests (154).
 
 ### 2026-10-20 (s) — Phase 3 · Weight II (K1, K6, K9)
 - **Schema decision (CLAUDE.md rule 4), shipped together:** map-only tiles `B P u n e s w +`
