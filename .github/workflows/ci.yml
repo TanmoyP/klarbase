@@ -34,10 +34,10 @@ jobs:
         run: node core/test/difficulty.mjs
       - name: Legacy voxel engine (deferred world lattice)
         run: node core/test/run.mjs
-      - name: Official isles verified and artifacts current
+      - name: Official isles verified and core/src/isle/official.js current
         run: |
           node tools/author.mjs
-          git diff --exit-code -- content/isles || { echo "::error::content/isles is stale — run 'node tools/author.mjs' and commit the result"; exit 1; }
+          git diff --exit-code -- core/src/isle/official.js || { echo "::error::core/src/isle/official.js is stale — run 'node tools/author.mjs' and commit the result"; exit 1; }
 
   isles:
     name: isles
