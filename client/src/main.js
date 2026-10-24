@@ -73,8 +73,9 @@ function scoreOf(e){
 }
 function tierBadge(e){
   const d = scoreOf(e);
-  const why = d.settling ? `settling — ${d.n} of 20 plays so far; starts from ${d.declared ? 'the maker’s gut call' : 'the solver’s estimate'}` : `from ${d.n} plays`;
-  return `<span class="tier t-${d.tier.id}" data-score="${esc(e.key)}" title="Difficulty ${d.score}/100 · ${why}">${d.tier.name} ${d.score}${d.settling ? '<i> · settling</i>' : ''}</span>`;
+  // Every new isle is under 20 plays, so an on-card "settling" read as noise on every card — the tooltip says it.
+  const why = d.settling ? `early estimate — ${d.n} of 20 plays so far; starts from ${d.declared ? 'the maker’s gut call' : 'the solver’s estimate'}` : `from ${d.n} plays`;
+  return `<span class="tier t-${d.tier.id}" data-score="${esc(e.key)}" title="Difficulty ${d.score}/100 · ${why}">${d.tier.name} ${d.score}</span>`;
 }
 // Card line: "▶ 128 plays · 64% clear · 9% at par" — counts only, from the same anonymous sums.
 function statsLine(e){

@@ -250,11 +250,13 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     const author = $('#bAuthor').value.trim().replace(/^@/, '');
     store.set('klarbase.v2.ghuser', author);
     const note = $('#bGithubNote'); note.style.display = 'block';
-    if(!author){ note.innerHTML = 'Add your GitHub username — it becomes your credit on the isle.'; return; }
+    // The note sits at the panel's foot — scroll it into view or the button looks dead.
+    const show = () => note.scrollIntoView({ block:'nearest' });
+    if(!author){ note.innerHTML = 'Add your GitHub username — it becomes your credit on the isle.'; show(); return; }
     const file = toCommunityFile(docOf(), author);
     const existing = new Map([...CURATED_ISLES.map(i => [isleHash(i), `official isle “${i.name}”`]), ...communityHashes()]);
     const v = checkCommunityIsle(file, { existing });
-    if(!v.ok){ note.innerHTML = '<b>Not ready yet — the repo checks would reject it:</b><br>• ' + v.errors.map(esc).join('<br>• '); return; }
+    if(!v.ok){ note.innerHTML = '<b>Not ready yet — the repo checks would reject it:</b><br>• ' + v.errors.map(esc).join('<br>• '); show(); return; }
     const text = JSON.stringify(file, null, 2) + '\n', path = `isles/community/${author}/${file.id}.json`;
     const passed = `✓ Passes every check (par ${file.par}, uses ${v.report.mechanics.join(', ')}).<br>`;
     const how = `<a href="${repoUrl}/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">how to contribute</a>`;
@@ -264,11 +266,12 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     if(url.length <= MAX_GITHUB_URL){
       note.innerHTML = passed + `<a class="btn small primary" style="text-decoration:none" href="${esc(url)}" target="_blank" rel="noopener">⇪ Open the pull request on GitHub</a><br>
         It opens <code>${esc(path)}</code> prefilled — sign in, then “Commit changes…” → “Propose changes” → “Create pull request” (${how}).`;
-      return;
+      show(); return;
     }
     download(`${file.id}.json`, text);
     note.innerHTML = passed + `Too big to prefill on GitHub, so it downloaded instead.
       Add it to <code>${esc(path)}</code> and open a pull request — ${how}.`;
+    show();
   };
   $('#bExport').onclick = () => download(`${(draft.name || 'isle').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`,
     JSON.stringify(docOf(), null, 2) + '\n');

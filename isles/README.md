@@ -103,7 +103,7 @@ score = (20 · prior + n · observed) / (20 + n)
   many shortest routes). Never from tile counts or layout.
 - **observed** = what players did, from anonymous per-isle totals: clear rate, hints and
   restarts per attempt, median moves over par, median time to clear. **n** = attempts.
-- The card says **settling** until 20 people have played. `tier` is presentation, like `name`:
+- Until 20 people have played, the score is an early estimate (the badge tooltip says so). `tier` is presentation, like `name`:
   it never changes the isle's hash. One function computes all of this:
   `difficultyScore()` in `core/src/isle/difficulty.js`.
 
