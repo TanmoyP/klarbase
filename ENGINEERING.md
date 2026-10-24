@@ -456,6 +456,11 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
 - **Builder:** palette (33 tools), click/drag paint, right-click erase, raise/lower, rotating
   stairs, size 3–14, theme chips, remix any official isle, two-way "Isle code" text, live
   verdict (60k states; Deep check 300k), Test, Share online, Export for GitHub, JSON import/export.
+- **How to build** (`client/src/buildguide.js`): `GUIDE` = one entry per palette tool id (code,
+  summary, what, meta, tip, tags) + `buildGuideHtml(TOOLS)` (Quick start, grid, element groups,
+  maps, settings, verdict, sharing, design tips). Opened by `?` on `/create`, the builder's
+  📖 button, the How to play ⇄ How to build tabs, and the `/how-to-build` deep link. Palette
+  tooltips use `summary`; dev warns if a tool has no entry. **A new tile needs its `GUIDE` entry.**
 - **Difficulty (Phase 1):** every card (official, community, online) and the in-game title show
   a tier badge + score, "· settling" until 20 plays. Inputs: declared tier, else the audit (computed
   client-side for community isles, stored by the server for online shares), plus `GET /api/plays`
@@ -538,6 +543,15 @@ copies `isles/` so community isles are bundled. Full detail: `docs/archive/v1/EN
 and [`DEPLOYMENT.md`](DEPLOYMENT.md). Scaling gotcha still open: the in-memory rate limiter
 must move to a shared store before running more than one replica.
 
+**Discovery.** `client/public/` → `dist/`: `robots.txt` (all crawlers incl. AI, `/api/` disallowed),
+`llms.txt`, `site.webmanifest`, `favicon.svg`, `.well-known/security.txt` (the server mounts
+`/.well-known` itself — `express.static` skips dot-dirs). `sitemap.xml` is generated at build by
+the plugin in `client/vite.config.js` from `isles/official/chapters.json`, `isles/community/`
+and past `isles/daily/` files (also served by the dev server). `index.html` carries a JSON-LD
+`VideoGame` block and Twitter tags. No `rel=canonical`: one `index.html` answers every route, so
+a static canonical would mark every isle page a duplicate of `/`. Cloudflare's "Block AI bots" /
+managed robots.txt must stay **off** or it overrides ours.
+
 ## 10. Current state & numbers
 
 - ✅ Engine: 540 isle assertions + 179 difficulty/daily/sky + 57 legacy, green (CI's `engine` job runs
@@ -593,6 +607,17 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-10-25 (x) — How to build guide + discovery files
+- **Why:** builders had no guide (`?` on `/create` opened How to play), and the site had no
+  robots/sitemap/llms.txt or structured data.
+- **Added:** `client/src/buildguide.js` — every palette tool's behaviour, file metadata and a
+  usage tip, plus grid/maps/settings/verdict/sharing/design sections; `?` is screen-aware,
+  How to play ⇄ How to build tabs, 📖 button in the builder, `/how-to-build` route, one-time
+  "Press ?" toast on first `/create`. `client/public/` discovery files + build-time sitemap (§9).
+- **Also (PR #20):** d-pad / back-button centring, no on-card "settling", export note scrolls into view.
+- **Not code:** submit `https://klarbase.dev/sitemap.xml` to Google Search Console and Bing
+  Webmaster Tools; add `/privacy` to the sitemap's page list when that route lands.
 
 ### 2026-10-24 (w) — Official isles: one JSON file each
 - **Why:** founder asked why official isles were one big `isles.js` array when community and daily

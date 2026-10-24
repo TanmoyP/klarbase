@@ -1,0 +1,12 @@
+{
+  "name": "Klarbase — tiny isles, clever paths",
+  "short_name": "Klarbase",
+  "description": "A cozy browser puzzle game of floating isles. Play, build your own, and share them.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#cfe6f2",
+  "theme_color": "#cfe6f2",
+  "categories": ["games", "entertainment"],
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

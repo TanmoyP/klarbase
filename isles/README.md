@@ -5,7 +5,9 @@ Every isle is a small grid written as text. This folder holds the **community** 
 their author, `daily/YYYY-MM-DD.json` — hand-made Daily Isles — and `official/` — the
 official isles (see [Official isles](#official-isles)). All three use the same format.
 
-How to contribute one: see [CONTRIBUTING.md](../CONTRIBUTING.md).
+How to contribute one: see [CONTRIBUTING.md](../CONTRIBUTING.md). Building in the game? The
+builder's **How to build** guide ([klarbase.dev/how-to-build](https://klarbase.dev/how-to-build))
+explains every tile with tips; this file is the exact format behind it.
 
 ## The format
 
