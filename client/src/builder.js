@@ -245,15 +245,18 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     const author = $('#bAuthor').value.trim().replace(/^@/, '');
     store.set('klarbase.v2.ghuser', author);
     const note = $('#bGithubNote'); note.style.display = 'block';
-    if(!author){ note.innerHTML = 'Add your GitHub username — it becomes your credit on the isle.'; return; }
+    // The note sits at the panel's foot — scroll it into view or the button looks dead.
+    const show = () => note.scrollIntoView({ block:'nearest' });
+    if(!author){ note.innerHTML = 'Add your GitHub username — it becomes your credit on the isle.'; show(); return; }
     const file = toCommunityFile(docOf(), author);
     const existing = new Map([...CURATED_ISLES.map(i => [isleHash(i), `official isle “${i.name}”`]), ...communityHashes()]);
     const v = checkCommunityIsle(file, { existing });
-    if(!v.ok){ note.innerHTML = '<b>Not ready yet — the repo checks would reject it:</b><br>• ' + v.errors.map(esc).join('<br>• '); return; }
+    if(!v.ok){ note.innerHTML = '<b>Not ready yet — the repo checks would reject it:</b><br>• ' + v.errors.map(esc).join('<br>• '); show(); return; }
     download(`${file.id}.json`, JSON.stringify(file, null, 2) + '\n');
     note.innerHTML = `✓ Passes every check (par ${file.par}, uses ${v.report.mechanics.join(', ')}).<br>
       Add it to <code>isles/community/${esc(author)}/${file.id}.json</code> and open a pull request —
       <a href="${repoUrl}/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">how to contribute</a>.`;
+    show();
   };
   $('#bExport').onclick = () => download(`${(draft.name || 'isle').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`,
     JSON.stringify(docOf(), null, 2) + '\n');
