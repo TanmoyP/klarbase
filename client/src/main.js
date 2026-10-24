@@ -5,7 +5,7 @@
 //                bundled at build time with credit to their author
 //   online     — isles shared in-game and stored on the server (/i/<hash>)
 import { CURATED_ISLES, CHAPTERS, SCHEMAS, parseIsle, solveIsle, solveSeeds, starsFor, isleHash, initialState,
-  auditIsle, difficultyScore, playSummary, SUMMARY_MIN, TIER_IDS, dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate } from '@klar/core';
+  auditIsle, difficultyScore, playSummary, SUMMARY_MIN, TIER_IDS, skyOf, confluenceState, constellation, CONFLUENCE_NEED, dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate } from '@klar/core';
 import { World } from './game/world.js';
 import { Session } from './game/session.js';
 import { THEMES, themeOf } from './game/themes.js';
@@ -27,13 +27,16 @@ const COMMUNITY = Object.values(import.meta.glob('../../isles/community/*/*.json
   .filter(d => d && (Array.isArray(d.rows) || Array.isArray(d.storeys)))
   .sort((a, b) => a.name.localeCompare(b.name));
 // statKey: the isle's id in the anonymous play stats (K7) — see server/src/routes/plays.js
-// Main-path numbering skips Twist isles (an optional side path, labelled "Twist" instead)
+// Main-path numbering skips side paths: Twist isles ("Twist") and Confluence isles ("✦", Phase 5)
 // A chapter is keyed by its id, or by its theme for the original five (one theme each).
 const chapterKey = c => c.id || c.theme, chapterOf = d => CHAPTERS.find(c => chapterKey(c) === (d.chapter || d.theme));
-const MAIN_COUNT = CURATED_ISLES.filter(d => !d.twist).length;
+const offPath = d => !!(d.twist || d.joins);
+const MAIN_COUNT = CURATED_ISLES.filter(d => !offPath(d)).length;
+const chapterTitle = k => CHAPTERS.find(c => chapterKey(c) === k)?.title || k;
 let mainNo = 0;
-const official = CURATED_ISLES.map((d, i) => ({ num:d.twist ? null : ++mainNo, key:'o:' + d.id, statKey:d.id, doc:d, name:d.name, theme:d.theme, par:d.par, solution:d.solution,
-  hint:d.hint, tier:d.tier, twist:!!d.twist, index:i, sub:`${chapterOf(d)?.title || themeOf(d.theme).chapter} · ${d.twist ? 'Twist isle' : `isle ${mainNo} of ${MAIN_COUNT}`}` }));
+const official = CURATED_ISLES.map((d, i) => ({ num:offPath(d) ? null : ++mainNo, key:'o:' + d.id, statKey:d.id, doc:d, name:d.name, theme:d.theme, par:d.par, solution:d.solution,
+  hint:d.hint, tier:d.tier, twist:!!d.twist, joins:d.joins || null, side:offPath(d), index:i,
+  sub:`${chapterOf(d)?.title || themeOf(d.theme).chapter} · ${d.twist ? 'Twist isle' : d.joins ? d.joins.map(chapterTitle).join(' × ') : `isle ${mainNo} of ${MAIN_COUNT}`}` }));
 const community = COMMUNITY.map(d => ({ key:`c:${d.author}/${d.id}`, statKey:`c/${d.author}/${d.id}`, doc:d, name:d.name, theme:d.theme, par:d.par, solution:d.solution,
   hint:d.hint, tier:d.tier, author:d.author, sub:`by @${d.author}` }));
 // Hand-made dated Daily Isles: isles/daily/YYYY-MM-DD.json (checked by tools/check-isles.mjs)
@@ -117,6 +120,68 @@ const world = new World($('#stage'));
 const settings = store.get('klarbase.v2.settings', { sound:true, timer:false });
 const progress = store.get('klarbase.v2.progress', {});
 let session = null, game = null, current = null, tab = 'official', online = null;
+
+/* ---------------- Your Sky (Phase 5) ---------------- */
+// Every chapter is a constellation (skyOf in @klar/core). Clear CONFLUENCE_NEED of its
+// main isles and it's lit; light both of a Confluence isle's chapters and it opens in
+// the picker (a link to it always plays). Daily clears add stars of their own — a
+// missed day costs nothing, there is no streak to break.
+const dailies = store.get('klarbase.v2.dailies', {});   // { 'YYYY-MM-DD': stars }
+const mySky = () => skyOf(CHAPTERS, CURATED_ISLES, Object.fromEntries(official.map(e => [e.doc.id, progress[e.key]?.stars || 0])));
+function lockOf(e, sky = mySky()){
+  const st = confluenceState(e.doc, sky);
+  return st.open ? null : 'Light ' + st.need.map(n => `${n.title} ${Math.min(n.cleared, n.need)}/${n.need}`).join(' · ');
+}
+function skySvg(sky, big){
+  const cols = big ? Math.min(2, sky.length) : sky.length, cw = big ? 150 : 64, ch = big ? 64 : 44, lh = big ? 16 : 0, pad = 7;
+  const W = cols * cw, H = Math.ceil(sky.length / cols) * (ch + lh), lit = sky.filter(c => c.lit).length;
+  const body = sky.map((c, k) => {
+    const ox = (k % cols) * cw, oy = Math.floor(k / cols) * (ch + lh), acc = themeOf(c.theme).accent;
+    const pts = constellation(c.key, c.points.length).map(([x, y]) => [ox + pad + x * (cw - 2 * pad), oy + pad + y * (ch - 2 * pad)]);
+    const lines = pts.slice(1).map(([x, y], i) => c.points[i].stars && c.points[i + 1].stars
+      ? `<line x1="${pts[i][0].toFixed(1)}" y1="${pts[i][1].toFixed(1)}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${c.lit ? acc : '#fff'}" stroke-opacity="${c.lit ? 0.9 : 0.35}" stroke-width="${big ? 1.4 : 1}"/>` : '').join('');
+    const dots = pts.map(([x, y], i) => { const n = c.points[i].stars;
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(n ? (big ? 2 : 1.5) + n * (big ? 1 : 0.7) : (big ? 1.4 : 1.2)).toFixed(1)}" fill="${n && c.lit ? acc : '#fff'}" fill-opacity="${n ? 1 : 0.3}"${n === 3 ? ' class="tw"' : ''}/>`; }).join('');
+    const label = big ? `<text x="${ox + cw / 2}" y="${oy + ch + 10}" text-anchor="middle" class="sky-lbl">${esc(c.title)} ${c.lit ? '✦' : `${Math.min(c.cleared, CONFLUENCE_NEED)}/${CONFLUENCE_NEED}`}</text>` : '';
+    return lines + dots + label;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Your sky: ${lit} of ${sky.length} constellations lit">${body}</svg>`;
+}
+// Daily stars: a sunflower spiral, one star per Daily Isle you've cleared.
+function dailySvg(days){
+  if(!days.length) return '<div class="sky-empty">Clear a Daily Isle to place your first star here.</div>';
+  const R = 6 * Math.sqrt(days.length) + 8;
+  const dots = days.map((d, i) => { const a = i * 2.39996, r = 6 * Math.sqrt(i + 0.5);
+    return `<circle cx="${(R + r * Math.cos(a)).toFixed(1)}" cy="${(R + r * Math.sin(a)).toFixed(1)}" r="${(1.2 + (dailies[d] || 1) * 0.7).toFixed(1)}" fill="#ffe7a3"><title>${d} ${'★'.repeat(dailies[d] || 1)}</title></circle>`; }).join('');
+  return `<svg viewBox="0 0 ${(2 * R).toFixed(1)} ${(2 * R).toFixed(1)}" style="width:${Math.min(220, Math.round(8 * R))}px">${dots}</svg>`;
+}
+function renderSkyStrip(){
+  const sky = mySky(), got = sky.reduce((s, c) => s + c.stars, 0), max = sky.reduce((s, c) => s + c.max, 0);
+  $('#skyStrip').innerHTML = `${skySvg(sky, false)}<span>Your sky · ${got} / ${max} ★ · ${sky.filter(c => c.lit).length} lit</span>`;
+}
+function openSky(){
+  const sky = mySky(), days = Object.keys(dailies).sort();
+  const conf = official.filter(e => e.joins);
+  modal.open(`<h2>Your sky</h2>
+    <div class="sky-big">${skySvg(sky, true)}</div>
+    <p class="note" style="margin-top:10px">Clear ${CONFLUENCE_NEED} isles of a chapter to light its constellation. Light two, and the Confluence isle where they meet opens.</p>
+    ${conf.length ? `<div class="conf-list">${conf.map(e => { const l = lockOf(e, sky);
+      return `<div class="conf"><b>${esc(e.name)}</b><span>${esc(e.sub)}</span>${l ? `<em>🔒 ${esc(l)}</em>` : `<button class="btn small primary" data-sky="${esc(e.doc.id)}">Play ▶</button>`}</div>`; }).join('')}</div>` : ''}
+    <div class="hist-cap">Daily stars · ${days.length} day${days.length === 1 ? '' : 's'}</div>
+    <div class="sky-big">${dailySvg(days)}</div>
+    <div class="row"><button class="btn" id="skyClose">Close</button></div>`);
+  $('#skyClose').onclick = () => modal.close();
+  document.querySelectorAll('[data-sky]').forEach(b => b.onclick = () => { modal.close(); nav('/isle/' + b.dataset.sky); });
+}
+$('#skyStrip').onclick = () => { sfx.ui(); openSky(); };
+// A clear that lights a constellation (and maybe opens a Confluence isle) says so.
+function skyNews(before, after){
+  const lit = after.filter((c, k) => c.lit && !before[k].lit);
+  if(!lit.length) return { html:'', open:null };
+  const opened = official.filter(x => x.joins && confluenceState(x.doc, after).open && !confluenceState(x.doc, before).open);
+  return { open:opened[0] || null, html:`<div class="sky-news">✦ ${lit.map(c => `The ${esc(c.title)} constellation is lit`).join(' · ')}${opened.length
+    ? ` — ${opened.length > 1 ? `${opened.length} Confluence isles have` : 'a Confluence isle has'} opened: <b>${opened.map(x => esc(x.name)).join(', ')}</b>` : ''}</div>` };
+}
 setSound(settings.sound);
 
 function toast(msg, bad = false){
@@ -201,7 +266,7 @@ function titleScreen(){
   if(pick.id !== id) console.warn('[klarbase] showcase isle not found:', id, CURATED_ISLES.length);
   const { level } = parseIsle(pick);
   world.load(level, pick.theme, { showcase:true }); world.setShowcase(true); world.reset(initialState(level));
-  setAccent(pick.theme); show('title');
+  setAccent(pick.theme); show('title'); renderSkyStrip();
   const d = dailyEntry(); $('#btnDaily').textContent = d ? `☀ Daily #${d.daily.no}` : '☀ Daily';
 }
 
@@ -246,14 +311,14 @@ function thumb(doc){
   thumbCache.set(key, url); return url;
 }
 function cardHtml(e, num){
-  const T = themeOf(e.theme), p = progress[e.key], img = thumb(e.doc);
-  return `<button class="card" data-key="${esc(e.key)}">
+  const T = themeOf(e.theme), p = progress[e.key], img = thumb(e.doc), lock = e.joins && lockOf(e);
+  return `<button class="card${lock ? ' locked' : ''}" data-key="${esc(e.key)}"${lock ? ` data-locked="${esc(lock)}"` : ''}>
     <div class="sky" style="${img ? `background:url(${img}) center/cover` : `background:linear-gradient(180deg, ${T.sky[0]}, ${T.sky[1]} 75%, ${T.sky[2]})`}">
       ${num ? `<span class="num">${num}</span>` : ''}${tierBadge(e)}</div>
     <div class="body"><div class="name">${esc(e.name)}</div>
       ${e.author ? `<div class="credit">by <a href="https://github.com/${esc(e.author)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">@${esc(e.author)}</a></div>` : ''}
       <div class="meta"><span>${e.par ? 'par ' + e.par : T.label}${p ? ` · best ${p.moves}` : ''}</span>${starsHtml(p ? p.stars : 0)}</div>
-      <div class="pstats" data-stats="${esc(e.key)}">${statsLine(e)}</div></div></button>`;
+      ${lock ? `<div class="pstats lock">🔒 ${esc(lock)}</div>` : `<div class="pstats" data-stats="${esc(e.key)}">${statsLine(e)}</div>`}</div></button>`;
 }
 function selectScreen(which){
   stopGame(); tab = which; show('select'); loadPlays();
@@ -264,7 +329,7 @@ function selectScreen(which){
       const T = THEMES[ch.theme], isles = official.filter(e => chapterOf(e.doc) === ch);
       const got = isles.reduce((s, e) => s + (progress[e.key]?.stars || 0), 0);
       return `<div class="chapter"><div class="chapter-head"><h3>${ch.title}</h3><span>${T.label} · ${ch.blurb || T.blurb} · ${got}/${isles.length * 3} ★</span></div>
-        <div class="grid">${isles.map(e => cardHtml(e, e.twist ? 'Twist' : e.num)).join('')}</div></div>`;
+        <div class="grid">${isles.map(e => cardHtml(e, e.twist ? 'Twist' : e.joins ? '✦' : e.num)).join('')}</div></div>`;
     }).join('');
   } else {
     list.innerHTML = `<div class="chapter"><div class="chapter-head"><h3>Made by players</h3><span>merged on GitHub · every one checked solvable</span></div>
@@ -291,6 +356,7 @@ async function loadOnline(){
 $('#selectList').addEventListener('click', e => {
   const c = e.target.closest('.card'); if(!c) return;
   sfx.ui();
+  if(c.dataset.locked){ toast(`Not yet — ${c.dataset.locked} (clear ${CONFLUENCE_NEED} isles in each chapter)`); return; }
   const k = c.dataset.key;
   if(k.startsWith('o:')) nav('/isle/' + k.slice(2));
   else if(k.startsWith('c:')) nav('/c/' + k.slice(2));
@@ -299,7 +365,7 @@ $('#selectList').addEventListener('click', e => {
 });
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { nav(b.dataset.tab === 'official' ? '/play' : '/community'); });
 // Continue skips Twist isles — they're an optional side path
-$('#btnContinue').onclick = () => { const next = official.find(e => !progress[e.key] && !e.twist) || official[0]; nav('/isle/' + next.doc.id); };
+$('#btnContinue').onclick = () => { const next = official.find(e => !progress[e.key] && !e.side) || official[0]; nav('/isle/' + next.doc.id); };
 
 /* ---------------- play ---------------- */
 function play(entry){
@@ -352,15 +418,17 @@ const fmtTime = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStar
 
 function won(s){
   const e = current, stars = starsFor(s.moves, e.par);
-  const prev = progress[e.key];
+  const prev = progress[e.key], before = !e.draft && e.key.startsWith('o:') ? mySky() : null;
   if(!e.draft){
     const best = { stars:Math.max(stars, prev?.stars || 0), moves:Math.min(s.moves, prev?.moves ?? Infinity), time:settings.timer ? Math.min(s.time, prev?.time ?? Infinity) : prev?.time };
     if(s.level.seeds && s.level.seeds.length) best.seeds = Math.max(s.seeds.size, prev?.seeds || 0);
     progress[e.key] = best; store.set('klarbase.v2.progress', progress);
   }
+  if(e.daily){ dailies[e.daily.date] = Math.max(stars, dailies[e.daily.date] || 0); store.set('klarbase.v2.dailies', dailies); }
+  const news = before ? skyNews(before, mySky()) : { html:'', open:null };
   postPlay('clear', { moves:s.moves, ms:Math.round(s.time * 1000) }); attemptOpen = false;
-  // the main path skips Twist isles (an optional side path); a daily has no "next"
-  const next = e.index != null && !e.daily ? official.slice(e.index + 1).find(x => !x.twist) : null;
+  // the main path skips side paths (Twist, Confluence); a daily has no "next"
+  const next = e.index != null && !e.daily ? official.slice(e.index + 1).find(x => !x.side) : null;
   const share = e.daily ? dailyShareText({ no:e.daily.no, moves:s.moves, par:e.par, stars }) : null;
   const shareUrl = location.origin + (e.archived ? '/daily/' + e.daily.date : '/daily');
   modal.open(`<h2>${e.daily ? `Daily #${e.daily.no} cleared!` : 'Isle cleared!'}</h2>
@@ -368,12 +436,14 @@ function won(s){
     <div class="facts">${s.moves} moves · par ${e.par || '?'}${settings.timer ? ' · ' + fmtTime(s.time) : ''}${s.hintsUsed ? ` · ${s.hintsUsed} hint${s.hintsUsed > 1 ? 's' : ''}` : ''}</div>
     ${stars < 3 && e.par && !(s.level.seeds && s.level.seeds.length && s.seeds.size === s.level.seeds.length) ? `<div class="facts" style="font-weight:600;margin-top:4px">The smart route takes ${e.par} moves — watch it?</div>` : ''}
     ${seedLine(s, e)}
+    ${news.html}
     ${e.catch ? `<div class="note" style="margin-top:10px;text-align:left"><b>The catch:</b> ${esc(e.catch)}</div>` : ''}
     ${movesHistogram(e, s.moves)}
     ${crowdLine(e, s.moves)}
     ${share ? `<div class="share-text" id="wShareText">${esc(share)}<br><small>${esc(shareUrl)}</small></div>` : ''}
     <div class="row">
       ${share ? `<button class="btn primary" id="wDaily">📋 Copy result</button>` : ''}
+      ${news.open ? `<button class="btn primary" id="wConf">✦ Play ${esc(news.open.name)}</button>` : ''}
       ${next ? `<button class="btn primary" id="wNext">Next isle ▶</button>` : ''}
       ${e.draft ? `<button class="btn primary" id="wBuild">Back to builder</button>` : ''}
       <button class="btn" id="wAgain">⟲ Again</button>
@@ -385,6 +455,7 @@ function won(s){
   const copyShare = quiet => (navigator.clipboard ? navigator.clipboard.writeText(`${share}\n${shareUrl}`) : Promise.reject())
     .then(() => toast('Result copied — no spoilers inside'), () => quiet || toast('Copy failed — select the text above', true));
   if(share){ $('#wDaily').onclick = () => copyShare(false); copyShare(true); }   // try right away; the button is the reliable path
+  $('#wConf') && ($('#wConf').onclick = () => { nav('/isle/' + news.open.doc.id); });
   $('#wNext') && ($('#wNext').onclick = () => { nav('/isle/' + next.doc.id); });
   $('#wBuild') && ($('#wBuild').onclick = () => { nav('/create'); });
   $('#wAgain').onclick = () => { modal.close(); game.restart(); };
