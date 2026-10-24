@@ -5,9 +5,11 @@ Every isle is a small grid written as text. This folder holds the **community** 
 their author, `daily/YYYY-MM-DD.json` — hand-made Daily Isles — and `official/` — the
 official isles (see [Official isles](#official-isles)). All three use the same format.
 
-How to contribute one: see [CONTRIBUTING.md](../CONTRIBUTING.md). Building in the game? The
-builder's **How to build** guide ([klarbase.dev/how-to-build](https://klarbase.dev/how-to-build))
-explains every tile with tips; this file is the exact format behind it.
+How to contribute one: press **Propose on GitHub** in the game's builder — it checks the isle
+and opens a prefilled pull request on GitHub. Details: [CONTRIBUTING.md](../CONTRIBUTING.md).
+Building in the game? The builder's **How to build** guide
+([klarbase.dev/how-to-build](https://klarbase.dev/how-to-build)) explains every tile with tips;
+this file is the exact format behind it.
 
 ## The format
 
@@ -104,7 +106,7 @@ score = (20 · prior + n · observed) / (20 + n)
   many shortest routes). Never from tile counts or layout.
 - **observed** = what players did, from anonymous per-isle totals: clear rate, hints and
   restarts per attempt, median moves over par, median time to clear. **n** = attempts.
-- The card says **settling** until 20 people have played. `tier` is presentation, like `name`:
+- Until 20 people have played, the score is an early estimate (the badge tooltip says so). `tier` is presentation, like `name`:
   it never changes the isle's hash. One function computes all of this:
   `difficultyScore()` in `core/src/isle/difficulty.js`.
 

@@ -74,8 +74,9 @@ function scoreOf(e){
 }
 function tierBadge(e){
   const d = scoreOf(e);
-  const why = d.settling ? `settling — ${d.n} of 20 plays so far; starts from ${d.declared ? 'the maker’s gut call' : 'the solver’s estimate'}` : `from ${d.n} plays`;
-  return `<span class="tier t-${d.tier.id}" data-score="${esc(e.key)}" title="Difficulty ${d.score}/100 · ${why}">${d.tier.name} ${d.score}${d.settling ? '<i> · settling</i>' : ''}</span>`;
+  // Every new isle is under 20 plays, so an on-card "settling" read as noise on every card — the tooltip says it.
+  const why = d.settling ? `early estimate — ${d.n} of 20 plays so far; starts from ${d.declared ? 'the maker’s gut call' : 'the solver’s estimate'}` : `from ${d.n} plays`;
+  return `<span class="tier t-${d.tier.id}" data-score="${esc(e.key)}" title="Difficulty ${d.score}/100 · ${why}">${d.tier.name} ${d.score}</span>`;
 }
 // Card line: "▶ 128 plays · 64% clear · 9% at par" — counts only, from the same anonymous sums.
 function statsLine(e){
@@ -347,7 +348,7 @@ function selectScreen(which){
   } else {
     list.innerHTML = `<div class="chapter"><div class="chapter-head"><h3>Made by players</h3><span>merged on GitHub · every one checked solvable</span></div>
       <div class="grid">${community.map(e => cardHtml(e)).join('') || '<div class="empty">No community isles yet — yours could be first.</div>'}</div>
-      <p class="note" style="margin-top:14px">Build an isle in <a href="/create" data-go="/create">Create</a>, press <b>Export for GitHub</b>, and open a pull request.
+      <p class="note" style="margin-top:14px">Build an isle in <a href="/create" data-go="/create">Create</a>, press <b>Propose on GitHub</b>, and GitHub opens the pull request for you.
         Automated checks make sure it's solvable and fair, and you're credited by name. <a href="${REPO_URL}/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing guide →</a></p></div>
       ${pastDailies().length ? `<div class="chapter"><div class="chapter-head"><h3>Past Daily Isles</h3><span>hand-made for one day · still here to play</span></div>
         <div class="grid">${pastDailies().map(e => cardHtml(e, '#' + dailyNumber(e.date, DAILY_EPOCH_DATE))).join('')}</div></div>` : ''}

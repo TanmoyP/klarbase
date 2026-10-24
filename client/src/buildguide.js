@@ -183,7 +183,7 @@ export function buildGuideHtml(tools){
       <li>Paint one <b>Start</b> 🐣 and a <b>Goal</b> ⭐. Click or drag to paint; right-click (or the Erase tool) erases.</li>
       <li>Shape the isle with ground, sky and heights, then add one mechanic and build the puzzle around it.</li>
       <li>Watch the <b>verdict</b> under the grid: solvable or not, par (the fewest moves), and how hard it looks.</li>
-      <li><b>▶ Test it</b> to play your own isle, then <b>Share online</b> or <b>Export for GitHub</b>.</li></ol>`, true)}
+      <li><b>▶ Test it</b> to play your own isle, then <b>Share online</b> or <b>Propose on GitHub</b>.</li></ol>`, true)}
     ${section('How the grid works', `<p>Each cell is one tile: a character plus an optional <b>height</b> digit 0–5 (<code>.2</code> = ground two levels up).
       Row 0 is north (far from the camera), column 0 is west. Isles are 3–14 tiles wide and deep (the <b>Size</b> buttons).</p>
       <p>Pip walks onto floor at the same height, hops <b>down</b> one level, and climbs only with a <b>ramp</b>. A one-level drop is a one-way door.</p>${els(GROUPS[0][1])}`)}
@@ -203,7 +203,7 @@ export function buildGuideHtml(tools){
       <li>The difficulty panel shows how the solver sees your isle, plus <b>make it harder</b> ideas (block the straight line, add risky steps, narrow it to one clever route).</li>
       <li><b>▶ Test it</b> plays your draft. Your draft is saved in this browser as you go.</li></ul>`)}
     ${section('Sharing your isle', `<ul><li><b>Share online</b> (sign in with GitHub or Google): get a link anyone can play. The server checks it again before it goes live.</li>
-      <li><b>Export for GitHub</b>: add your GitHub username for credit. If it passes every check, you get the file to add at <code>isles/community/&lt;you&gt;/&lt;id&gt;.json</code> in a pull request. Merged isles ship in the game.</li>
+      <li><b>Propose on GitHub</b>: add your GitHub username for credit. If it passes every check, the builder opens GitHub with your isle already filled in at <code>isles/community/&lt;you&gt;/&lt;id&gt;.json</code>. Sign in there and GitHub opens the pull request for you. Merged isles ship in the game. (A very large map downloads as a file to add by hand instead.)</li>
       <li>Community isles need a solution of at least 6 moves that uses a real mechanic (plain flat walking is rejected), and must not copy an existing isle.</li>
       <li><b>Isle code</b> is the same text format as the file. Edit it directly, or paste one in. <b>JSON</b> / <b>Import</b> save and load files.</li></ul>`)}
     ${section('Design tips', `<ul><li><b>One idea per isle.</b> Find the one surprising thing and cut everything that doesn’t serve it.</li>

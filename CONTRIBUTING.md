@@ -3,25 +3,32 @@
 Thanks for wanting to build here! The easiest and most loved contribution is an
 **isle** — a small floating puzzle that everyone can play, credited to you.
 
-## Add your isle in 5 steps
+## Add your isle in 3 steps
 
 1. **Build it** at [klarbase.dev](https://klarbase.dev) → **Create** (or run the game locally, see below).
    Start from a blank meadow or remix any official isle. The status line tells you live
    whether it's solvable and its par. Every tile and setting is explained in the builder's
    **📖 How to build** guide ([klarbase.dev/how-to-build](https://klarbase.dev/how-to-build)).
-2. **Export it** — type your GitHub username in the builder and press **Export for GitHub**.
+2. **Propose it** — type your GitHub username in the builder and press **Propose on GitHub**.
    The builder runs the *same checks as CI*; if anything would fail, it tells you what to fix.
-   You get a file like `sundial-steps.json` with `par` and `solution` already filled in.
-3. **Put it in your folder**: `isles/community/<your-github-username>/<id>.json`
-   (the file name must equal the isle's `id`, and the folder must equal `author`).
-4. **Check it locally** (optional, needs only Node 20 — no install):
-   ```bash
-   node tools/check-isles.mjs isles/community/<you>/<id>.json
-   ```
-5. **Open a pull request** that only touches your own folder. The `isles` check runs
-   automatically and posts a summary with your isle's map, par and solution. When every
-   check is green, the PR is mergeable — and once merged, your isle ships in the game's
-   **Community** tab with “by @you” on it.
+   When it passes, press **Open the pull request on GitHub**: GitHub opens
+   `isles/community/<your-github-username>/<id>.json` already filled in (with `par` and
+   `solution`). Sign in if asked, press **Commit changes…** → **Propose changes** →
+   **Create pull request**. GitHub forks the repo for you if you need one — no git, no install.
+3. **Wait for green.** The `isles` check runs automatically and posts a summary with your
+   isle's map, par and solution. When every check is green, the PR is mergeable — and once
+   merged, your isle ships in the game's **Community** tab with “by @you” on it.
+
+### By hand (or if your isle is too big to prefill)
+
+Very large isles don't fit in a link, so the builder downloads `<id>.json` instead.
+Put it at `isles/community/<your-github-username>/<id>.json` (the file name must equal the
+isle's `id`, and the folder must equal `author`), optionally check it locally (needs only
+Node 20 — no install):
+```bash
+node tools/check-isles.mjs isles/community/<you>/<id>.json
+```
+and open a pull request that only touches your own folder.
 
 ## What the checks enforce (and why)
 
