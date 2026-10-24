@@ -463,7 +463,11 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
   `credentials:'omit'`): `start` = first real move of a visit or after a clear, `clear` with moves
   + ms, `hint`, `restart` (Restart/R after ≥ 1 move, before a clear). Drafts and replays send nothing.
 - **Daily Isle:** title button `☀ Daily #N` → `/daily` (via `nav()`, replaces history); win modal
-  copies the spoiler-free share text. Help modal carries the one-line privacy note.
+  copies the spoiler-free share text. Help modal carries the one-line privacy note (linked to `/privacy`).
+- **Feedback + privacy (2026-10-25):** `✉ Send feedback` in the help modal, plus a *Send feedback ·
+  Privacy* line under the title buttons, opens a modal (message ≤ 2000 with counter, optional reply
+  email) → `POST /api/feedback` with the current path. `/privacy` is a static screen in `index.html`
+  (`#scr-privacy`, showcase isle behind it) listing everything stored and how to get an account deleted.
 - **Builder difficulty:** "Difficulty — your gut call" chips (saved in the draft, exported in
   JSON / Export for GitHub, sent with Share online), live audit (60k live / 200k deep check),
   score, audit tier, the gut-vs-audit warning and optional "make it harder" hints.
@@ -511,6 +515,8 @@ POST   /api/puzzles/:hash/report           login; ≥ 3 reports auto-hide
 GET    /api/stats                          maintainer aggregates (counts only); 404 unless STATS_TOKEN is set and sent as Bearer
 POST   /api/plays  {key, event, moves?, ms?}   public, anonymous play event (K7) → 204; 120 / 10 min per IP (in memory)
 GET    /api/plays                          public per-isle sums for the picker; Cache-Control: public, max-age=60
+POST   /api/feedback {message, email?, page?}  public → 201; message 1..2000 chars; userId attached if signed in; 10 / h per IP (in memory)
+GET    /api/feedback?limit                 maintainer: newest first (≤ 500); 404 unless STATS_TOKEN is set and sent as Bearer
 ```
 Isles reuse `Puzzle` (`json` holds the canonical isle + `par` + `solution`, and since Phase 1 an
 optional `tier` and the solver `audit` numbers `{states, traps, greedy, routes, par, capped}`
@@ -523,6 +529,22 @@ cleared, hints, restarts`, `moves` jsonb `{moves: count}` (clamped 1..500), `tim
 cookie, nothing per person — so no cascade delete is needed. Keys are validated (official ids from
 core, community/daily files present in the bundled `isles/`, online hashes must exist in `Puzzle`).
 Writes are one atomic `INSERT … ON CONFLICT DO UPDATE` with `jsonb_set` increments.
+
+**`Feedback` (migration `20261025120000_feedback`) — holds user data.** `id, message, email?,
+page, userId? → User onDelete: Cascade, createdAt`. The message (trimmed, ≤ 2000), the reply email
+the player chose to give, the path it was sent from, and the user only if signed in. **No IP** (the
+limiter keeps it in memory for its window). Cascade, not SetNull: deleting an account deletes
+everything it sent, which is what `/privacy` promises. Anonymous feedback is deleted by hand on
+request (matched by reply email). Read with `curl -H "Authorization: Bearer $STATS_TOKEN"
+https://klarbase.dev/api/feedback`.
+
+**What is stored, per person (keep `/privacy` in sync).** Anonymous: `localStorage` only (progress,
+settings, draft, dailies, effort, GitHub name) + anonymous `IslePlay` sums. Signed in: better-auth
+`User` (name, email, avatar), `Account` (provider link + OAuth tokens), `Session` (cookie token,
+**ipAddress, userAgent**), plus their `Puzzle`, `Report`, `Plot`, `Feedback` rows — all cascade
+from `User`. Cloudflare Web Analytics (cookieless). No cookie banner: the only cookie is the
+sign-in session, strictly necessary. Account deletion is manual: the player signs in and sends
+feedback asking for it (the `userId` on the row proves who asked); delete the `User` row.
 
 **Stats (2026-10-19).** `/api/stats` returns `{users, users7d, isles, isles7d, sharers7d}`: counts
 only, no ids, names or emails, no new table. Since Phase 1, plays and clears are measured
@@ -593,6 +615,21 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-10-25 (x) — Player feedback + privacy page
+- **Why:** players could only reach the maker through GitHub, and the help modal's privacy line
+  ("no … IP address stored") was untrue for signed-in players (better-auth's `Session` keeps
+  `ipAddress` + `userAgent`).
+- **Feedback:** new `Feedback` table (§8; cascade from `User`, no IP), `POST /api/feedback` (public,
+  10/h per IP in memory, `parseFeedback` pure + exported), `GET /api/feedback` behind the
+  `STATS_TOKEN` bearer (`authorized` now exported from `routes/stats.js`). Prod gets the table on
+  the next deploy's boot (`prisma migrate deploy`).
+- **Privacy:** `/privacy` screen states what is stored (§8 "What is stored, per person") and how
+  to get an account deleted (signed-in feedback, or a GitHub issue). No cookie banner — only
+  strictly-necessary storage. Help-modal line corrected and linked.
+- **Local DB without Docker:** verified against Postgres 16 from the `embedded-postgres` npm package
+  (run from a scratch folder, `klar/klar/klarbase` on :5432, so `.env` is unchanged). Migration
+  applied there only; `prisma migrate diff` migrations → schema: no difference.
 
 ### 2026-10-24 (w) — Official isles: one JSON file each
 - **Why:** founder asked why official isles were one big `isles.js` array when community and daily

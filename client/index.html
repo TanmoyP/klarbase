@@ -68,6 +68,19 @@
   .hero .actions .btn{ font-size:17px; padding:14px 22px; }
   .hero .fine{ margin-top:18px; color:#fff; font-weight:700; font-size:13px; text-shadow:0 1px 8px rgba(30,20,50,.5); }
 
+  .hero .fine a, .hero .fine button{ color:#fff; font:inherit; text-decoration:underline; text-underline-offset:2px; }
+  .fine-links{ margin-top:8px; opacity:.9; }
+
+  /* ---------- privacy ---------- */
+  #scr-privacy .panel{ position:absolute; left:50%; top:max(64px, calc(env(safe-area-inset-top) + 56px)); bottom:18px; transform:translateX(-50%);
+    width:min(720px, calc(100vw - 24px)); display:flex; flex-direction:column; overflow:hidden; }
+  .prose{ font-size:15px; font-weight:600; color:var(--ink-2); line-height:1.5; max-width:62ch; }
+  .prose h3{ margin:18px 0 4px; font-size:17px; color:var(--ink); }
+  .prose p, .prose ul{ margin:6px 0; }
+  .prose ul{ padding-left:20px; }
+  .prose a{ color:inherit; text-underline-offset:2px; }
+  .prose .btn{ font-size:14px; }
+
   /* ---------- select ---------- */
   #scr-select .panel{ position:absolute; left:50%; top:max(64px, calc(env(safe-area-inset-top) + 56px)); bottom:18px; transform:translateX(-50%);
     width:min(1080px, calc(100vw - 24px)); display:flex; flex-direction:column; overflow:hidden; }
@@ -261,7 +274,8 @@
         <button class="btn" data-go="/community">☁ Community</button>
         <button class="btn" data-go="/daily" id="btnDaily" title="One isle a day, the same for everyone">☀ Daily</button>
       </div>
-      <div class="fine">No account needed to play or build. Sign in only to share online.</div>
+      <div class="fine">No account needed to play or build. Sign in only to share online.
+        <div class="fine-links"><button class="feedback-open">Send feedback</button> · <a href="/privacy" data-go="/privacy">Privacy</a></div></div>
       <button class="sky-strip" id="skyStrip" title="Your sky — every chapter is a constellation"></button>
     </div>
   </section>
@@ -310,6 +324,50 @@
       <span></span><button class="btn" data-arrow="up">▲</button><span></span>
       <button class="btn" data-arrow="left">◀</button><button class="btn use" data-arrow="use">USE</button><button class="btn" data-arrow="right">▶</button>
       <span></span><button class="btn" data-arrow="down">▼</button><span></span>
+    </div>
+  </section>
+
+  <!-- privacy -->
+  <section class="screen" id="scr-privacy">
+    <div class="panel glass">
+      <div class="panel-head">
+        <button class="btn small ghost" data-go="/">←</button>
+        <h2>Privacy</h2>
+      </div>
+      <div class="scroll prose">
+        <p>Klarbase is a small open-source game made by one person. It collects as little as it can, sells nothing and shows no ads. This page lists everything that is stored. <i>Last updated 25 October 2026.</i></p>
+
+        <h3>On your device</h3>
+        <p>Your progress (stars, best moves and times), settings, the isle you're building, your Daily stars and the GitHub name you type for exports are kept in your browser's local storage. They never leave your device. Clearing this site's data in your browser removes them.</p>
+
+        <h3>Anonymous play totals</h3>
+        <p>To rate how hard each isle is, the game sends small events when you start, clear, restart or ask for a hint on an isle, with your moves and a rough time for a clear. The server only adds them to running totals per isle. They are sent without cookies and carry no account, device id or IP address, so they can't be traced back to you.</p>
+
+        <h3>If you sign in</h3>
+        <p>Signing in is only needed to share isles online. When you sign in with GitHub or Google we receive and keep:</p>
+        <ul>
+          <li>your <b>name, email address and profile picture</b> from that account, and the link to it (including the sign-in tokens it hands us);</li>
+          <li>a <b>session cookie</b> that keeps you signed in — the only cookie Klarbase sets;</li>
+          <li>for each session, the <b>IP address and browser (user agent)</b> it was started from, used to keep accounts secure. Signing out ends the session.</li>
+        </ul>
+        <p>Isles you share online are public, with your name as their maker. Reports you file on isles are kept with your account.</p>
+
+        <h3>Feedback</h3>
+        <p>When you send feedback we store your message, the page you sent it from, the reply email if you give one, and your account if you're signed in. No IP address is stored.</p>
+
+        <h3>Page views</h3>
+        <p>Visits are counted with Cloudflare Web Analytics, which uses no cookies and doesn't track you across sites.</p>
+
+        <h3>Who handles the data</h3>
+        <p>The game runs on Railway, the database on Neon, and all traffic passes through Cloudflare. GitHub and Google handle sign-in. To protect the server from abuse, it remembers IP addresses in memory for up to an hour to limit how often one address can send requests; they are never written down.</p>
+
+        <h3>Why there's no cookie banner</h3>
+        <p>The only cookie is the sign-in one, and local storage only holds your own game. Both are strictly necessary for what you asked the game to do, so there's nothing to consent to.</p>
+
+        <h3>Getting your data deleted</h3>
+        <p>To delete your account, sign in and send feedback asking for it — that tells us the request really comes from you. Deleting an account removes your profile, sign-in links, sessions, shared isles, reports and feedback. For feedback sent without signing in, tell us the reply email you used. You can also <a href="https://github.com/TanmoyP/klarbase/issues" target="_blank" rel="noopener">open an issue on GitHub</a>.</p>
+        <div class="row-btns" style="margin-top:14px"><button class="btn primary feedback-open">Send feedback</button></div>
+      </div>
     </div>
   </section>
 

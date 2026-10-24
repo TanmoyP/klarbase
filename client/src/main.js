@@ -231,6 +231,7 @@ async function refreshAuth(){
 document.addEventListener('click', e => {
   if(e.target.id === 'siGh') signIn('github'); if(e.target.id === 'siGo') signIn('google');
   const go = e.target.closest('[data-go]'); if(go){ e.preventDefault(); sfx.ui(); nav(go.dataset.go); }
+  if(e.target.closest('.feedback-open')){ sfx.ui(); feedbackModal(); }
 });
 
 function helpModal(){
@@ -254,20 +255,45 @@ function helpModal(){
       <div><span class="ico">⭐</span><span>Reach the glowing star. Match par for ★★★. Stuck? <b>H</b> shows the isle’s tip, then your best next move.</span></div>
       <div><span class="ico">📈</span><span>Each isle shows a difficulty from <b>Breeze</b> to <b>Mythic</b>. It starts as the maker’s guess and settles as people play.</span></div>
     </div>
-    <p class="facts" style="font-size:12.5px;font-weight:600;margin:10px 0 0">Privacy: to rate difficulty, the game counts plays, clears, hints, restarts, moves and time per isle — anonymous totals only, no account, cookie or IP address stored.</p>
-    <div class="row"><button class="btn primary" onclick="document.getElementById('modal').classList.remove('on')">Got it</button></div>`);
+    <p class="facts" style="font-size:12.5px;font-weight:600;margin:10px 0 0">Privacy: to rate difficulty, the game counts plays, clears, hints, restarts, moves and time per isle — anonymous totals with no account, cookie or IP address. Signing in sets one cookie and keeps your name, email and session details. <a href="/privacy" data-go="/privacy" style="color:inherit">What's stored</a></p>
+    <div class="row"><button class="btn feedback-open">✉ Send feedback</button><button class="btn primary" onclick="document.getElementById('modal').classList.remove('on')">Got it</button></div>`);
+}
+
+// Feedback: the way to reach the maker without a GitHub account (POST /api/feedback).
+const FEEDBACK_MAX = 2000;   // = MESSAGE_MAX in server/src/routes/feedback.js
+function feedbackModal(){
+  modal.open(`<h2>Send feedback</h2>
+    <p class="facts" style="font-weight:600;margin:6px 0 12px">Ideas, bugs, an isle that felt unfair — it all goes straight to the maker.</p>
+    <div class="field" style="text-align:left"><label for="fbMsg">Message</label>
+      <textarea id="fbMsg" maxlength="${FEEDBACK_MAX}" style="font-family:inherit;font-size:14.5px;white-space:pre-wrap"></textarea>
+      <div class="facts" id="fbCount" style="font-size:12px;text-align:right">0 / ${FEEDBACK_MAX}</div></div>
+    <div class="field" style="text-align:left"><label for="fbEmail">Email for a reply (optional)</label><input id="fbEmail" type="email" maxlength="254" autocomplete="email"></div>
+    <p class="facts" style="font-size:12.5px;font-weight:600;margin:10px 0 0">${session ? 'Sent with your account. ' : ''}No IP address is stored. <a href="/privacy" data-go="/privacy" style="color:inherit">Privacy</a></p>
+    <div class="row"><button class="btn" id="fbCancel">Cancel</button><button class="btn primary" id="fbSend">Send</button></div>`);
+  const msg = $('#fbMsg'), send = $('#fbSend');
+  msg.oninput = () => { $('#fbCount').textContent = `${msg.value.length} / ${FEEDBACK_MAX}`; };
+  msg.focus();
+  $('#fbCancel').onclick = () => modal.close();
+  send.onclick = async () => {
+    if(!msg.value.trim()) return toast('Write a message first', true);
+    send.disabled = true;
+    try {
+      await api('/feedback', { method:'POST', body:{ message:msg.value, email:$('#fbEmail').value.trim() || undefined, page:location.pathname } });
+      modal.close(); toast('Thank you — feedback sent');
+    } catch(e){ send.disabled = false; toast(e.message, true); }
+  };
 }
 
 /* ---------------- title ---------------- */
 const SHOWCASE = ['the-peak', 'palm-plates', 'canal-lift', 'rooftops', 'root-bridge', 'night-market', 'glacier-maze'];
-function titleScreen(){
+function titleScreen(screen = 'title'){
   stopGame();
   const id = SHOWCASE[Math.floor(Math.random() * SHOWCASE.length)];
   const pick = CURATED_ISLES.find(i => i.id === id) || CURATED_ISLES[0];
   if(pick.id !== id) console.warn('[klarbase] showcase isle not found:', id, CURATED_ISLES.length);
   const { level } = parseIsle(pick);
   world.load(level, pick.theme, { showcase:true }); world.setShowcase(true); world.reset(initialState(level));
-  setAccent(pick.theme); show('title'); renderSkyStrip();
+  setAccent(pick.theme); show(screen); renderSkyStrip();
   const d = dailyEntry(); $('#btnDaily').textContent = d ? `☀ Daily #${d.daily.no}` : '☀ Daily';
 }
 
@@ -632,6 +658,7 @@ async function route(){
   const h = location.pathname.replace(/\/+$/, '') || '/';
   let m;
   if(h === '/') return titleScreen();
+  if(h === '/privacy') return titleScreen('privacy');   // the showcase isle behind the text
   if(h === '/play') return selectScreen('official');
   if(h === '/community') return selectScreen('community');
   if(h === '/daily'){ const e = dailyEntry(); return e ? play(e) : nav('/play'); }

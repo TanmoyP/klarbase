@@ -9,7 +9,8 @@ import { prisma } from '../db.js';
 export const stats = Router();
 
 const DAY = 24*60*60*1000;
-const authorized = req => {
+// Also guards GET /api/feedback (routes/feedback.js).
+export const authorized = req => {
   const want = process.env.STATS_TOKEN;
   if(!want) return false;
   const got = Buffer.from(String(req.get('authorization') || '').replace(/^Bearer /, ''));
