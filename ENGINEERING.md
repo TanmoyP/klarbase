@@ -110,8 +110,9 @@ module — so a player, a reviewer and the server can never disagree about an is
 **Data flows.**
 - *A move:* key → `world.arrowToMove()` (camera-relative) → `step(level, state, move)` →
   `{state, events}` → `world.play()` animates the events in order → HUD updates.
-- *A PR isle:* builder **Export for GitHub** (runs `checkCommunityIsle`) → contributor commits
-  `isles/community/<me>/<id>.json` → CI `isles` job → required check → merge → next build bundles
+- *A PR isle:* builder **Propose on GitHub** (runs `checkCommunityIsle`) → a link to GitHub's
+  new-file page with `isles/community/<me>/<id>.json` prefilled (GitHub signs in, forks, opens the PR;
+  no OAuth here; isles over 7.5k URL chars download instead) → CI `isles` job → required check → merge → next build bundles
   it via `import.meta.glob` → Community tab, credited.
 - *An online share:* builder **Share online** (signed in) → `POST /api/puzzles` → server parses +
   solves (budget 200k) → stores canonical isle + par + solution under its content hash → `/i/<hash>`.
@@ -455,7 +456,7 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
   solution unlocks, settings (sound, timer), builder draft, GitHub username for exports.
 - **Builder:** palette (33 tools), click/drag paint, right-click erase, raise/lower, rotating
   stairs, size 3–14, theme chips, remix any official isle, two-way "Isle code" text, live
-  verdict (60k states; Deep check 300k), Test, Share online, Export for GitHub, JSON import/export.
+  verdict (60k states; Deep check 300k), Test, Share online, Propose on GitHub, JSON import/export.
 - **Difficulty (Phase 1):** every card (official, community, online) and the in-game title show
   a tier badge + score (tooltip: "early estimate" until 20 plays). Inputs: declared tier, else the audit (computed
   client-side for community isles, stored by the server for online shares), plus `GET /api/plays`
@@ -465,7 +466,7 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
 - **Daily Isle:** title button `☀ Daily #N` → `/daily` (via `nav()`, replaces history); win modal
   copies the spoiler-free share text. Help modal carries the one-line privacy note.
 - **Builder difficulty:** "Difficulty — your gut call" chips (saved in the draft, exported in
-  JSON / Export for GitHub, sent with Share online), live audit (60k live / 200k deep check),
+  JSON / Propose on GitHub, sent with Share online), live audit (60k live / 200k deep check),
   score, audit tier, the gut-vs-audit warning and optional "make it harder" hints.
 - **Hint (2026-10-19):** two-stage — the first H / 💡 press re-shows the isle's written tip (free);
   then the button becomes 🧭 Next move (solver, keeps the free-hint limit). Never spent mid-hop.
@@ -593,6 +594,20 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-10-25 (x) — Propose on GitHub (one-click isle PRs)
+- **Why:** "Export for GitHub" downloaded `<id>.json` and left the player to fork, place the file and
+  open a PR by hand — too much friction for players who aren't developers.
+- **Decision — a link, not OAuth:** after the same `checkCommunityIsle` gate, the builder shows a link to
+  `${REPO_URL}/new/main/isles/community/<author>?filename=<id>.json&value=<url-encoded file>`. GitHub
+  handles sign-in, forks for non-collaborators and opens the PR to `main`. Rejected: GitHub OAuth with
+  `public_repo` (scary scope, needs a server token flow). CI is unchanged — still JSON-only.
+- **Limit:** `MAX_GITHUB_URL = 7500` in `client/src/builder.js`. Measured: longest official isle
+  (three-storeys) ≈ 2.0k URL chars; a synthetic maxed map (3 × 14×14 storeys, 40-char id/name,
+  39-char author, long hint) ≈ 6.0k. GitHub refuses request lines near 8 KB, so above the limit the
+  builder falls back to the old JSON download + by-hand instructions.
+- Button renamed everywhere it's named (README, CONTRIBUTING — now 3 steps + a by-hand section,
+  isles/README, PR template, About page, contrib.js header).
 
 ### 2026-10-24 (w) — Official isles: one JSON file each
 - **Why:** founder asked why official isles were one big `isles.js` array when community and daily

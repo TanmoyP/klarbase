@@ -5,7 +5,8 @@ Every isle is a small grid written as text. This folder holds the **community** 
 their author, `daily/YYYY-MM-DD.json` — hand-made Daily Isles — and `official/` — the
 official isles (see [Official isles](#official-isles)). All three use the same format.
 
-How to contribute one: see [CONTRIBUTING.md](../CONTRIBUTING.md).
+How to contribute one: press **Propose on GitHub** in the game's builder — it checks the isle
+and opens a prefilled pull request on GitHub. Details: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## The format
 
