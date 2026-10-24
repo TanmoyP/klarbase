@@ -52,7 +52,7 @@ a stored isle a `Puzzle` (table, `/api/puzzles`) — don't rename in passing.
 ```
 klarbase/
 ├── core/                 @klar/core — pure, zero-dep, isomorphic. THE rules.
-│   ├── src/isle/         format.js · rules.js · solve.js · contrib.js · isles.js (24 + 5 Twist + 8 Hanging Gardens)
+│   ├── src/isle/         format.js · rules.js · solve.js · contrib.js · isles.js → official.js (generated from isles/official/)
 │   │                     difficulty.js (audit + K3 score + tiers) · daily.js (Daily Isle pick/number/share)
 │   ├── src/*.js          legacy voxel engine — kept only for the deferred world API
 │   └── test/             isles.mjs · difficulty.mjs · run.mjs (legacy, 57)
@@ -69,12 +69,13 @@ klarbase/
 ├── isles/
 │   ├── community/<user>/<id>.json   community isles — bundled into the client with credit
 │   ├── daily/<YYYY-MM-DD>.json      hand-made Daily Isles (same gate, daily rules)
+│   ├── official/         chapters.json + <chapter-key>/<id>.json — the official isles (source of truth)
 │   ├── README.md         the format + rules for players, contributors and builder bots
 │   └── MAINTAINERS       who may edit any community folder
-├── content/isles/        generated artifacts for the official isles (deterministic)
 ├── tools/
 │   ├── check-isles.mjs   the PR gate for community + daily isles (zero-dep, data-only)
-│   ├── author.mjs        verifies official isles, writes content/isles, --seed to DB
+│   ├── official.mjs      reads isles/official/, renders core/src/isle/official.js
+│   ├── author.mjs        renders + verifies official isles, --seed to DB
 │   └── difficulty.mjs    prints the solver audit + gut/audit tier of every official isle
 └── .github/              ci.yml · CODEOWNERS · PR template · ruleset-main.json
 ```
@@ -85,7 +86,7 @@ graph TD
     F[format.js<br/>parseIsle · isleHash] --> R[rules.js<br/>step · simulate]
     R --> S[solve.js<br/>solveIsle · solveFrom]
     S --> C[contrib.js<br/>checkCommunityIsle]
-    I[isles.js<br/>24 official]
+    I[isles.js<br/>official.js ← isles/official/]
   end
   subgraph client
     M[main.js] --> SE[session.js] --> W[world.js]
@@ -263,6 +264,13 @@ route. The goal is protecting the "aha" for players who try, not secrecy.
 
 ## 5. Content
 
+Every official isle is one JSON file, `isles/official/<chapter-key>/<id>.json` (chapter key =
+the chapter's `id`, else its `theme`), with its design note as a `catch` field; chapter order,
+metadata and isle order live in `isles/official/chapters.json`. `@klar/core` does no I/O, so
+`tools/author.mjs` renders them into `core/src/isle/official.js` (generated, re-exported by
+`isles.js` as `CHAPTERS` / `CURATED_ISLES`, without `catch`) and verifies every isle; CI diffs the
+module and `core/test/isles.mjs` fails if it is stale. Format: `isles/README.md` § Official isles.
+
 **24 official isles, five chapters**, all verified in CI (`core/test/isles.mjs` + `tools/author.mjs`):
 
 | # | Isle | Chapter | Par | Mechanics the solution uses |
@@ -296,8 +304,8 @@ route. The goal is protecting the "aha" for players who try, not secrecy.
 Tide Lever, First Frost · Tricky — Palm Plates, Crosswalk, Frozen Gate, The Peak · Easy — the rest.
 
 **Twist isles (Phase 1, 2026-10-19)** — one optional side-path isle per chapter, appended to its
-chapter, `twist:true`, existing tiles only, each built around a written catch (comment above it
-in `isles.js`). Main-path numbering, Continue and "Next isle" skip them. Targets enforced in
+chapter, `twist:true`, existing tiles only, each built around a written catch (its `catch`
+field in `isles/official/`). Main-path numbering, Continue and "Next isle" skip them. Targets enforced in
 `core/test/difficulty.mjs`: ≥ 3,000 states, ≥ 3 traps, greedy fails, ≤ 4 shortest routes, ≤ 60 tiles.
 
 | Twist | Chapter | Gut | Par | States | Traps | Greedy | Routes | Tiles | Audit | Catch (short) |
@@ -314,7 +322,7 @@ route (Hazelden's "whack-a-mole" with the audit doing the whacking).
 
 **Hanging Gardens (Phase 2, 2026-10-19)** — chapter `gardens` (keyed by id, not theme: isles say
 `chapter:'gardens'`), jungle + tropical, all schemaVersion 6. Each built around a written catch
-(comment above it in `isles.js`), then the filler tiles hill-climbed with the solver toward the §4.2
+(its `catch` field in `isles/official/`), then the filler tiles hill-climbed with the solver toward the §4.2
 targets; scales must be load-bearing (freezing the pans to ground must make the isle unsolvable or
 shorter). Audit = `provisionalTier` (main's rule: Mythic-by-traps needs ≥ 30k states).
 
@@ -330,7 +338,7 @@ shorter). Audit = `provisionalTier` (main's rule: Mythic-by-traps needs ≥ 30k 
 | 37 | Sky Scales | 2 | Mythic | 43 | 46,440 | 11 | fails | 1 | Mythic | the signature: load the lower isle to lift the upper one |
 
 **Windward (Phase 3, 2026-10-20)** — chapter `windward` (mountain), all one-storey v6 maps,
-Weight II. Each catch is written above the isle in `isles.js` and **proven with `tools/isle-lab.mjs
+Weight II. Each catch is the isle's `catch` field and **proven with `tools/isle-lab.mjs
 --must`** (no winning route skips it); shortcuts the lab printed were blocked one by one.
 
 | # | Isle | Gut | Par | Seed par | States | Traps | Greedy | Routes | Audit | Catch (short) |
@@ -352,7 +360,7 @@ solver-driven search over random rock layouts (kept: longest routes with the mos
 Each chapter introduces one idea and ends by combining it with earlier ones.
 
 **Nightfall (Phase 4, 2026-10-23)** — chapter `night` (theme `night`), six one-storey v6 maps with
-cozy hazards. Each catch is written above the isle in `isles.js` and **proven with `tools/isle-lab.mjs
+cozy hazards. Each catch is the isle's `catch` field and **proven with `tools/isle-lab.mjs
 --must`**; `core/test/isles.mjs` also checks every Nightfall isle's hazards are **load-bearing**
 (boulders → ground, thorns → rock: the stripped isle's shortest route must bonk on the real one), and
 `core/test/difficulty.mjs` that gut and audit agree within a tier. Isles 52–53 were found by
@@ -575,8 +583,8 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 - **Railway auto-deploys every merge to `main`** (seen 2026-10-19: deploys at each PR merge). `railway up` uploads the *working directory*, so only run it from a clean `main` checkout — never from a feature branch.
 - **Browser pane hidden ⇒ `requestAnimationFrame` stops**, so Pip's tweens never finish and keys queue up. Show the pane (`show_pane preview`) before driving solutions in the browser.
 - Neon `DIRECT_URL` = pooled URL minus `-pooler`. OAuth callbacks must match `BETTER_AUTH_URL` exactly.
-- **New rules or tiles:** change `core/src/isle/*`, run `node core/test/isles.mjs` — it re-solves every official isle and reports any par that moved; then `node tools/author.mjs` and commit `content/isles/`.
-- **New official isle:** add it to `isles.js`, run the tests — they print the true par and solution to paste in.
+- **New rules or tiles:** change `core/src/isle/*`, run `node core/test/isles.mjs` — it re-solves every official isle and reports any par that moved; then `node tools/author.mjs` and commit any regenerated `core/src/isle/official.js`.
+- **New official isle:** add `isles/official/<chapter-key>/<id>.json` and its id to `isles/official/chapters.json`, run `node tools/author.mjs` — it prints the true par and solution to paste in.
 - **Browser pane:** this Claude session was started from the byte-mvp folder, so the preview launcher reads `byte-mvp/.claude/launch.json`; start future klarbase sessions from the klarbase folder. Viewport emulation at custom sizes misreports layout — trust the pane's natural size.
 - **Secrets** live only in Railway variables — never in the repo, CI or chat. If one is ever exposed, rotate it.
 
@@ -585,6 +593,25 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-10-24 (w) — Official isles: one JSON file each
+- **Why:** founder asked why official isles were one big `isles.js` array when community and daily
+  isles are one file each. Now `isles/official/<chapter-key>/<id>.json` + `chapters.json` are the
+  source of truth; catch notes moved from comments to a real `catch` field.
+- **Decision — loading:** a **generated plain-JS module** (`core/src/isle/official.js`, rendered by
+  `tools/official.mjs` via `tools/author.mjs`), not `import … with { type:'json' }`. Reasons: Node 20
+  (prod + CI) still prints an ExperimentalWarning for JSON modules; core would import from outside
+  its package; the bundle would carry `catch` spoilers; static imports need a generated index anyway.
+  core stays pure and zero-dep; client, server, tests and tools keep one `@klar/core` path.
+- **Decision — `content/isles/` retired:** the source JSON files are the per-isle artifacts; the
+  manifest's hash/mechanics were derived and unread (author.mjs now prints them). CI's `engine` job
+  diffs `core/src/isle/official.js` instead.
+- **Zero behaviour change, proven:** `JSON.stringify({CHAPTERS, CURATED_ISLES})` byte-identical to
+  main (key order and padded rows kept); `content/isles` unchanged after `author.mjs` before it was
+  retired; `npm test` green. `tools/isle-lab.mjs` skips `isles/official/` (else every official isle is
+  its own twin) and maps an official file path to its id.
+- **Next:** dailies already show their `catch` after a clear — showing official catches the same
+  way is now a one-line product decision, deliberately not made here.
 
 ### 2026-10-23 (v) — Phase 4 · Cozy hazards (K5) + Nightfall
 - **Schema decision (CLAUDE.md rule 4), shipped together:** map-only tiles `H` / `I` boulders and

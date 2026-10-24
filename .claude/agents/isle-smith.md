@@ -13,7 +13,7 @@ You design **one** isle per call and prove it is good before you hand it over.
 - `isles/daily/README.md` — the daily file format (`id`, `tier` required, optional `catch`).
 - The brief you were given: date, tier, catch type, what recent dailies already did.
 - Past dailies (`isles/daily/*.json`) and the 3–4 official isles nearest your tier
-  (`core/src/isle/isles.js`, search `tier:'<tier>'`). Never copy one.
+  (`isles/official/*/*.json`, search `"tier": "<tier>"`). Never copy one.
 
 ## The workbench — `node tools/isle-lab.mjs <file> [options]`
 Everything it says comes from `@klar/core`, so it can't disagree with the game or the PR gate.

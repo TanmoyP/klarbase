@@ -2,7 +2,8 @@
 
 Every isle is a small grid written as text. This folder holds the **community** isles —
 `community/<github-username>/<id>.json` — which are bundled into the game with credit to
-their author, and `daily/YYYY-MM-DD.json` — hand-made Daily Isles. The official isles live in `core/src/isle/isles.js`.
+their author, `daily/YYYY-MM-DD.json` — hand-made Daily Isles — and `official/` — the
+official isles (see [Official isles](#official-isles)). All three use the same format.
 
 How to contribute one: see [CONTRIBUTING.md](../CONTRIBUTING.md).
 
@@ -110,6 +111,25 @@ score = (20 · prior + n · observed) / (20 + n)
 `isles/daily/YYYY-MM-DD.json` holds a hand-made isle for that UTC date — same format, plus a
 required `tier` and an optional `catch` (the designer's note, shown only after a clear).
 Details: [`daily/README.md`](daily/README.md).
+
+### Official isles
+
+`official/chapters.json` lists the chapters in play order — `theme`, `title`, an `id` when the
+chapter is keyed by id rather than theme (`gardens`, `windward`, `night`, `confluence`), a `blurb` — and
+each chapter's `isles` (ids, in play order). Each isle is `official/<chapter-key>/<id>.json`,
+where the chapter key is the chapter's `id`, else its `theme` (so Canopy is `official/jungle/`).
+An isle in an id-keyed chapter says `"chapter": "<id>"`; Confluence isles also say which two
+chapters they `"joins"`. Official isles carry their verified `par` and `solution` (plus `seedPar`
+when seeds change the par), the `needs` the solution must use, an optional `twist: true`, and
+`catch` — the designer's note on the one idea the isle is built around. Every catch is written
+first, then the filler tiles are tuned with the solver until the catch is the only way through
+(from Windward on, proven with `tools/isle-lab.mjs --must`).
+
+The game never reads these files directly: `node tools/author.mjs` renders them into
+`core/src/isle/official.js` and re-solves every one (par must be the shortest, the solution must
+win, every `need` must be load-bearing). CI fails if that module is stale. `catch` and the
+chapter lists are not shipped to players. Ids and order matter: per-isle stats are keyed by the
+id and undated Daily Isles are picked from this order, so never rename or reorder one casually.
 
 ## The rules
 

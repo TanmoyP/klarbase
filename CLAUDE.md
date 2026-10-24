@@ -55,8 +55,9 @@ If you changed **rules, the data model, content, infra, or the roadmap**:
 - **`@klar/core` is pure** — no DOM, no I/O, no three.js. Same result in browser and Node.
 - **The server publish gate is the security boundary.** Client checks are UX only.
 - **Content hash = identity** (`isleHash`): geometry + theme only. Immutable rows.
-- **Official isles** live in `core/src/isle/isles.js`. Add or edit → `node core/test/isles.mjs`
-  (it re-solves everything and prints the true par/solution) → `node tools/author.mjs` → commit `content/isles/`.
+- **Official isles** live in `isles/official/<chapter>/<id>.json` (order + chapters: `isles/official/chapters.json`).
+  Add or edit → `node tools/author.mjs` (renders `core/src/isle/official.js`, re-solves everything and prints
+  the true par/solution) → `npm test` → commit the JSON + `official.js`. Never edit `official.js` by hand.
 - **Community isles** live in `isles/community/<author>/<id>.json` and are judged by
   `tools/check-isles.mjs` + `core/src/isle/contrib.js`. Don't loosen a rule to let one isle in.
 - **Solutions are earned** (signed in, cleared, or active-play effort). Don't add new places
@@ -83,7 +84,7 @@ If you changed **rules, the data model, content, infra, or the roadmap**:
 ```bash
 npm test                         # isle engine + official isles + contribution rules + legacy engine
 node tools/check-isles.mjs       # the community-isle PR gate (or pass one file path)
-node tools/author.mjs            # verify official isles, regenerate content/isles/
+node tools/author.mjs            # render isles/official/ -> core/src/isle/official.js, verify official isles
 npm run dev:client               # play + build at :5173 (no server needed)
 npm run dev:server               # API at :3000 (needs .env + docker compose up db -d)
 npm run check                    # syntax sanity
