@@ -180,7 +180,7 @@ export class World {
         case 'door': { const d = put(makeDoor(T)); d.rotation.y = this.sideways(i) ? Math.PI / 2 : 0; this.doors.set(i, d); break; }
         case 'portal': { const pr = put(makePortal(T, c.ch)); pr.rotation.y = this.sideways(i) ? Math.PI / 2 : 0; this.portals.push(pr); break; }
         case 'bridge': { const b = put(makeBridge(T)); b.rotation.y = this.sideways(i) ? 0 : Math.PI / 2; b.userData.baseY = b.position.y; b.userData.storey = level.sid[i]; this.bridges.set(i, b); break; }
-        case 'pan': this.pans.set(i, put(makePan(T))); break;
+        case 'pan': this.pans.set(i, put(makePan(T, kit))); break;
         case 'post': this.posts.set(i, put(makePost(T))); break;
         case 'pile': put(makePile(T, r)); break;
         case 'vent': { const v = put(makeVent(T)); v.rotation.y = YAW_OF[c.blow]; this.vents.set(i, v); break; }
@@ -203,42 +203,9 @@ export class World {
   groupOf(i){ return this.storeyGroups[Math.max(0, this.level.sid[i])]; }
   fadeOf(obj){ return obj.parent ? obj.parent.userData.fade ?? 1 : 1; }
 
-  // Sky Scales: one vine over a sky branch, a rope down to every pan tile's hook.
-  // Rope lengths follow the pans; the branch stays put at a height clear of both.
-  buildVine(T){
-    this.vine = null;
-    const L = this.level;
-    if(!L.pans) return;
-    const tiles = [...L.pans.a, ...L.pans.b];
-    const top = Math.max(...tiles.map(i => (L.storeys[L.sid[i]].at[2] + L.cells[i].h + 1) * LV)) + PAN_HOOK + 0.7;
-    const pts = tiles.map(i => { const p = this.cellPos(i, false); return new THREE.Vector3(p.x, top, p.z); });
-    if(pts.length === 2) pts.splice(1, 0, pts[0].clone().lerp(pts[1], 0.5).add(new THREE.Vector3(0, 0.35, 0)));
-    const curve = new THREE.CatmullRomCurve3(pts);
-    const wood = new THREE.MeshStandardMaterial({ color:T.trunk, flatShading:true, roughness:0.9 });
-    const branch = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.075, 6, false), wood); branch.castShadow = true;
-    this.isle.add(branch);
-    const leaf = new THREE.MeshStandardMaterial({ color:T.leafAlt, flatShading:true, roughness:0.8 });
-    for(let k = 1; k < 9; k++){
-      const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 4), leaf);
-      m.scale.set(1.4, 0.45, 0.8); m.position.copy(curve.getPoint(k / 9)); m.position.y += 0.06; m.rotation.y = k * 1.9; this.isle.add(m);
-    }
-    const vineMat = new THREE.MeshStandardMaterial({ color:T.leaf, roughness:1 }), knot = new THREE.MeshStandardMaterial({ color:T.woodDark, flatShading:true });
-    const ropes = new Map();
-    for(const i of tiles){
-      const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 5), vineMat); rope.castShadow = true;
-      const k = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 6, 14), knot);
-      const p = this.cellPos(i, false); k.position.set(p.x, top, p.z); k.rotation.y = Math.PI / 4;
-      this.isle.add(rope, k); ropes.set(i, rope);
-    }
-    this.vine = { top, ropes };
-  }
-  updateVine(){
-    if(!this.vine) return;
-    for(const [i, rope] of this.vine.ropes){
-      const pan = this.pans.get(i), y0 = pan.position.y + PAN_HOOK, len = Math.max(0.01, this.vine.top - y0);
-      rope.position.set(pan.position.x, y0 + len / 2, pan.position.z); rope.scale.set(1, len, 1);
-    }
-  }
+  // Sky Scales: a pulley rig over the pans (pulley.js) — a gnarled sky-branch, a
+  // sheave over every pan, one rope. The engine decides the tilt; the rig shows it.
+  buildVine(T){ this.rig = buildRig(this, T); }
   // Pans (and whatever rides them) for a scales lean f — fractional while settling.
   setPans(f, state){
     for(const [i, m] of this.pans){
@@ -248,15 +215,19 @@ export class World {
       const cm = this.crateMeshes && this.crateMeshes.get(i); if(cm) cm.position.y = y;
       const bm = this.buoyMeshes && this.buoyMeshes.get(i); if(bm) bm.position.y = y;
     }
-    this.updateVine();
+    if(this.rig) this.rig.sync();
   }
+  // The heavy side drops on a spring: a touch of overshoot, one small rebound,
+  // then exactly `to` (≈0.6 s). The baskets keep rocking after the promise.
   settleScales(from, to, state){
+    const rig = this.rig;
     return new Promise(res => {
       let t = 0;
       this.fx.push({ update:dt => {
-        t = Math.min(1, t + dt / 0.45);
-        this.setPans(from + (to - from) * easeIO(t), state);
-        if(t >= 1){ this.tiltShown = to; res(); return false; }
+        t += dt;
+        const done = !rig || t >= rig.settleTime;
+        this.setPans(done ? to : from + (to - from) * rig.settle(t, to - from), state);
+        if(done){ this.tiltShown = to; res(); return false; }
         return true;
       } });
     });

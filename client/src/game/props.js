@@ -293,33 +293,59 @@ export function makePortal(T, pair){
   return g;
 }
 
-// Sky Scales (K1): a pan is a hanging basket of turf on four ropes that meet at a
-// hook (PAN_HOOK above the floor). The world strings the hooks of both pans to
-// one vine. Origin = the surface Pip stands on.
+// Sky Scales (K1): a pan is a hanging basket — a plank tray of turf under two
+// crossed bentwood handles that meet at a ring and hook PAN_HOOK above the floor,
+// where the rig's rope (pulley.js) takes it. Origin = the surface Pip stands on. The whole basket is
+// one baked mesh on the storey's kit material (cached per theme).
+import * as SK from './softkit.js';
 export const PAN_HOOK = 1.5;
-export function makePan(T){
+export const HEMP = '#d8b98c';
+export function makePan(T, kit){
+  const geo = SK.cached('pan:' + T.id, () => {
+    const r = rng(hashStr('pan' + T.id)), parts = [];
+    const box = (w, h, d, x, y, z, hex, k = 0.55, sh = {}) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); parts.push(SK.tint(SK.soften(g, k), hex, sh)); };
+    // tray: two plank courses (the seam reads as a line), turf, a raised rim
+    box(0.9, 0.1, 0.9, 0, -0.225, 0, T.wood, 0.6, { lo:0.62, hi:0.86 });
+    box(0.9, 0.1, 0.9, 0, -0.125, 0, T.wood, 0.6, { lo:0.82, hi:1.0 });
+    box(0.84, 0.08, 0.84, 0, -0.04, 0, T.top, 0.5, { lo:0.8, hi:1.04 });
+    for(const s of [-1, 1]){
+      box(0.98, 0.075, 0.075, 0, -0.005, s * 0.455, T.woodDark, 0.7);
+      box(0.075, 0.075, 0.83, s * 0.455, -0.005, 0, T.woodDark, 0.7);
+    }
+    // a rounded root bulb under the tray, with a few soft tendrils
+    const bulb = new THREE.LatheGeometry([[0.001, -0.84], [0.1, -0.8], [0.22, -0.68], [0.32, -0.52], [0.37, -0.38], [0.36, -0.28], [0.3, -0.25]].map(([x, y]) => new THREE.Vector2(x, y)), 9);
+    parts.push(SK.tint(SK.soften(bulb, 0.7), T.keel, { lo:0.45, hi:0.95 }));
+    for(let k = 0; k < 3; k++){
+      const a = k * 2.1 + r(), c = new THREE.QuadraticBezierCurve3(new THREE.Vector3(Math.cos(a) * 0.24, -0.6, Math.sin(a) * 0.24),
+        new THREE.Vector3(Math.cos(a) * 0.36, -0.85, Math.sin(a) * 0.36), new THREE.Vector3(Math.cos(a) * 0.3, -1.05 - r() * 0.2, Math.sin(a) * 0.3));
+      parts.push(SK.tint(SK.soften(SK.trunk(c, 0.045, 0.012, { segs:5, radial:5 }), 0.8), T.keel, { lo:0.4, hi:0.75 }));
+    }
+    // two bentwood handles cross over the tray, corner to corner: squarish arches that
+    // rise plumb past Pip and crates (riders fit inside, the edge midpoints stay open
+    // to walk through), lashed with hemp at the feet and where they cross
+    const H = 1.32, D = 0.44 * Math.SQRT2;
+    for(const [cx, cz] of [[1, 1], [1, -1]]){
+      const u = new THREE.Vector3(cx, 0, cz).normalize(), pts = [];
+      for(let k = 0; k <= 14; k++){
+        const a = k / 14 * Math.PI, c = Math.cos(a), sn = Math.sin(a);
+        pts.push(u.clone().multiplyScalar(D * Math.sign(c) * Math.pow(Math.abs(c), 0.5)).setY(-0.02 + (H + 0.02) * Math.pow(sn, 0.5)));
+      }
+      parts.push(SK.tint(SK.soften(SK.trunk(new THREE.CatmullRomCurve3(pts), 0.03, 0.03, { segs:20, radial:6 }), 0.8), T.woodDark, { lo:0.75, hi:1.05 }));
+      for(const sg of [-1, 1]){
+        const knot = new THREE.CylinderGeometry(0.042, 0.042, 0.09, 8); knot.translate(u.x * D * sg * 0.985, 0.06, u.z * D * sg * 0.985);
+        parts.push(SK.tint(SK.soften(knot, 1), HEMP, { lo:0.85, hi:1 }));
+      }
+    }
+    const lash = SK.blob(0.055, r, { wobble:0.06 }); lash.translate(0, H, 0); parts.push(SK.tint(SK.soften(lash, 1), HEMP, { lo:0.85, hi:1 }));
+    const ring = new THREE.Vector3(0, PAN_HOOK - 0.12, 0);
+    const ringG = new THREE.TorusGeometry(0.06, 0.02, 6, 14); ringG.rotateX(Math.PI / 2); ringG.translate(0, ring.y, 0);
+    parts.push(SK.tint(SK.soften(ringG, 1), T.metal, { lo:0.75, hi:1.1 }));
+    const hook = new THREE.TorusGeometry(0.05, 0.018, 6, 10, Math.PI * 1.25); hook.rotateZ(-Math.PI * 0.12); hook.translate(0, ring.y + 0.07, 0);
+    parts.push(SK.tint(SK.soften(hook, 1), T.metal, { lo:0.75, hi:1.1 }));
+    return SK.bake(parts);
+  });
   const g = new THREE.Group();
-  const slab = mesh(new THREE.BoxGeometry(0.92, 0.24, 0.92), flat(T.wood)); slab.position.y = -0.18; g.add(slab);
-  const turf = mesh(new THREE.BoxGeometry(0.86, 0.07, 0.86), flat(T.top)); turf.position.y = -0.035; g.add(turf);
-  const dark = flat(T.woodDark);
-  for(const s of [-1, 1]){
-    const a = mesh(new THREE.BoxGeometry(0.96, 0.06, 0.06), dark); a.position.set(0, -0.04, s * 0.45); g.add(a);
-    const b = mesh(new THREE.BoxGeometry(0.06, 0.06, 0.96), dark); b.position.set(s * 0.45, -0.04, 0); g.add(b);
-  }
-  const root = new THREE.ConeGeometry(0.34, 0.55, 6); root.rotateX(Math.PI); root.translate(0, -0.57, 0);
-  g.add(mesh(root, flat(T.keel)));
-  const rope = flat(T.leaf, { roughness:1 });
-  const strand = (a, b) => {                       // a thin rope between two points
-    const d = new THREE.Vector3().subVectors(b, a), m = mesh(new THREE.CylinderGeometry(0.016, 0.016, d.length(), 4), rope, false);
-    m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); g.add(m);
-  };
-  const hook = new THREE.Vector3(0, PAN_HOOK, 0);
-  for(const [x, z] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]){
-    const low = new THREE.Vector3(x * 0.44, -0.02, z * 0.44), high = new THREE.Vector3(x * 0.44, 0.95, z * 0.44);
-    strand(low, high); strand(high, hook);        // straight up past Pip and crates, then to the hook
-  }
-  const ring = mesh(new THREE.TorusGeometry(0.06, 0.018, 6, 12), flat(T.metal, { metalness:0.6, roughness:0.35 }), false);
-  ring.position.y = PAN_HOOK; g.add(ring);
+  g.add(SK.kitMesh(geo, kit ? kit.solid : new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.86 })));
   return g;
 }
 
