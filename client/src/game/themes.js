@@ -83,5 +83,8 @@ export const THEMES = {
   },
 };
 
+// T.id = the theme's key, so per-theme art tables (biome, fauna) can look it up.
+for(const [id, t] of Object.entries(THEMES)) t.id = id;
+
 export const PORTAL_COLORS = { p:'#4ff0ff', q:'#ff72d8', r:'#a6ff5c' };   // r = arch C (maps only)
 export const themeOf = name => THEMES[name] || THEMES.jungle;

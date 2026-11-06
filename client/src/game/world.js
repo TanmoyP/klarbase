@@ -5,11 +5,12 @@ import * as THREE from 'three';
 import { bridgeUp, gatesOpen, panTilt, heightAt, cellPlace, pipWeight, floating, windAt, hazardCellsAt } from '@klar/core';
 import { themeOf, PORTAL_COLORS } from './themes.js';
 import {
-  LV, rng, hashStr, buildTerrain, makeRock, makeTree, makeFlora, makeTufts,
+  LV, rng, hashStr, buildTerrain,
   makeCrate, makePlate, makeGate, makeLever, makeBridge, makeKey, makeDoor, makePortal,
   makeGoal, makeStart, makeCloud, makeFlyer, makePan, PAN_HOOK,
   makeBalloon, makePost, makePile, makeBuoy, makeVent, makeSeed, makeBoulder, makeThorn, makeWarning,
 } from './props.js';
+import { makeTree, makeRock, makeFlora, makeScatter, makeKit } from './biome.js';
 import { Pip } from './pip.js';
 import { sfx, setScale, ambient } from './audio.js';
 
@@ -140,6 +141,7 @@ export class World {
     this.storeyGroups =S.map(() => { const g = new THREE.Group(); g.userData = { fade:1, fadeTo:1 }; this.isle.add(g); return g; });
     this.storeyTop = S.map(() => 0);
     this.animated = [];
+    this.kits = S.map(() => makeKit());           // one material kit per storey (storeys fade apart)
     S.forEach((s, k) => {
       // the storey as a plain grid; pans are cut out (they hang in their own baskets)
       const cells = [];
@@ -152,7 +154,7 @@ export class World {
       const off = new THREE.Vector3(s.at[0] + terr.centre[0] - this.centre[0], s.at[2] * LV, s.at[1] + terr.centre[1] - this.centre[1]);
       terr.group.position.copy(off); this.storeyGroups[k].add(terr.group);
       this.animated.push(...terr.animated);
-      const tufts = makeTufts(sub, T, terr.centre); if(tufts){ tufts.position.copy(off); this.storeyGroups[k].add(tufts); }
+      const scatter = makeScatter(sub, T, terr.centre, this.kits[k]); if(scatter){ scatter.position.copy(off); this.storeyGroups[k].add(scatter); }
     });
 
     // props and pieces
@@ -164,9 +166,11 @@ export class World {
       if(level.sid[i] < 0) continue;              // padding between storeys
       const c = level.cells[i], p = this.cellPos(i, false), home = this.groupOf(i);
       const put = obj => { obj.position.copy(p); home.add(obj); return obj; };
+      // biome decor is seeded per cell, so painting one tile never reshuffles the rest
+      const kit = this.kits[Math.max(0, level.sid[i])], rc = rng(hashStr(T.id + ':' + c.ch + ':' + i));
       switch(c.kind){
-        case 'rock': put(makeRock(T, r)); break;
-        case 'tree': { const t = put(makeTree(T, r)); if(t.userData.sway) this.sway.push([t.userData.sway, r() * 6]); break; }
+        case 'rock': put(makeRock(T, rc, kit)); break;
+        case 'tree': { const t = put(makeTree(T, rc, kit)); if(t.userData.sway) this.sway.push([t.userData.sway, rc() * 6]); break; }
         case 'goal': this.goals.push(put(makeGoal(T))); break;
         case 'plate': this.plates.set(i, put(makePlate(T))); break;
         case 'gate': { const g = put(makeGate(T)); g.rotation.y = this.sideways(i) ? Math.PI / 2 : 0; this.gates.push(g); break; }
@@ -179,7 +183,7 @@ export class World {
         case 'pile': put(makePile(T, r)); break;
         case 'vent': { const v = put(makeVent(T)); v.rotation.y = YAW_OF[c.blow]; this.vents.set(i, v); break; }
       }
-      if(c.flora) put(makeFlora(T, r));
+      if(c.flora) put(makeFlora(T, rc, kit));
       if(level.start === i) put(makeStart(T));
       if(level.keys.includes(i)) this.keys.set(i, put(makeKey(T)));
       if(level.seeds && level.seeds.includes(i)) this.seedMeshes.set(i, put(makeSeed(T)));
@@ -461,7 +465,8 @@ export class World {
   }
 
   disposeGroup(g){
-    g.traverse(o => { if(o.geometry) o.geometry.dispose(); if(o.material){ (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); } });
+    g.traverse(o => { if(o.geometry && !o.geometry.userData.keep) o.geometry.dispose();   // keep = cached, shared across loads
+      if(o.material){ (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); } });
     g.clear();
   }
 
@@ -686,6 +691,7 @@ export class World {
     }
     if(this.level){
       for(const a of this.animated) a.update(t);
+      if(this.rig) this.rig.update(dt, t);               // Sky Scales rig (pulley.js)
       for(const [crown, ph] of this.sway){ crown.rotation.z = Math.sin(t * 1.2 + ph) * 0.05; crown.rotation.x = Math.sin(t * 0.9 + ph) * 0.03; }
       for(const g of this.goals){ const u = g.userData; u.gem.rotation.y = t * 1.4; u.gem.position.y = 0.75 + Math.sin(t * 2) * 0.06; u.ring.rotation.z = t; u.ring.scale.setScalar(1 + Math.sin(t * 2.4) * 0.08); u.beamMat.opacity = 0.11 + Math.sin(t * 1.7) * 0.04; }
       for(const p of this.portals){ const u = p.userData; u.swirl.rotation.z = -t * 3; u.glowMat.opacity = (0.45 + Math.sin(t * 3) * 0.12) * this.fadeOf(p); u.gem.rotation.y = t * 2; }
