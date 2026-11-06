@@ -61,7 +61,9 @@ klarbase/
 │   └── src/
 │       ├── main.js       screens, routing, catalogue, HUD, solution gating, input
 │       ├── builder.js    the isle builder (2D paint + live 3D + live solver + export)
-│       └── game/         world.js (scene) · props.js (procedural art) · pip.js (critter)
+│       └── game/         world.js (scene) · props.js (pieces, terrain, clouds) · pip.js (critter)
+│                         softkit.js (shape kit) · biome.js → trees.js, ground.js · pulley.js (scales rig)
+│                         fauna.js (critters) · thumbs.js (builder prop thumbnails)
 │                         session.js (play/undo/hint/replay) · audio.js (synth) · themes.js
 ├── server/               @klar/server — Express + Prisma + better-auth
 │   └── src/routes/       puzzles.js (isle publish gate, public play/browse) · plays.js (anonymous
@@ -440,14 +442,44 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
   banded strata on cut faces, hanging root keel, emissive crystals in the rim; waterfalls where
   water meets the edge; low-poly props per theme; grass tufts; gradient sky dome; fog; soft
   PCF shadows; ACES tone mapping. **All procedural — no model or texture files.**
+- **Soft-chunky art pass (2026-11):** big low-poly volumes with rounded silhouettes — no knife
+  points on decor (thorns stay spiky: that's a gameplay warning). `softkit.js` = the shared
+  kit: `soften` (blend faceted↔smooth normals; foliage/clouds 1, rocks/wood ~0.6), `tint`
+  (vertex-colour height gradient = fake AO), `blob`, `trunk`, `frond`, `bake` (merge a whole
+  prop into ONE geometry) and `cached` (geometry kept across loads via `userData.keep`, which
+  `World.disposeGroup` skips). Materials are a per-storey kit (`makeKit`: `solid` + unlit
+  `glow`) because storeys fade independently. Decor is seeded **per cell** (`T.id + ch + i`),
+  so painting a tile never reshuffles the rest; variants are never stored in the isle.
+- **A theme is a biome** (`biome.js` → `trees.js`, `ground.js`; tables keyed by `T.id`): 2–3
+  tree, 2 rock, 2–3 flora variants and 2–3 scatter types per theme — jungle broadleaf / kapok /
+  tree fern; oasis date palm (banded curved trunk, drooping folded fronds, dry skirt, dates) /
+  fan palm, sandstone mesas, cacti, agave; tropical coconut palm / banana / young palm, beach
+  rocks, coral, hibiscus; urban topiary, soft lit houses, pots; mountain gumdrop pine / spruce,
+  snow-capped granite, heather; night glowing fruit, willow, crystal stones, glow mushrooms.
+  Rim decor per theme in `buildTerrain` (vines, blooms, glow buds, icicles + snow lip, dry
+  roots, drainpipes); rounded keel lobes; soft instanced clouds (3 shapes, theme-lit).
+- **Sky Scales rig (`pulley.js`):** a gnarled sky-branch rooted under the far rim (never in
+  front of the puzzle), a grooved sheave per pan tile, one hemp rope over all sheaves.
+  `settleScales` = underdamped spring (≈12 % overshoot at 270 ms, tiny rebound, exact snap at
+  600 ms, resolves ≈630 ms); sheaves turn by the rope run; baskets swing ≤ 3° from the jolt and
+  ≤ 0.6° in the breeze (`rig.update`). Riders only follow y. `sfx.scales` adds sheave ticks.
+- **Perf budget (art pass):** ≤ 2 meshes per tree/rock/flora tile (+1 glow), scatter = 1 merged
+  mesh per storey, flora casts no shadow, no per-frame allocation. Draw calls vs before:
+  root-bridge 92→69, palm-plates 115→79, sky-scales 154→109, the-crane 188→130, rooftops
+  166→63, first-frost 55→47. Triangles rose (≈7–11k → 20–47k incl. the shadow pass) — fine on
+  any GPU; trim `blob` detail / coral first if a low-end device struggles.
 - **Living atmosphere:** clouds drifting *below* the isle, theme particles (fireflies, sand
-  motes, petals, lanterns, snow), butterflies or birds, swaying canopies, bobbing keys and
-  gems, swirling arches, animated water.
+  motes, petals, lanterns, snow), swaying canopies, bobbing keys and gems, swirling arches,
+  animated water. **Fauna (`fauna.js`, `CAST` by `T.id`):** butterflies, dragonflies, swallows,
+  gulls, pigeons, snowbirds, an eagle, moths round the goal light; specials only on decor tiles
+  (water/rock/tree) inside their storey group — frog + leaping fish (jungle), lizard (oasis),
+  crab + fish (tropical), perched pigeons (urban), owl (night). Birds keep off the camera→isle line.
 - **Pip:** cream mochi body, bead eyes with glints, blush, leaf sprout that sways, scarf in the
   theme accent; squash & stretch hops, push lean, ice glide, teleport spin, bonk, double-spin
   celebration; blinks; blob shadow.
 - **Themes:** jungle (Canopy), oasis (Mirage), tropical (Lagoon), urban (Rooftops), mountain
-  (Summit) — palette, light, particles, critters, ambient chord + pentatonic step scale.
+  (Summit), night (Nightfall) — palette, light, particles, biome, critters, ambient chord +
+  pentatonic step scale. `T.id` = the theme key (set in `themes.js`).
 - **Audio:** fully synthesized Web Audio; footsteps are scale notes; ambient pad + nature
   layer per theme; starts on first gesture; mute toggle.
 - **Controls:** arrows/WASD (camera-relative), Space/Enter/X use, Z undo, R restart, H hint,
@@ -455,7 +487,10 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
 - **Persistence (per browser, localStorage):** progress (stars, best moves/time), effort for
   solution unlocks, settings (sound, timer), builder draft, GitHub username for exports.
 - **Builder:** palette (33 tools), click/drag paint, right-click erase, raise/lower, rotating
-  stairs, size 3–14, theme chips, remix any official isle, two-way "Isle code" text, live
+  stairs, size 3–14, theme chips (sky swatch + a biome strip: blurb + the theme's tree, rock and
+  flowers), **theme prop thumbnails** in the palette and grid (`thumbs.js`: one prop rendered on
+  the World's renderer into a 128 px target, ACES applied on readback, cached per theme+kind,
+  lazily ≤ 8 ms per tick, emoji fallback), remix any official isle, two-way "Isle code" text, live
   verdict (60k states; Deep check 300k), Test, Share online, Propose on GitHub, JSON import/export.
 - **How to build** (`client/src/buildguide.js`): `GUIDE` = one entry per palette tool id (code,
   summary, what, meta, tip, tags) + `buildGuideHtml(TOOLS)` (Quick start, grid, element groups,
@@ -504,8 +539,8 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
   `confluenceState` opens them; a direct `/isle/<id>` link always plays. **Side paths:** Twist and
   Confluence isles (`offPath`) have no main number and are skipped by Continue / Next isle. A clear
   that lights a constellation says so on the win modal, with "✦ Play <isle>" when one opens.
-- **Bundle:** ~600 KB / ~166 KB gzip (mostly three.js). Code-splitting the builder is a cheap
-  future win.
+- **Bundle:** ~793 KB / ~235 KB gzip (mostly three.js; the 2026-11 art pass added ≈ +29 KB gzip,
+  no asset files). Code-splitting the builder is a cheap future win.
 
 ## 8. Server & API
 
@@ -630,6 +665,19 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-11-06 (aa) — Soft-chunky art pass: biomes, pulley rig, fauna, builder thumbs
+- **Why:** founder feedback — trees pointy, rough edges, tropical and dry maps looked alike,
+  scales "non physicsy", builder showed the same emoji in every theme, too little flora/fauna.
+- **Taste calls (founder):** soft-chunky (rounded edges, softly faceted); the scales beam hangs
+  from a gnarled sky-branch; variants stay automatic per cell (no isle-format field).
+- **Done:** `softkit.js` shape kit; biome modules (`trees.js`, `ground.js`) per theme; rim decor,
+  rounded keel, soft clouds; `pulley.js` rig + spring settle; `fauna.js`; builder `thumbs.js`
+  + theme swatches/biome strip. Dev-only `window.__klar = { world }` for art/perf checks.
+- **Unchanged:** rules, `@klar/core`, every isle file and hash — all isles (official, daily,
+  community, online) pick up the new art automatically. Tests 541/179/57 green.
+- **Watch:** triangles up 2–4× (still small); pans on far-apart storeys (sky-scales, the-crane,
+  three-storeys) show the branch near the upper isle — the map view shows the whole rig.
 
 ### 2026-10-25 (z) — How to build guide + discovery files
 - **Why:** builders had no guide (`?` on `/create` opened How to play), and the site had no

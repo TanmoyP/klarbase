@@ -7,7 +7,7 @@ import { themeOf, PORTAL_COLORS } from './themes.js';
 import {
   LV, rng, hashStr, buildTerrain,
   makeCrate, makePlate, makeGate, makeLever, makeBridge, makeKey, makeDoor, makePortal,
-  makeGoal, makeStart, makeCloud, makeFlyer, makePan, PAN_HOOK,
+  makeGoal, makeStart, makeCloud, makePan,
   makeBalloon, makePost, makePile, makeBuoy, makeVent, makeSeed, makeBoulder, makeThorn, makeWarning,
 } from './props.js';
 import { makeTree, makeRock, makeFlora, makeScatter, makeKit } from './biome.js';
@@ -421,6 +421,7 @@ export class World {
 
   disposeGroup(g){
     g.traverse(o => { if(o.geometry && !o.geometry.userData.keep) o.geometry.dispose();   // keep = cached, shared across loads
+      if(o.isInstancedMesh) o.dispose();                // instance buffers (clouds, flyers)
       if(o.material){ (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); } });
     g.clear();
   }

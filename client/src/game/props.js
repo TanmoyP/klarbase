@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PORTAL_COLORS } from './themes.js';
-import { cached, soften, tint, bake, trunk, blob } from './softkit.js';
+import { cached, soften, tint, bake, trunk, blob, kitMesh } from './softkit.js';
 
 export const LV = 0.5;          // world units per height level
 export const BASE = -0.9;       // bottom of every terrain column
@@ -16,8 +16,8 @@ export function rng(seed){
 }
 export function hashStr(str){ let h = 2166136261; for(let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 
-export const col = hex => new THREE.Color(hex);
-export function paint(geo, fn){
+const col = hex => new THREE.Color(hex);
+function paint(geo, fn){
   const pos = geo.attributes.position, nor = geo.attributes.normal;
   const out = new Float32Array(pos.count * 3), p = new THREE.Vector3(), n = new THREE.Vector3();
   for(let i = 0; i < pos.count; i++){
@@ -27,8 +27,8 @@ export function paint(geo, fn){
   geo.setAttribute('color', new THREE.BufferAttribute(out, 3));
   return geo;
 }
-export const flat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, flatShading:true, roughness:0.85, ...extra });
-export const mesh = (geo, mat, shadow = true) => { const m = new THREE.Mesh(geo, mat); m.castShadow = shadow; m.receiveShadow = true; return m; };
+const flat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, flatShading:true, roughness:0.85, ...extra });
+const mesh = (geo, mat, shadow = true) => { const m = new THREE.Mesh(geo, mat); m.castShadow = shadow; m.receiveShadow = true; return m; };
 
 /* ---------------- procedural textures ---------------- */
 const texCache = new Map();
@@ -403,13 +403,12 @@ export function makePortal(T, pair){
 // crossed bentwood handles that meet at a ring and hook PAN_HOOK above the floor,
 // where the rig's rope (pulley.js) takes it. Origin = the surface Pip stands on. The whole basket is
 // one baked mesh on the storey's kit material (cached per theme).
-import * as SK from './softkit.js';
 export const PAN_HOOK = 1.5;
 export const HEMP = '#d8b98c';
 export function makePan(T, kit){
-  const geo = SK.cached('pan:' + T.id, () => {
+  const geo = cached('pan:' + T.id, () => {
     const r = rng(hashStr('pan' + T.id)), parts = [];
-    const box = (w, h, d, x, y, z, hex, k = 0.55, sh = {}) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); parts.push(SK.tint(SK.soften(g, k), hex, sh)); };
+    const box = (w, h, d, x, y, z, hex, k = 0.55, sh = {}) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); parts.push(tint(soften(g, k), hex, sh)); };
     // tray: two plank courses (the seam reads as a line), turf, a raised rim
     box(0.9, 0.1, 0.9, 0, -0.225, 0, T.wood, 0.6, { lo:0.62, hi:0.86 });
     box(0.9, 0.1, 0.9, 0, -0.125, 0, T.wood, 0.6, { lo:0.82, hi:1.0 });
@@ -420,11 +419,11 @@ export function makePan(T, kit){
     }
     // a rounded root bulb under the tray, with a few soft tendrils
     const bulb = new THREE.LatheGeometry([[0.001, -0.84], [0.1, -0.8], [0.22, -0.68], [0.32, -0.52], [0.37, -0.38], [0.36, -0.28], [0.3, -0.25]].map(([x, y]) => new THREE.Vector2(x, y)), 9);
-    parts.push(SK.tint(SK.soften(bulb, 0.7), T.keel, { lo:0.45, hi:0.95 }));
+    parts.push(tint(soften(bulb, 0.7), T.keel, { lo:0.45, hi:0.95 }));
     for(let k = 0; k < 3; k++){
       const a = k * 2.1 + r(), c = new THREE.QuadraticBezierCurve3(new THREE.Vector3(Math.cos(a) * 0.24, -0.6, Math.sin(a) * 0.24),
         new THREE.Vector3(Math.cos(a) * 0.36, -0.85, Math.sin(a) * 0.36), new THREE.Vector3(Math.cos(a) * 0.3, -1.05 - r() * 0.2, Math.sin(a) * 0.3));
-      parts.push(SK.tint(SK.soften(SK.trunk(c, 0.045, 0.012, { segs:5, radial:5 }), 0.8), T.keel, { lo:0.4, hi:0.75 }));
+      parts.push(tint(soften(trunk(c, 0.045, 0.012, { segs:5, radial:5 }), 0.8), T.keel, { lo:0.4, hi:0.75 }));
     }
     // two bentwood handles cross over the tray, corner to corner: squarish arches that
     // rise plumb past Pip and crates (riders fit inside, the edge midpoints stay open
@@ -436,22 +435,22 @@ export function makePan(T, kit){
         const a = k / 14 * Math.PI, c = Math.cos(a), sn = Math.sin(a);
         pts.push(u.clone().multiplyScalar(D * Math.sign(c) * Math.pow(Math.abs(c), 0.5)).setY(-0.02 + (H + 0.02) * Math.pow(sn, 0.5)));
       }
-      parts.push(SK.tint(SK.soften(SK.trunk(new THREE.CatmullRomCurve3(pts), 0.03, 0.03, { segs:20, radial:6 }), 0.8), T.woodDark, { lo:0.75, hi:1.05 }));
+      parts.push(tint(soften(trunk(new THREE.CatmullRomCurve3(pts), 0.03, 0.03, { segs:20, radial:6 }), 0.8), T.woodDark, { lo:0.75, hi:1.05 }));
       for(const sg of [-1, 1]){
         const knot = new THREE.CylinderGeometry(0.042, 0.042, 0.09, 8); knot.translate(u.x * D * sg * 0.985, 0.06, u.z * D * sg * 0.985);
-        parts.push(SK.tint(SK.soften(knot, 1), HEMP, { lo:0.85, hi:1 }));
+        parts.push(tint(soften(knot, 1), HEMP, { lo:0.85, hi:1 }));
       }
     }
-    const lash = SK.blob(0.055, r, { wobble:0.06 }); lash.translate(0, H, 0); parts.push(SK.tint(SK.soften(lash, 1), HEMP, { lo:0.85, hi:1 }));
+    const lash = blob(0.055, r, { wobble:0.06 }); lash.translate(0, H, 0); parts.push(tint(soften(lash, 1), HEMP, { lo:0.85, hi:1 }));
     const ring = new THREE.Vector3(0, PAN_HOOK - 0.12, 0);
     const ringG = new THREE.TorusGeometry(0.06, 0.02, 6, 14); ringG.rotateX(Math.PI / 2); ringG.translate(0, ring.y, 0);
-    parts.push(SK.tint(SK.soften(ringG, 1), T.metal, { lo:0.75, hi:1.1 }));
+    parts.push(tint(soften(ringG, 1), T.metal, { lo:0.75, hi:1.1 }));
     const hook = new THREE.TorusGeometry(0.05, 0.018, 6, 10, Math.PI * 1.25); hook.rotateZ(-Math.PI * 0.12); hook.translate(0, ring.y + 0.07, 0);
-    parts.push(SK.tint(SK.soften(hook, 1), T.metal, { lo:0.75, hi:1.1 }));
-    return SK.bake(parts);
+    parts.push(tint(soften(hook, 1), T.metal, { lo:0.75, hi:1.1 }));
+    return bake(parts);
   });
   const g = new THREE.Group();
-  g.add(SK.kitMesh(geo, kit ? kit.solid : new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.86 })));
+  g.add(kitMesh(geo, kit ? kit.solid : new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.86 })));
   return g;
 }
 
@@ -534,22 +533,6 @@ export function makeCloud(T, r, span){
   };
   update(0, 0);
   return { group, update };
-}
-
-// Legacy: critters are fauna.js now. Unused — drop with its world.js import.
-export function makeFlyer(kind, color){
-  const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color, side:THREE.DoubleSide, flatShading:true });
-  const wing = () => {
-    const geo = new THREE.BufferGeometry();
-    const v = kind === 'butterfly' ? [0,0,0, 0.16,0.02,-0.1, 0.12,0,0.12] : [0,0,0, 0.22,0.04,-0.05, 0.05,0,0.08];
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); geo.computeVertexNormals();
-    return new THREE.Mesh(geo, mat);
-  };
-  const L = wing(), R = wing(); R.scale.x = -1;
-  g.add(L, R);
-  g.userData = { L, R };
-  return g;
 }
 
 /* ---------------- Weight II (Phase 3): balloons, stones, buoys, vents, seeds ---------------- */

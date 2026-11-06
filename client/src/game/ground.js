@@ -368,7 +368,8 @@ const FLORA = {
 };
 export function makeFlora(T, r, kit){
   const id = themeKey(T), list = FLORA[id], v = r() * list.length | 0;
-  const g = place(variant(`${id}:flora:${v}`, (rr, S, G) => list[v](T, rr, S, G)), kit);
+  // ankle-high decor: its shadow is barely visible, so skip the shadow pass (halves its cost)
+  const g = place(variant(`${id}:flora:${v}`, (rr, S, G) => list[v](T, rr, S, G)), kit, false);
   g.rotation.y = id === 'urban' ? (r() * 4 | 0) * Math.PI / 2 : r() * TAU;
   g.scale.setScalar(1.25 + r() * 0.2);
   return g;
