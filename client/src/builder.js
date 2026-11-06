@@ -9,6 +9,7 @@ import {
 import { themeOf, PORTAL_COLORS } from './game/themes.js';
 import { sfx } from './game/audio.js';
 import { GUIDE } from './buildguide.js';
+import { propThumb, thumbKind } from './game/thumbs.js';
 
 export const TOOLS = [
   ['.', '▢', 'Ground'], [',', '🌼', 'Flowers'], ['#', '🪨', 'Rock'], ['T', '🌳', 'Tree'], ['~', '🌊', 'Water'], ['*', '🧊', 'Ice'],
@@ -22,6 +23,8 @@ export const TOOLS = [
 const RAMP_DIRS = ['^', '>', 'v', '<'], RAMP_ARROW = { '^':'⬆', '>':'➡', 'v':'⬇', '<':'⬅' };
 const VENT_DIRS = ['n', 'e', 's', 'w'], VENT_ARROW = { n:'⇑', e:'⇒', s:'⇓', w:'⇐' };
 const GLYPH = { ',':'🌼', '#':'🪨', 'T':'🌳', 'C':'📦', 'o':'◎', 'D':'▥', 'L':'🕹', '=':'═', '_':'┄', 'k':'🔑', 'K':'🚪', 'p':'⛩', 'q':'⛩', 'r':'⛩', 'S':'🐣', 'G':'⭐', '*':'', 'a':'A', 'b':'B', 'B':'🎈', 'P':'🥌', 'u':'🛟', '+':'🌱', 'H':'↔', 'I':'↕', 'Y':'🌵' };
+// grid tiles drawn as the theme's own prop (others keep their glyph: arrows and letters carry meaning)
+const GRID_THUMB = new Set(['T', '#', ',', 'C', 'P', 'Y', 'B', 'u', '+']);
 const store = { get:(k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set:(k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
 const template = () => ({ name:'My isle', theme:'jungle', rows:[
@@ -54,7 +57,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
   root.innerHTML = `
     <button class="btn small ghost" id="bGuide" title="Every tile, its rules and how to use it">📖 How to build</button>
     <div class="field"><label>Name</label><input id="bName" maxlength="40"></div>
-    <div class="field"><label>Theme</label><div class="chips" id="bThemes"></div></div>
+    <div class="field"><label>Theme</label><div class="chips" id="bThemes"></div><div class="biome" id="bBiome"></div></div>
     <div class="field"><label>Difficulty — your gut call</label><div class="chips" id="bTiers"></div></div>
     <div class="field"><label>Start from</label><select id="bTemplate"><option value="">— keep my isle —</option><option value="blank">Fresh 7×7 meadow</option>
       ${CURATED_ISLES.map(i => `<option value="${i.id}">Remix: ${i.name}</option>`).join('')}</select></div>
@@ -95,7 +98,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
   const tools = $('#bTools');
   for(const [id, ico, label] of TOOLS){
     const b = document.createElement('button'); b.className = 'tool'; b.dataset.tool = id;
-    b.innerHTML = `<span>${ico}</span><small>${label}</small>`; b.title = label + (GUIDE[id] ? ' — ' + GUIDE[id].summary : '') + (id === 'ramp' ? ' (click again or press R to turn)' : id === 'vent' ? ' (click again to turn the gust)' : '');
+    b.innerHTML = `<span class="ico">${ico}</span><small>${label}</small>`; b.setAttribute('aria-label', label); b.dataset.ico = ico; b.title = label + (GUIDE[id] ? ' — ' + GUIDE[id].summary : '') + (id === 'ramp' ? ' (click again or press R to turn)' : id === 'vent' ? ' (click again to turn the gust)' : '');
     b.onclick = () => { if(id === 'ramp' && tool === 'ramp') rampDir = (rampDir + 1) % 4; if(id === 'vent' && tool === 'vent') ventDir = (ventDir + 1) % 4; tool = id; syncTools(); sfx.ui(); };
     tools.appendChild(b);
   }
@@ -105,7 +108,35 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     for(const b of tools.children){ b.classList.toggle('on', b.dataset.tool === tool); if(b.dataset.tool === 'ramp') b.firstChild.textContent = RAMP_ARROW[RAMP_DIRS[rampDir]]; if(b.dataset.tool === 'vent') b.firstChild.textContent = VENT_ARROW[VENT_DIRS[ventDir]]; }
   };
   const themes = $('#bThemes');
-  for(const t of THEME_NAMES){ const c = document.createElement('button'); c.className = 'chip'; c.dataset.theme = t; c.textContent = themeOf(t).label; c.onclick = () => { draft.theme = t; changed(); }; themes.appendChild(c); }
+  // each chip is a tiny isle: its sky over its ground and strata
+  for(const t of THEME_NAMES){
+    const T = themeOf(t), c = document.createElement('button'); c.className = 'chip theme'; c.dataset.theme = t; c.title = T.blurb;
+    c.innerHTML = `<i class="sw" style="background:linear-gradient(${T.sky[0]}, ${T.sky[1]} 42%, ${T.sky[2]} 58%, ${T.top} 58%, ${T.top} 76%, ${T.strata[0]} 76%)"></i>${T.label}`;
+    c.onclick = () => { draft.theme = t; changed(); }; themes.appendChild(c);
+  }
+
+  // ---- biome thumbnails: tiles whose look follows the theme (thumbs.js) ----
+  // Rendered lazily for the theme on show, cached per theme; never while painting.
+  const thumbs = new Map();                  // tool id -> { url, canvas } for the current theme
+  let thumbTheme = null, thumbT = 0, thumbQ = [];
+  const BIOME = [['T', 'Tree'], ['#', 'Rock'], [',', 'Flowers']];
+  function refreshThumbs(){
+    const T = themeOf(draft.theme);
+    if(thumbTheme !== T.id){ thumbTheme = T.id; thumbs.clear(); thumbQ = world.renderer ? TOOLS.map(([id]) => id).filter(thumbKind) : []; }
+    // a few per tick (~8 ms), so switching theme never stalls a frame for long
+    for(const t0 = performance.now(); thumbQ.length && performance.now() - t0 < 8;){
+      const id = thumbQ.shift(), th = propThumb(world.renderer, T, thumbKind(id)); if(th) thumbs.set(id, th);
+    }
+    if(thumbQ.length) thumbT = setTimeout(refreshThumbs, 16);
+    for(const b of tools.children){
+      const th = thumbs.get(b.dataset.tool), ico = b.firstChild;
+      ico.classList.toggle('thumb', !!th); ico.style.backgroundImage = th ? `url(${th.url})` : '';
+      if(th) ico.textContent = ''; else if(!ico.textContent) ico.textContent = b.dataset.ico;
+    }
+    $('#bBiome').innerHTML = `<div class="biome-row">${BIOME.map(([id, name]) => thumbs.has(id) ? `<img src="${thumbs.get(id).url}" alt="${name}" title="${name} in ${T.label}">` : '').join('')}</div><p>${esc(T.blurb)}</p>`;
+    draw();
+  }
+  const queueThumbs = () => { clearTimeout(thumbT); thumbT = setTimeout(refreshThumbs, 30); };
   // The gut call (K3): saved in the isle file as `tier`; players' results take over as plays come in.
   const tiers = $('#bTiers');
   for(const t of [{ id:'', name:'Not sure' }, ...TIERS]){
@@ -146,11 +177,13 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
       const [c, hh] = grid[z][x], px = x * cs, pz = z * cs;
       if(c === '-'){ g2.strokeStyle = 'rgba(42,34,56,.12)'; g2.setLineDash([3, 3]); g2.strokeRect(px + 2.5, pz + 2.5, cs - 5, cs - 5); g2.setLineDash([]); continue; }
       let fill = T.top;
-      if(c === '~' || c === '=' || c === '_') fill = T.water; else if(c === '*') fill = T.ice; else if(c === '#') fill = T.rock;
+      const th = thumbTheme === T.id && GRID_THUMB.has(c) && thumbs.get(c);
+      if(c === '~' || c === '=' || c === '_') fill = T.water; else if(c === '*') fill = T.ice; else if(c === '#' && !th) fill = T.rock;
       g2.fillStyle = fill; roundRect(g2, px + 1.5, pz + 1.5, cs - 3, cs - 3, 6); g2.fill();
       if(hh){ g2.fillStyle = `rgba(255,255,255,${0.08 * hh})`; roundRect(g2, px + 1.5, pz + 1.5, cs - 3, cs - 3, 6); g2.fill(); g2.fillStyle = 'rgba(42,34,56,.75)'; g2.font = `800 ${Math.max(9, cs * 0.28)}px Nunito`; g2.fillText(hh, px + cs - cs * 0.2, pz + cs - cs * 0.22); }
       const glyph = RAMP_ARROW[c] || VENT_ARROW[c] || GLYPH[c];
-      if(glyph){
+      if(th) g2.drawImage(th.canvas, px + cs * 0.06, pz + cs * 0.04, cs * 0.88, cs * 0.88);
+      else if(glyph){
         g2.font = `${Math.floor(cs * 0.55)}px "Segoe UI Emoji","Apple Color Emoji",sans-serif`;
         if(c === 'p' || c === 'q' || c === 'r'){ g2.fillStyle = PORTAL_COLORS[c]; g2.beginPath(); g2.arc(px + cs / 2, pz + cs / 2, cs * 0.3, 0, Math.PI * 2); g2.fill(); g2.fillStyle = '#fff'; g2.font = `800 ${cs * 0.34}px Nunito`; g2.fillText({ p:'A', q:'B', r:'C' }[c], px + cs / 2, pz + cs / 2 + 1); }
         else if(c === 'a' || c === 'b'){ g2.fillStyle = T.woodDark; roundRect(g2, px + cs * 0.14, pz + cs * 0.14, cs * 0.72, cs * 0.72, 5); g2.fill(); g2.fillStyle = '#fff'; g2.font = `800 ${cs * 0.3}px Nunito`; g2.fillText('⚖' + glyph, px + cs / 2, pz + cs / 2 + 1); }
@@ -170,6 +203,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     store.set('klarbase.v2.draft', draft);
     syncStoreys();
     for(const c of themes.children) c.classList.toggle('on', c.dataset.theme === draft.theme); syncTiers();
+    if(thumbTheme !== null && thumbTheme !== themeOf(draft.theme).id) queueThumbs();
     $('#bW').textContent = grid[0].length; $('#bH').textContent = grid.length;
     if(!fromCode && document.activeElement !== $('#bCode')) $('#bCode').value = toRows().join('\n');
     draw();
@@ -335,7 +369,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
   syncTools();
 
   return {
-    show(){ changed(); },
+    show(){ changed(); queueThumbs(); },
     get draft(){ return draft; },
   };
 }
