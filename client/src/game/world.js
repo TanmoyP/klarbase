@@ -394,21 +394,9 @@ export class World {
   }
 
   buildAtmosphere(T, r){
-    // clouds drifting around and below the isle
-    this.clouds = [];
-    const isleSpan = this.mapSpan;
-    for(let i = 0; i < 12; i++){
-      const c = makeCloud(r);
-      // a sea of cloud BELOW the isle, plus a few far-off puffs on the horizon —
-      // never between the camera and the puzzle
-      const a = r() * Math.PI * 2, low = i < 9;
-      const rad = low ? isleSpan * 0.6 + 3 + r() * isleSpan : isleSpan * 1.6 + 10 + r() * 8;
-      const y = low ? -3.2 - r() * 2.6 : 1 + r() * 3;
-      c.position.set(Math.cos(a) * rad, y, Math.sin(a) * rad);
-      c.scale.set(1, 0.55, 1).multiplyScalar(0.7 + r() * 1.1);
-      c.userData = { a, rad, y, speed:0.008 + r() * 0.012, bob:r() * 6 };
-      this.atmos.add(c); this.clouds.push(c);
-    }
+    // the cloud deck drifting around and below the isle (props.js)
+    this.clouds = makeCloud(T, r, this.mapSpan);
+    this.atmos.add(this.clouds.group);
     // theme particles
     const n = { fireflies:70, dust:90, petals:60, lanterns:46, snow:170 }[T.particles] || 60;
     const pos = new Float32Array(n * 3), colors = new Float32Array(n * 3), seeds = [];
@@ -427,14 +415,8 @@ export class World {
       transparent:true, opacity:glow ? 0.95 : 0.8, depthWrite:false, blending:glow ? THREE.AdditiveBlending : THREE.NormalBlending });
     this.particles = { mesh:new THREE.Points(geo, pm), seeds, kind:T.particles, span, baseColors:colors.slice() };
     this.atmos.add(this.particles.mesh);
-    // critters
-    this.flyers = [];
-    for(let i = 0; i < 3; i++){
-      const f = makeFlyer(T.critter, T.critter === 'butterfly' ? T.flora[i % T.flora.length] : '#2b2433');
-      f.userData.path = { a:r() * 6, rad:T.critter === 'butterfly' ? 2 + r() * 2 : 6 + r() * 4, y:T.critter === 'butterfly' ? 0.8 + r() : 3 + r() * 2, sp:T.critter === 'butterfly' ? 0.35 : 0.22 + r() * 0.1, ph:r() * 6 };
-      if(T.critter === 'bird') f.scale.setScalar(1.6);
-      this.atmos.add(f); this.flyers.push(f);
-    }
+    // critters: flyers around the isle, a few specials on decor tiles (fauna.js)
+    this.fauna = makeFauna(this, T, r);
   }
 
   disposeGroup(g){
@@ -686,16 +668,9 @@ export class World {
       for(const dr of this.doors.values()){ if(dr.userData.target == null) continue; dr.userData.hinge.rotation.y = -lerp(dr, 'open', 5) * 1.7; }
       if(this.hintMesh.visible){ const u = this.hintMesh.userData; this.hintMesh.position.copy(u.at); this.hintMesh.position.y += 0.75 + Math.sin(t * 5) * 0.08; }
       // clouds, particles, critters
-      for(const c of this.clouds){ const u = c.userData; u.a += dt * u.speed; c.position.set(Math.cos(u.a) * u.rad, u.y + Math.sin(t * 0.3 + u.bob) * 0.15, Math.sin(u.a) * u.rad); }
+      this.clouds.update(dt, t);
       this.updateParticles(dt, t);
-      for(const f of this.flyers){
-        const u = f.userData.path; u.a += dt * u.sp;
-        const x = Math.cos(u.a) * u.rad, z = Math.sin(u.a * (this.T.critter === 'butterfly' ? 1.6 : 1)) * u.rad;
-        f.position.set(x, u.y + Math.sin(t * 2 + u.ph) * 0.25, z);
-        f.rotation.y = -u.a - Math.PI / 2;
-        const flap = Math.sin(t * (this.T.critter === 'butterfly' ? 14 : 8) + u.ph) * 0.9;
-        f.userData.L.rotation.z = flap; f.userData.R.rotation.z = -flap;
-      }
+      if(this.fauna) this.fauna.update(dt, t);
     }
     this.fx = this.fx.filter(e => e.update(dt, t) !== false);
     this.pip.update(dt, t);
