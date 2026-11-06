@@ -55,7 +55,10 @@ export const sfx = {
   toggle:() => { tone(160, { dur:0.12, type:'square', gain:0.04 }); [0, 2, 4].forEach((n, i) => tone(note(n), { dur:0.5, type:'triangle', gain:0.035, at:0.06 + i * 0.04 })); },
   gate:open => { tone(open ? 80 : 120, { dur:0.5, type:'sawtooth', gain:0.03, to:open ? 140 : 70 }); noise({ dur:0.4, gain:0.035, freq:200, type:'lowpass' }); },
   fall:() => { tone(300, { dur:0.35, gain:0.08, to:90 }); noise({ dur:0.3, gain:0.05, freq:600, at:0.15 }); },
-  scales:up => { tone(up ? 140 : 180, { dur:0.42, type:'triangle', gain:0.05, to:up ? 200 : 110 }); noise({ dur:0.3, gain:0.03, freq:700, type:'lowpass' }); },   // a woody creak as the vine settles
+  // a woody creak, the sheaves ticking as the rope runs (slowing down), a soft bump at the overshoot
+  scales:up => { tone(up ? 140 : 180, { dur:0.42, type:'triangle', gain:0.045, to:up ? 200 : 110 }); noise({ dur:0.3, gain:0.025, freq:700, type:'lowpass' });
+    for(let i = 0; i < 4; i++) noise({ dur:0.028, gain:0.024 - i * 0.004, freq:1700 - i * 90, q:4, at:0.03 + i * (0.05 + i * 0.012) });
+    tone(92, { dur:0.16, gain:0.05, at:0.25, to:70 }); },
   bonk:() => { tone(260, { dur:0.12, type:'sine', gain:0.06, to:180 }); },
   // Weight II
   take:what => what === 'stone' ? (tone(95, { dur:0.2, gain:0.12, to:75 }), noise({ dur:0.12, gain:0.05, freq:400, type:'lowpass' }))
