@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PORTAL_COLORS } from './themes.js';
+import { cached, soften, tint, bake, trunk, blob, kitMesh } from './softkit.js';
 
 export const LV = 0.5;          // world units per height level
 export const BASE = -0.9;       // bottom of every terrain column
@@ -67,6 +68,105 @@ function fallTexture(base){
 }
 function hexA(hex, a){ const c = col(hex); return `rgba(${c.r*255|0},${c.g*255|0},${c.b*255|0},${a})`; }
 
+/* ---------------- keel & rim decor ---------------- */
+// A keel lobe: a blunt, gently lumpy root-rock bulb hanging from the column
+// bottom at (X, Z). Samples crowd the tip so it ends round, never in a point.
+function keelLobe(len, R, c, r, X, Z){
+  const n = Math.min(5, 3 + Math.round(len)), ph = r() * 6, pts = [];
+  for(let k = 0; k <= n; k++){
+    const t = Math.sin(k / n * Math.PI / 2);
+    const rad = k === n ? 0 : R * Math.pow(1 - Math.pow(t, 1.2), 0.6) * (1 + 0.08 * Math.sin(t * 7 + ph));
+    pts.push(new THREE.Vector2(rad, -t * len));
+  }
+  const g = new THREE.LatheGeometry(pts, 6);
+  g.rotateY(r() * 6); g.rotateZ((r() - 0.5) * 0.16); g.rotateX((r() - 0.5) * 0.16);
+  g.translate(X, BASE + 0.04, Z);
+  return tint(soften(g, 0.55), c, { lo:0.5, hi:1.0, jitter:0.08 }, r);
+}
+
+// What hangs off the open-sky rim of each theme. p = share of rim faces dressed.
+const RIM = {
+  jungle:   { kind:'vine', p:0.5, moss:true },
+  tropical: { kind:'vine', p:0.42, flower:true },
+  night:    { kind:'vine', p:0.45, glow:true },
+  mountain: { kind:'ice',  p:0.5 },
+  oasis:    { kind:'root', p:0.28 },
+  urban:    { kind:'pipe', p:0.12, max:3 },
+};
+// A lumpy cushion along a rim's top edge (moss, snow): a row of soft squashed
+// blobs that rounds off the hard corner. f = the edge's midpoint.
+function cushion(f, nx, nz, tx, tz, len, rad, color, r){
+  const n = Math.max(3, Math.round(len / (rad * 1.6))), parts = [];
+  for(let k = 0; k < n; k++){
+    const u = (k / (n - 1) - 0.5) * len, s = rad * (0.8 + r() * 0.45);
+    const g = blob(s, r, { detail:0, wobble:0.1, squash:0.62 });          // 20 tris: small enough to read soft
+    g.translate(f.x + tx * u + nx * (0.01 + r() * 0.02), f.y - s * 0.2, f.z + tz * u + nz * (0.01 + r() * 0.02));
+    parts.push(tint(soften(g, 1), color, { lo:0.78, hi:1.04, jitter:0.05 }, r));
+  }
+  return bake(parts);
+}
+// Bake every dressed rim face into ONE solid geometry (+ one glow geometry for
+// night buds). Never casts shadows; bounded by the share in RIM.
+function rimDecor(rims, T, r){
+  const st = RIM[T.id] || RIM.jungle, solid = [], glow = [];
+  const P = (x, y, z) => new THREE.Vector3(x, y, z);
+  let used = 0;
+  for(const f of rims){
+    if(r() > st.p || (st.max && used >= st.max)) continue;
+    used++;
+    const nx = f.dx, nz = f.dz, tx = Math.abs(nz), tz = Math.abs(nx);
+    const at = (u, out, y) => P(f.X + nx * (0.5 + out) + tx * u, y, f.Z + nz * (0.5 + out) + tz * u);
+    if(st.kind === 'vine'){
+      if(st.moss) solid.push(cushion(at(0, 0, f.top), nx, nz, tx, tz, 0.5 + r() * 0.35, 0.055, T.leafAlt, r));
+      for(let v = 0, nv = 1 + (r() < 0.45 ? 1 : 0); v < nv; v++){
+        const u = (r() - 0.5) * 0.76, L = 0.35 + r() * 0.8 + (r() < 0.25 ? 0.6 : 0), sw = (r() - 0.5) * 0.18;
+        const curve = new THREE.CatmullRomCurve3([at(u, -0.06, f.top + 0.012), at(u, 0.03, f.top - 0.03),
+          at(u + sw, 0.055, f.top - L * 0.5), at(u + sw * 0.4, 0.04, f.top - L)]);
+        solid.push(tint(soften(trunk(curve, 0.024, 0.015, { segs:6, radial:4 }), 1), T.leaf, { lo:0.62, hi:0.95 }, r));
+        for(let k = 1, n = Math.max(2, Math.round(L / 0.13)); k <= n; k++){
+          const q = curve.getPointAt(Math.min(0.98, 0.12 + 0.86 * k / n)), side = k % 2 ? 1 : -1;
+          const bud = st.glow ? k === n || r() < 0.25 : false, bloom = st.flower && r() < 0.22;
+          if(bud){
+            const b = new THREE.IcosahedronGeometry(0.022 + r() * 0.01, 1);
+            b.translate(q.x + nx * 0.02, q.y - 0.01, q.z + nz * 0.02);
+            glow.push(tint(soften(b, 1), T.flora[k % T.flora.length], { lo:1, hi:1 }));
+            if(k === n) continue;
+          }
+          const leaf = new THREE.IcosahedronGeometry(bloom ? 0.04 : 0.05, 0);
+          leaf.scale(1.3, 0.45, 0.95); leaf.rotateZ(side * 0.5); leaf.rotateY(Math.atan2(-tz, tx));
+          leaf.translate(q.x + nx * 0.03 + tx * side * 0.03, q.y, q.z + nz * 0.03 + tz * side * 0.03);
+          solid.push(tint(soften(leaf, 1), bloom ? T.flora[0] : k % 2 ? T.leaf : T.leafAlt, { lo:0.85, hi:1.05, jitter:0.06 }, r));
+        }
+      }
+    } else if(st.kind === 'ice'){
+      solid.push(cushion(at(0, 0, f.top), nx, nz, tx, tz, 0.6 + r() * 0.3, 0.06, '#ffffff', r));
+      if(r() < 0.3) continue;
+      for(let k = 0, n = 2 + (r() * 3 | 0); k < n; k++){
+        const R = 0.026 + r() * 0.026, L = 0.1 + r() * 0.3, pts = [];
+        for(let j = 0; j <= 5; j++){ const t = Math.sin(j / 5 * Math.PI / 2); pts.push(new THREE.Vector2(j === 5 ? 0 : R * Math.pow(1 - Math.pow(t, 1.3), 0.55), -t * L)); }
+        const g = new THREE.LatheGeometry(pts, 5);
+        const c = at((r() - 0.5) * 0.8, 0.02, f.top - 0.1);
+        g.translate(c.x, c.y, c.z);
+        solid.push(tint(soften(g, 1), T.ice, { lo:0.98, hi:1.12 }, r));
+      }
+    } else if(st.kind === 'root'){
+      for(let k = 0, n = 1 + (r() < 0.4 ? 1 : 0); k < n; k++){
+        const u = (r() - 0.5) * 0.7, y = f.top - 0.22 - r() * Math.max(0.1, Math.min(0.6, f.colTop - BASE - 0.4)), drop = 0.2 + r() * 0.3, sw = (r() - 0.5) * 0.2;
+        const curve = new THREE.CatmullRomCurve3([at(u, -0.06, y), at(u, 0.06, y - 0.03), at(u + sw, 0.13, y - drop * 0.6), at(u + sw * 1.4, 0.1, y - drop)]);
+        solid.push(tint(soften(trunk(curve, 0.03, 0.012, { segs:5, radial:5 }), 0.8), T.trunk, { lo:0.55, hi:0.9, jitter:0.06 }, r));
+      }
+    } else if(st.kind === 'pipe'){
+      const u = (r() - 0.5) * 0.6, L = 0.55 + r() * 0.5, c = at(u, 0.04, f.top - 0.08 - L / 2);
+      const pipe = new THREE.CylinderGeometry(0.026, 0.026, L, 7); pipe.translate(c.x, c.y, c.z);
+      const elbow = new THREE.CylinderGeometry(0.026, 0.026, 0.07, 7); elbow.rotateX(Math.PI / 2); elbow.rotateY(Math.atan2(nx, nz));
+      const e = at(u, 0.005, f.top - 0.08); elbow.translate(e.x, e.y, e.z);
+      for(const g of [pipe, elbow]) solid.push(tint(soften(g, 0.7), T.metal, { lo:0.6, hi:0.85 }, r));
+      for(const yy of [0.25, 0.75]){ const b = new THREE.BoxGeometry(0.07, 0.025, 0.07); const q = at(u, 0.03, f.top - 0.08 - L * yy); b.translate(q.x, q.y, q.z); solid.push(tint(soften(b, 0.4), T.woodDark, { lo:0.8, hi:0.9 })); }
+    }
+  }
+  return { solid:solid.length ? bake(solid) : null, glow:glow.length ? bake(glow) : null };
+}
+
 /* ---------------- terrain: the floating isle itself ---------------- */
 // Returns { group, animated:[{update(t)}], centre:[cx,cz] }. Columns show
 // layered strata on their cut sides, roots hang below, crystals glint, and
@@ -75,8 +175,12 @@ export function buildTerrain(level, T){
   const W = level.w, H = level.h, cx = (W - 1) / 2, cz = (H - 1) / 2;
   const r = rng(hashStr(level.cells.map(c => c.ch + c.h).join('')));
   const strata = T.strata.map(col), top = col(T.top), topAlt = col(T.topAlt), lip = col(T.lip), keelC = col(T.keel);
-  const body = [], caps = [], ice = [], keel = [], crystals = [], waterTiles = [], falls = [];
+  const body = [], caps = [], ice = [], keel = [], crystals = [], waterTiles = [], falls = [], rims = [];
   const solid = (x, z) => x >= 0 && z >= 0 && x < W && z < H && level.cells[z*W + x].kind !== 'void';
+  // a rim face that looks out to open sky: nothing solid beyond it in a straight
+  // line. Notches (pan slots are cut out as void) stay bare, so a basket riding
+  // its slot never brushes a vine.
+  const openSky = (x, z, dx, dz) => { for(let k = 1; ; k++){ const a = x + dx * k, b = z + dz * k; if(a < 0 || b < 0 || a >= W || b >= H) return true; if(solid(a, b)) return false; } };
   let maxD = 1;
   for(let z = 0; z < H; z++) for(let x = 0; x < W; x++) if(solid(x, z)) maxD = Math.max(maxD, Math.hypot(x - cx, z - cz));
 
@@ -120,24 +224,23 @@ export function buildTerrain(level, T){
       waterTiles.push({ X, Z, y:topY - 0.1, x, z });
     }
 
-    // hanging roots / keel — longest under the middle of the isle
+    // keel: a rounded root-rock lobe under every column — longest under the middle
+    // of the isle, blunt-tipped (no spikes), gently lumpy and soft-faceted
     const d = Math.hypot(x - cx, z - cz);
     const len = 0.35 + (1 - d / maxD) * 2.4 + r() * 0.7;
-    const k = new THREE.ConeGeometry(0.56 + r()*0.08, len, 6, 1);
-    k.rotateX(Math.PI); k.rotateY(r() * 6);
-    k.translate(X + (r() - 0.5) * 0.15, BASE - len / 2 + 0.02, Z + (r() - 0.5) * 0.15);
-    paint(k, p => keelC.clone().multiplyScalar(0.55 + 0.45 * Math.max(0, (p.y - (BASE - len)) / len)));
-    keel.push(k);
+    keel.push(keelLobe(len, 0.58 + r() * 0.07, keelC, r, X + (r() - 0.5) * 0.15, Z + (r() - 0.5) * 0.15));
 
-    // crystals glinting in the cut faces of the rim
+    // crystals glinting in the cut faces of the rim: stubby gems half sunk in the rock
     for(const [dx, dz] of [[1,0],[-1,0],[0,1],[0,-1]]){
-      if(solid(x + dx, z + dz) || r() > 0.32) continue;
+      if(solid(x + dx, z + dz)) continue;
+      if(!wet && openSky(x, z, dx, dz)) rims.push({ X, Z, dx, dz, top:topY, colTop });
+      if(r() > 0.3) continue;
       const n = 1 + (r() * 2 | 0);
       for(let i = 0; i < n; i++){
-        const o = new THREE.OctahedronGeometry(0.07 + r() * 0.06, 0);
-        o.scale(1, 1.9, 1); o.rotateZ((r() - 0.5) * 1.2); o.rotateX((r() - 0.5) * 1.2);
+        const o = new THREE.OctahedronGeometry(0.08 + r() * 0.06, 0);
+        o.scale(1, 1.3, 1); o.rotateZ((r() - 0.5) * 0.6); o.rotateX((r() - 0.5) * 0.6);
         const yy = BASE + 0.15 + r() * Math.max(0.1, colTop - BASE - 0.35);
-        o.translate(X + dx * 0.5 + (dz ? (r() - 0.5) * 0.7 : 0), yy, Z + dz * 0.5 + (dx ? (r() - 0.5) * 0.7 : 0));
+        o.translate(X + dx * 0.47 + (dz ? (r() - 0.5) * 0.7 : 0), yy, Z + dz * 0.47 + (dx ? (r() - 0.5) * 0.7 : 0));
         crystals.push(o);
       }
     }
@@ -153,10 +256,13 @@ export function buildTerrain(level, T){
   if(caps.length) group.add(mesh(mergeGeometries(caps), terrainMat));
   if(ice.length) group.add(mesh(mergeGeometries(ice), new THREE.MeshStandardMaterial({
     vertexColors:false, color:T.ice, roughness:0.06, metalness:0.2, flatShading:true })));
-  const keelMesh = mesh(mergeGeometries(keel), terrainMat); keelMesh.castShadow = false;
+  const keelMesh = mesh(bake(keel), new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.95 })); keelMesh.castShadow = false;
   group.add(keelMesh);
+  const rim = rimDecor(rims, T, rng(hashStr('rim' + T.id + level.cells.map(c => c.ch + c.h).join(''))));
+  if(rim.solid) group.add(mesh(rim.solid, new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.9, side:THREE.DoubleSide }), false));
+  if(rim.glow) group.add(mesh(rim.glow, new THREE.MeshBasicMaterial({ vertexColors:true }), false));
   if(crystals.length){
-    const cm = new THREE.MeshStandardMaterial({ color:T.crystal, emissive:T.crystal, emissiveIntensity:1.6, flatShading:true, roughness:0.25 });
+    const cm = new THREE.MeshStandardMaterial({ color:T.crystal, emissive:T.crystal, emissiveIntensity:1.4, flatShading:true, roughness:0.3 });
     group.add(mesh(mergeGeometries(crystals), cm, false));
   }
 
@@ -187,141 +293,7 @@ export function buildTerrain(level, T){
 }
 
 /* ---------------- static props ---------------- */
-export function makeRock(T, r){
-  const g = new THREE.Group();
-  if(T.prop === 'planter'){                       // urban: a little building with lit windows
-    const h = 0.7 + r() * 0.7, w = 0.82;
-    const b = mesh(new THREE.BoxGeometry(w, h, w), flat(r() < 0.5 ? T.strata[0] : T.rock));
-    b.position.y = h / 2; g.add(b);
-    const roof = mesh(new THREE.BoxGeometry(w + 0.06, 0.06, w + 0.06), flat(T.lip)); roof.position.y = h + 0.03; g.add(roof);
-    const winMat = new THREE.MeshStandardMaterial({ color:T.accent, emissive:T.accent, emissiveIntensity:1.3 });
-    const darkMat = flat('#2a2433');
-    for(let f = 0; f < 4; f++) for(let row = 0; row < Math.floor(h / 0.28); row++) for(let c = -1; c <= 1; c += 2){
-      const wdw = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 0.02), r() < 0.6 ? winMat : darkMat);
-      const a = f * Math.PI / 2;
-      wdw.position.set(Math.sin(a) * (w/2 + 0.005) + Math.cos(a) * c * 0.2, 0.22 + row * 0.28, Math.cos(a) * (w/2 + 0.005) - Math.sin(a) * c * 0.2);
-      wdw.rotation.y = a; g.add(wdw);
-    }
-    if(r() < 0.4){ const ant = mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.4), flat(T.metal)); ant.position.set(0.2, h + 0.2, 0.2); g.add(ant); }
-    return g;
-  }
-  if(T.prop === 'palm' && T.label === 'Oasis'){   // sandstone mesa
-    let y = 0;
-    for(let i = 0; i < 3; i++){
-      const hh = 0.22 + r() * 0.12, rad = 0.46 - i * 0.08;
-      const s = mesh(new THREE.CylinderGeometry(rad * 0.92, rad, hh, 7), flat(i % 2 ? T.rock : T.rockTop));
-      s.position.set((r() - 0.5) * 0.08, y + hh / 2, (r() - 0.5) * 0.08); s.rotation.y = r() * 3; g.add(s); y += hh;
-    }
-    return g;
-  }
-  const capColor = col(T.rockTop), rockColor = col(T.rock);
-  for(let i = 0; i < 2 + (r() * 2 | 0); i++){
-    const rad = i === 0 ? 0.38 : 0.16 + r() * 0.12;
-    const geo = new THREE.DodecahedronGeometry(rad, 0);
-    geo.scale(1, 0.75 + r() * 0.3, 1);
-    paint(geo, (p, n) => n.y > 0.45 ? capColor : rockColor);
-    const m = mesh(geo, new THREE.MeshStandardMaterial({ vertexColors:true, flatShading:true, roughness:0.95 }));
-    m.position.set(i ? (r() - 0.5) * 0.6 : 0, rad * 0.6, i ? (r() - 0.5) * 0.6 : 0); m.rotation.set(r(), r() * 6, r());
-    g.add(m);
-  }
-  return g;
-}
-
-export function makeTree(T, r){
-  const g = new THREE.Group(), s = 0.85 + r() * 0.3;
-  const leaf = flat(T.leaf), leafAlt = flat(T.leafAlt), trunk = flat(T.trunk);
-  if(T.prop === 'palm'){
-    let x = 0, y = 0; const bend = (r() - 0.5) * 0.1;
-    for(let i = 0; i < 6; i++){
-      const seg = mesh(new THREE.CylinderGeometry(0.055, 0.07, 0.2, 6), trunk);
-      seg.position.set(x, y + 0.1, 0); seg.rotation.z = -bend * i * 1.2; g.add(seg);
-      x += bend * 0.9; y += 0.19;
-    }
-    const crown = new THREE.Group(); crown.position.set(x, y, 0);
-    for(let i = 0; i < 7; i++){
-      const f = mesh(new THREE.ConeGeometry(0.09, 0.62, 4), i % 2 ? leaf : leafAlt);
-      f.geometry.translate(0, 0.31, 0); f.scale.set(1, 1, 0.25);
-      f.rotation.set(0, i / 7 * Math.PI * 2, 1.25 + r() * 0.25, 'YXZ');
-      crown.add(f);
-    }
-    for(let i = 0; i < 3; i++){ const c = mesh(new THREE.SphereGeometry(0.05, 6, 5), flat('#6b4a2b')); c.position.set(Math.cos(i*2)*0.07, -0.05, Math.sin(i*2)*0.07); crown.add(c); }
-    g.add(crown); g.userData.sway = crown;
-  } else if(T.prop === 'pine'){
-    const t = mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.25, 6), trunk); t.position.y = 0.12; g.add(t);
-    const crown = new THREE.Group(); g.add(crown);
-    const snow = flat('#ffffff');
-    for(let i = 0; i < 3; i++){
-      const c = mesh(new THREE.ConeGeometry(0.36 - i * 0.09, 0.42, 7), i % 2 ? leafAlt : leaf);
-      c.position.y = 0.38 + i * 0.26; crown.add(c);
-      const cap = mesh(new THREE.ConeGeometry(0.16 - i * 0.03, 0.12, 7), snow); cap.position.y = 0.56 + i * 0.26; crown.add(cap);
-    }
-    g.userData.sway = crown;
-  } else if(T.prop === 'planter'){
-    const box = mesh(new THREE.BoxGeometry(0.5, 0.22, 0.5), flat(T.woodDark)); box.position.y = 0.11; g.add(box);
-    const soil = mesh(new THREE.BoxGeometry(0.44, 0.02, 0.44), flat('#3b2a1e')); soil.position.y = 0.22; g.add(soil);
-    const t = mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.45, 6), trunk); t.position.y = 0.44; g.add(t);
-    const crown = new THREE.Group(); crown.position.y = 0.72; g.add(crown);
-    const b = mesh(new THREE.IcosahedronGeometry(0.26, 0), leaf); crown.add(b);
-    const b2 = mesh(new THREE.IcosahedronGeometry(0.17, 0), leafAlt); b2.position.set(0.12, 0.12, 0.05); crown.add(b2);
-    g.userData.sway = crown;
-  } else {                                         // broadleaf jungle tree with vines
-    const t = mesh(new THREE.CylinderGeometry(0.06, 0.1, 0.55, 6), trunk); t.position.y = 0.27; g.add(t);
-    const crown = new THREE.Group(); crown.position.y = 0.6; g.add(crown);
-    const blobs = [[0, 0.12, 0, 0.34, leaf], [0.2, 0, 0.08, 0.24, leafAlt], [-0.18, 0.02, -0.06, 0.22, leafAlt], [0.02, 0.32, -0.04, 0.22, leaf]];
-    for(const [bx, by, bz, br, m] of blobs){ const b = mesh(new THREE.IcosahedronGeometry(br, 0), m); b.position.set(bx, by, bz); b.rotation.set(r(), r(), r()); crown.add(b); }
-    for(let i = 0; i < 2; i++){ const v = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.35, 4), leafAlt); v.position.set((r()-0.5)*0.4, -0.12, (r()-0.5)*0.4); crown.add(v); }
-    g.userData.sway = crown;
-  }
-  g.scale.setScalar(s); g.rotation.y = r() * 6;
-  return g;
-}
-
-export function makeFlora(T, r){
-  const g = new THREE.Group();
-  const n = 2 + (r() * 3 | 0);
-  for(let i = 0; i < n; i++){
-    const x = (r() - 0.5) * 0.6, z = (r() - 0.5) * 0.6;
-    if(T.prop === 'pine' && r() < 0.3){
-      const s = mesh(new THREE.SphereGeometry(0.08 + r() * 0.05, 6, 4), flat('#ffffff')); s.scale.y = 0.5; s.position.set(x, 0.02, z); g.add(s); continue;
-    }
-    const stem = mesh(new THREE.ConeGeometry(0.05, 0.16 + r() * 0.12, 4), flat(r() < 0.5 ? T.leaf : T.leafAlt), false);
-    stem.position.set(x, 0.08, z); stem.rotation.z = (r() - 0.5) * 0.5; g.add(stem);
-    if(r() < 0.7){
-      const f = mesh(new THREE.IcosahedronGeometry(0.045 + r() * 0.025, 0), new THREE.MeshStandardMaterial({ color:T.flora[i % T.flora.length], flatShading:true, emissive:T.flora[i % T.flora.length], emissiveIntensity:0.15 }), false);
-      f.position.set(x, 0.19 + r() * 0.06, z); g.add(f);
-    }
-  }
-  if(T.prop === 'planter' && r() < 0.5){
-    const pot = mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.14, 8), flat(T.strata[0])); pot.position.set(0.18, 0.07, -0.15); g.add(pot);
-    const bush = mesh(new THREE.IcosahedronGeometry(0.11, 0), flat(T.leafAlt)); bush.position.set(0.18, 0.2, -0.15); g.add(bush);
-  }
-  return g;
-}
-
-// Small grass tufts / pebbles / snow mounds scattered on open ground.
-export function makeTufts(level, T, centre){
-  const r = rng(hashStr('tuft' + level.cells.map(c => c.ch).join('')));
-  const pts = [];
-  for(let z = 0; z < level.h; z++) for(let x = 0; x < level.w; x++){
-    const c = level.cells[z*level.w + x];
-    if(c.kind !== 'ground' || c.flora) continue;
-    for(let k = 0; k < 4; k++) if(r() < 0.6) pts.push([x - centre[0] + (r() - 0.5) * 0.85, c.h * LV, z - centre[1] + (r() - 0.5) * 0.85, r()]);
-  }
-  if(!pts.length) return null;
-  const pebble = T.prop === 'planter' || T.label === 'Oasis', snow = T.prop === 'pine';
-  const geo = pebble ? new THREE.DodecahedronGeometry(0.035, 0) : snow ? new THREE.SphereGeometry(0.05, 5, 3) : new THREE.ConeGeometry(0.025, 0.12, 3);
-  if(!pebble && !snow) geo.translate(0, 0.06, 0);
-  const mat = flat(pebble ? T.lip : snow ? '#ffffff' : T.leafAlt, { roughness:1 });
-  const im = new THREE.InstancedMesh(geo, mat, pts.length);
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3();
-  pts.forEach(([x, y, z, k], i) => {
-    q.setFromEuler(new THREE.Euler((k - 0.5) * 0.4, k * 6, (k - 0.5) * 0.4));
-    sc.setScalar(0.7 + k * 0.8); if(snow) sc.y *= 0.45;
-    ps.set(x, y, z); m4.compose(ps, q, sc); im.setMatrixAt(i, m4);
-  });
-  im.receiveShadow = true;
-  return im;
-}
+// Trees, rocks, flora and ground scatter are per-theme biome art: biome.js.
 
 /* ---------------- interactive pieces ---------------- */
 export function makeCrate(T){
@@ -427,33 +399,58 @@ export function makePortal(T, pair){
   return g;
 }
 
-// Sky Scales (K1): a pan is a hanging basket of turf on four ropes that meet at a
-// hook (PAN_HOOK above the floor). The world strings the hooks of both pans to
-// one vine. Origin = the surface Pip stands on.
+// Sky Scales (K1): a pan is a hanging basket — a plank tray of turf under two
+// crossed bentwood handles that meet at a ring and hook PAN_HOOK above the floor,
+// where the rig's rope (pulley.js) takes it. Origin = the surface Pip stands on. The whole basket is
+// one baked mesh on the storey's kit material (cached per theme).
 export const PAN_HOOK = 1.5;
-export function makePan(T){
+export const HEMP = '#d8b98c';
+export function makePan(T, kit){
+  const geo = cached('pan:' + T.id, () => {
+    const r = rng(hashStr('pan' + T.id)), parts = [];
+    const box = (w, h, d, x, y, z, hex, k = 0.55, sh = {}) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); parts.push(tint(soften(g, k), hex, sh)); };
+    // tray: two plank courses (the seam reads as a line), turf, a raised rim
+    box(0.9, 0.1, 0.9, 0, -0.225, 0, T.wood, 0.6, { lo:0.62, hi:0.86 });
+    box(0.9, 0.1, 0.9, 0, -0.125, 0, T.wood, 0.6, { lo:0.82, hi:1.0 });
+    box(0.84, 0.08, 0.84, 0, -0.04, 0, T.top, 0.5, { lo:0.8, hi:1.04 });
+    for(const s of [-1, 1]){
+      box(0.98, 0.075, 0.075, 0, -0.005, s * 0.455, T.woodDark, 0.7);
+      box(0.075, 0.075, 0.83, s * 0.455, -0.005, 0, T.woodDark, 0.7);
+    }
+    // a rounded root bulb under the tray, with a few soft tendrils
+    const bulb = new THREE.LatheGeometry([[0.001, -0.84], [0.1, -0.8], [0.22, -0.68], [0.32, -0.52], [0.37, -0.38], [0.36, -0.28], [0.3, -0.25]].map(([x, y]) => new THREE.Vector2(x, y)), 9);
+    parts.push(tint(soften(bulb, 0.7), T.keel, { lo:0.45, hi:0.95 }));
+    for(let k = 0; k < 3; k++){
+      const a = k * 2.1 + r(), c = new THREE.QuadraticBezierCurve3(new THREE.Vector3(Math.cos(a) * 0.24, -0.6, Math.sin(a) * 0.24),
+        new THREE.Vector3(Math.cos(a) * 0.36, -0.85, Math.sin(a) * 0.36), new THREE.Vector3(Math.cos(a) * 0.3, -1.05 - r() * 0.2, Math.sin(a) * 0.3));
+      parts.push(tint(soften(trunk(c, 0.045, 0.012, { segs:5, radial:5 }), 0.8), T.keel, { lo:0.4, hi:0.75 }));
+    }
+    // two bentwood handles cross over the tray, corner to corner: squarish arches that
+    // rise plumb past Pip and crates (riders fit inside, the edge midpoints stay open
+    // to walk through), lashed with hemp at the feet and where they cross
+    const H = 1.32, D = 0.44 * Math.SQRT2;
+    for(const [cx, cz] of [[1, 1], [1, -1]]){
+      const u = new THREE.Vector3(cx, 0, cz).normalize(), pts = [];
+      for(let k = 0; k <= 14; k++){
+        const a = k / 14 * Math.PI, c = Math.cos(a), sn = Math.sin(a);
+        pts.push(u.clone().multiplyScalar(D * Math.sign(c) * Math.pow(Math.abs(c), 0.5)).setY(-0.02 + (H + 0.02) * Math.pow(sn, 0.5)));
+      }
+      parts.push(tint(soften(trunk(new THREE.CatmullRomCurve3(pts), 0.03, 0.03, { segs:20, radial:6 }), 0.8), T.woodDark, { lo:0.75, hi:1.05 }));
+      for(const sg of [-1, 1]){
+        const knot = new THREE.CylinderGeometry(0.042, 0.042, 0.09, 8); knot.translate(u.x * D * sg * 0.985, 0.06, u.z * D * sg * 0.985);
+        parts.push(tint(soften(knot, 1), HEMP, { lo:0.85, hi:1 }));
+      }
+    }
+    const lash = blob(0.055, r, { wobble:0.06 }); lash.translate(0, H, 0); parts.push(tint(soften(lash, 1), HEMP, { lo:0.85, hi:1 }));
+    const ring = new THREE.Vector3(0, PAN_HOOK - 0.12, 0);
+    const ringG = new THREE.TorusGeometry(0.06, 0.02, 6, 14); ringG.rotateX(Math.PI / 2); ringG.translate(0, ring.y, 0);
+    parts.push(tint(soften(ringG, 1), T.metal, { lo:0.75, hi:1.1 }));
+    const hook = new THREE.TorusGeometry(0.05, 0.018, 6, 10, Math.PI * 1.25); hook.rotateZ(-Math.PI * 0.12); hook.translate(0, ring.y + 0.07, 0);
+    parts.push(tint(soften(hook, 1), T.metal, { lo:0.75, hi:1.1 }));
+    return bake(parts);
+  });
   const g = new THREE.Group();
-  const slab = mesh(new THREE.BoxGeometry(0.92, 0.24, 0.92), flat(T.wood)); slab.position.y = -0.18; g.add(slab);
-  const turf = mesh(new THREE.BoxGeometry(0.86, 0.07, 0.86), flat(T.top)); turf.position.y = -0.035; g.add(turf);
-  const dark = flat(T.woodDark);
-  for(const s of [-1, 1]){
-    const a = mesh(new THREE.BoxGeometry(0.96, 0.06, 0.06), dark); a.position.set(0, -0.04, s * 0.45); g.add(a);
-    const b = mesh(new THREE.BoxGeometry(0.06, 0.06, 0.96), dark); b.position.set(s * 0.45, -0.04, 0); g.add(b);
-  }
-  const root = new THREE.ConeGeometry(0.34, 0.55, 6); root.rotateX(Math.PI); root.translate(0, -0.57, 0);
-  g.add(mesh(root, flat(T.keel)));
-  const rope = flat(T.leaf, { roughness:1 });
-  const strand = (a, b) => {                       // a thin rope between two points
-    const d = new THREE.Vector3().subVectors(b, a), m = mesh(new THREE.CylinderGeometry(0.016, 0.016, d.length(), 4), rope, false);
-    m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); g.add(m);
-  };
-  const hook = new THREE.Vector3(0, PAN_HOOK, 0);
-  for(const [x, z] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]){
-    const low = new THREE.Vector3(x * 0.44, -0.02, z * 0.44), high = new THREE.Vector3(x * 0.44, 0.95, z * 0.44);
-    strand(low, high); strand(high, hook);        // straight up past Pip and crates, then to the hook
-  }
-  const ring = mesh(new THREE.TorusGeometry(0.06, 0.018, 6, 12), flat(T.metal, { metalness:0.6, roughness:0.35 }), false);
-  ring.position.y = PAN_HOOK; g.add(ring);
+  g.add(kitMesh(geo, kit ? kit.solid : new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.86 })));
   return g;
 }
 
@@ -479,32 +476,63 @@ export function makeStart(T){
 }
 
 /* ---------------- ambient life ---------------- */
-export function makeCloud(r){
-  const parts = [];
-  const n = 4 + (r() * 4 | 0);
-  for(let i = 0; i < n; i++){
-    const s = new THREE.IcosahedronGeometry(0.5 + r() * 0.6, 0);
-    s.translate((i - n / 2) * 0.55 + (r() - 0.5) * 0.3, (r() - 0.3) * 0.35, (r() - 0.5) * 0.6);
-    parts.push(s);
-  }
-  const m = new THREE.Mesh(mergeGeometries(parts), new THREE.MeshStandardMaterial({ color:'#ffffff', emissive:'#ffffff', emissiveIntensity:0.35,
-    flatShading:true, roughness:1, transparent:true, opacity:0.85, depthWrite:false }));
-  return m;
+// Soft cumulus, one closed surface each: every vertex of a sphere is pushed out
+// to the farthest puff its ray from the centre crosses (a union of puffs with no
+// inner faces to show through the transparency), the underside is planed flat,
+// and it shades white on top to the fog colour below. CLOUD_SHAPES per theme.
+const CLOUD_SHAPES = 3;
+function cloudGeometry(T, v){
+  return cached('cloud:' + T.id + ':' + v, () => {
+    // a ring of base puffs on a flat ellipse, then smaller puffs heaped on top
+    const r = rng(9001 + v * 77), n = 6 + v, puffs = [], ax = 1.15 + v * 0.25, az = 0.62 + v * 0.08;
+    for(let k = 0; k < n; k++){
+      const a = k / n * Math.PI * 2 + r() * 0.4;
+      puffs.push([Math.cos(a) * ax * 0.78, 0.05 + r() * 0.12, Math.sin(a) * az * 0.7, 0.42 + r() * 0.18]);
+    }
+    for(let k = 0; k < 3 + v; k++) puffs.push([(r() - 0.5) * ax * 1.1, 0.32 + r() * 0.22, (r() - 0.5) * az * 0.7, 0.4 + r() * 0.16]);
+    puffs.push([(r() - 0.5) * 0.4, 0.5, (r() - 0.5) * 0.2, 0.5]);                         // the crown
+    const g = new THREE.SphereGeometry(1, 24, 12), p = g.attributes.position, d = new THREE.Vector3();
+    for(let i = 0; i < p.count; i++){
+      d.fromBufferAttribute(p, i).normalize();
+      let t = 1 / Math.hypot(d.x / ax, d.y / 0.3, d.z / az);              // flat core
+      for(const [cx, cy, cz, R] of puffs){
+        const b = d.x * cx + d.y * cy + d.z * cz, disc = b * b - (cx * cx + cy * cy + cz * cz - R * R);
+        if(disc >= 0) t = Math.max(t, b + Math.sqrt(disc));
+      }
+      p.setXYZ(i, d.x * t, Math.max(d.y * t, -0.16), d.z * t);
+    }
+    const geo = soften(g, 1), q = geo.attributes.position, out = new Float32Array(q.count * 3);
+    const lo = new THREE.Color('#ffffff').lerp(new THREE.Color(T.fog), 0.45), hi = new THREE.Color('#ffffff').lerp(new THREE.Color(T.hemi.sky), 0.25), c = new THREE.Color();
+    for(let i = 0; i < q.count; i++){ c.copy(lo).lerp(hi, Math.min(1, Math.max(0, (q.getY(i) + 0.16) / 0.45))); out.set([c.r, c.g, c.b], i * 3); }
+    geo.setAttribute('color', new THREE.BufferAttribute(out, 3));
+    geo.deleteAttribute('uv');
+    return geo;
+  });
 }
-
-export function makeFlyer(kind, color){
-  const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color, side:THREE.DoubleSide, flatShading:true });
-  const wing = () => {
-    const geo = new THREE.BufferGeometry();
-    const v = kind === 'butterfly' ? [0,0,0, 0.16,0.02,-0.1, 0.12,0,0.12] : [0,0,0, 0.22,0.04,-0.05, 0.05,0,0.08];
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); geo.computeVertexNormals();
-    return new THREE.Mesh(geo, mat);
+// The cloud deck: a sea of cloud BELOW the isle plus a few far-off puffs on the
+// horizon — never between the camera and the puzzle. Instanced per shape (3 draw
+// calls for all 12). Returns { group, update(dt, t) }.
+export function makeCloud(T, r, span){
+  const group = new THREE.Group(), meshes = [], clouds = [];
+  // lit by the theme's own sky, so moonlit clouds stay soft instead of glaring white
+  const mat = new THREE.MeshStandardMaterial({ vertexColors:true, emissive:T.hemi.sky, emissiveIntensity:0.32 * Math.min(1, T.sun.intensity / 2.4), roughness:1, transparent:true, opacity:0.92, depthWrite:false });
+  for(let v = 0; v < CLOUD_SHAPES; v++){ const im = new THREE.InstancedMesh(cloudGeometry(T, v), mat, 4); im.frustumCulled = false; group.add(im); meshes.push(im); }
+  for(let i = 0; i < 12; i++){
+    const a = r() * Math.PI * 2, low = i < 9, k = 0.7 + r() * 1.1;
+    clouds.push({ im:meshes[i % CLOUD_SHAPES], slot:i / CLOUD_SHAPES | 0, a, rad:low ? span * 0.6 + 3 + r() * span : span * 1.6 + 10 + r() * 8,
+      y:low ? -3.2 - r() * 2.6 : 1 + r() * 3, speed:0.008 + r() * 0.012, bob:r() * 6, rot:r() * Math.PI * 2, sx:k, sy:k * 0.85 });
+  }
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), sc = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  const update = (dt, t) => {
+    for(const c of clouds){
+      c.a += dt * c.speed;
+      pos.set(Math.cos(c.a) * c.rad, c.y + Math.sin(t * 0.3 + c.bob) * 0.15, Math.sin(c.a) * c.rad);
+      q.setFromAxisAngle(up, c.rot); sc.set(c.sx, c.sy, c.sx); m4.compose(pos, q, sc); c.im.setMatrixAt(c.slot, m4);
+    }
+    for(const im of meshes) im.instanceMatrix.needsUpdate = true;
   };
-  const L = wing(), R = wing(); R.scale.x = -1;
-  g.add(L, R);
-  g.userData = { L, R };
-  return g;
+  update(0, 0);
+  return { group, update };
 }
 
 /* ---------------- Weight II (Phase 3): balloons, stones, buoys, vents, seeds ---------------- */

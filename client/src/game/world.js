@@ -5,11 +5,14 @@ import * as THREE from 'three';
 import { bridgeUp, gatesOpen, panTilt, heightAt, cellPlace, pipWeight, floating, windAt, hazardCellsAt } from '@klar/core';
 import { themeOf, PORTAL_COLORS } from './themes.js';
 import {
-  LV, rng, hashStr, buildTerrain, makeRock, makeTree, makeFlora, makeTufts,
+  LV, rng, hashStr, buildTerrain,
   makeCrate, makePlate, makeGate, makeLever, makeBridge, makeKey, makeDoor, makePortal,
-  makeGoal, makeStart, makeCloud, makeFlyer, makePan, PAN_HOOK,
+  makeGoal, makeStart, makeCloud, makePan,
   makeBalloon, makePost, makePile, makeBuoy, makeVent, makeSeed, makeBoulder, makeThorn, makeWarning,
 } from './props.js';
+import { makeTree, makeRock, makeFlora, makeScatter, makeKit } from './biome.js';
+import { buildRig } from './pulley.js';
+import { makeFauna } from './fauna.js';
 import { Pip } from './pip.js';
 import { sfx, setScale, ambient } from './audio.js';
 
@@ -140,6 +143,7 @@ export class World {
     this.storeyGroups =S.map(() => { const g = new THREE.Group(); g.userData = { fade:1, fadeTo:1 }; this.isle.add(g); return g; });
     this.storeyTop = S.map(() => 0);
     this.animated = [];
+    this.kits = S.map(() => makeKit());           // one material kit per storey (storeys fade apart)
     S.forEach((s, k) => {
       // the storey as a plain grid; pans are cut out (they hang in their own baskets)
       const cells = [];
@@ -152,7 +156,7 @@ export class World {
       const off = new THREE.Vector3(s.at[0] + terr.centre[0] - this.centre[0], s.at[2] * LV, s.at[1] + terr.centre[1] - this.centre[1]);
       terr.group.position.copy(off); this.storeyGroups[k].add(terr.group);
       this.animated.push(...terr.animated);
-      const tufts = makeTufts(sub, T, terr.centre); if(tufts){ tufts.position.copy(off); this.storeyGroups[k].add(tufts); }
+      const scatter = makeScatter(sub, T, terr.centre, this.kits[k]); if(scatter){ scatter.position.copy(off); this.storeyGroups[k].add(scatter); }
     });
 
     // props and pieces
@@ -164,9 +168,11 @@ export class World {
       if(level.sid[i] < 0) continue;              // padding between storeys
       const c = level.cells[i], p = this.cellPos(i, false), home = this.groupOf(i);
       const put = obj => { obj.position.copy(p); home.add(obj); return obj; };
+      // biome decor is seeded per cell, so painting one tile never reshuffles the rest
+      const kit = this.kits[Math.max(0, level.sid[i])], rc = rng(hashStr(T.id + ':' + c.ch + ':' + i));
       switch(c.kind){
-        case 'rock': put(makeRock(T, r)); break;
-        case 'tree': { const t = put(makeTree(T, r)); if(t.userData.sway) this.sway.push([t.userData.sway, r() * 6]); break; }
+        case 'rock': put(makeRock(T, rc, kit)); break;
+        case 'tree': { const t = put(makeTree(T, rc, kit)); if(t.userData.sway) this.sway.push([t.userData.sway, rc() * 6]); break; }
         case 'goal': this.goals.push(put(makeGoal(T))); break;
         case 'plate': this.plates.set(i, put(makePlate(T))); break;
         case 'gate': { const g = put(makeGate(T)); g.rotation.y = this.sideways(i) ? Math.PI / 2 : 0; this.gates.push(g); break; }
@@ -174,12 +180,12 @@ export class World {
         case 'door': { const d = put(makeDoor(T)); d.rotation.y = this.sideways(i) ? Math.PI / 2 : 0; this.doors.set(i, d); break; }
         case 'portal': { const pr = put(makePortal(T, c.ch)); pr.rotation.y = this.sideways(i) ? Math.PI / 2 : 0; this.portals.push(pr); break; }
         case 'bridge': { const b = put(makeBridge(T)); b.rotation.y = this.sideways(i) ? 0 : Math.PI / 2; b.userData.baseY = b.position.y; b.userData.storey = level.sid[i]; this.bridges.set(i, b); break; }
-        case 'pan': this.pans.set(i, put(makePan(T))); break;
+        case 'pan': this.pans.set(i, put(makePan(T, kit))); break;
         case 'post': this.posts.set(i, put(makePost(T))); break;
         case 'pile': put(makePile(T, r)); break;
         case 'vent': { const v = put(makeVent(T)); v.rotation.y = YAW_OF[c.blow]; this.vents.set(i, v); break; }
       }
-      if(c.flora) put(makeFlora(T, r));
+      if(c.flora) put(makeFlora(T, rc, kit));
       if(level.start === i) put(makeStart(T));
       if(level.keys.includes(i)) this.keys.set(i, put(makeKey(T)));
       if(level.seeds && level.seeds.includes(i)) this.seedMeshes.set(i, put(makeSeed(T)));
@@ -197,42 +203,9 @@ export class World {
   groupOf(i){ return this.storeyGroups[Math.max(0, this.level.sid[i])]; }
   fadeOf(obj){ return obj.parent ? obj.parent.userData.fade ?? 1 : 1; }
 
-  // Sky Scales: one vine over a sky branch, a rope down to every pan tile's hook.
-  // Rope lengths follow the pans; the branch stays put at a height clear of both.
-  buildVine(T){
-    this.vine = null;
-    const L = this.level;
-    if(!L.pans) return;
-    const tiles = [...L.pans.a, ...L.pans.b];
-    const top = Math.max(...tiles.map(i => (L.storeys[L.sid[i]].at[2] + L.cells[i].h + 1) * LV)) + PAN_HOOK + 0.7;
-    const pts = tiles.map(i => { const p = this.cellPos(i, false); return new THREE.Vector3(p.x, top, p.z); });
-    if(pts.length === 2) pts.splice(1, 0, pts[0].clone().lerp(pts[1], 0.5).add(new THREE.Vector3(0, 0.35, 0)));
-    const curve = new THREE.CatmullRomCurve3(pts);
-    const wood = new THREE.MeshStandardMaterial({ color:T.trunk, flatShading:true, roughness:0.9 });
-    const branch = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.075, 6, false), wood); branch.castShadow = true;
-    this.isle.add(branch);
-    const leaf = new THREE.MeshStandardMaterial({ color:T.leafAlt, flatShading:true, roughness:0.8 });
-    for(let k = 1; k < 9; k++){
-      const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 4), leaf);
-      m.scale.set(1.4, 0.45, 0.8); m.position.copy(curve.getPoint(k / 9)); m.position.y += 0.06; m.rotation.y = k * 1.9; this.isle.add(m);
-    }
-    const vineMat = new THREE.MeshStandardMaterial({ color:T.leaf, roughness:1 }), knot = new THREE.MeshStandardMaterial({ color:T.woodDark, flatShading:true });
-    const ropes = new Map();
-    for(const i of tiles){
-      const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 5), vineMat); rope.castShadow = true;
-      const k = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 6, 14), knot);
-      const p = this.cellPos(i, false); k.position.set(p.x, top, p.z); k.rotation.y = Math.PI / 4;
-      this.isle.add(rope, k); ropes.set(i, rope);
-    }
-    this.vine = { top, ropes };
-  }
-  updateVine(){
-    if(!this.vine) return;
-    for(const [i, rope] of this.vine.ropes){
-      const pan = this.pans.get(i), y0 = pan.position.y + PAN_HOOK, len = Math.max(0.01, this.vine.top - y0);
-      rope.position.set(pan.position.x, y0 + len / 2, pan.position.z); rope.scale.set(1, len, 1);
-    }
-  }
+  // Sky Scales: a pulley rig over the pans (pulley.js) — a gnarled sky-branch, a
+  // sheave over every pan, one rope. The engine decides the tilt; the rig shows it.
+  buildVine(T){ this.rig = buildRig(this, T); }
   // Pans (and whatever rides them) for a scales lean f — fractional while settling.
   setPans(f, state){
     for(const [i, m] of this.pans){
@@ -242,15 +215,19 @@ export class World {
       const cm = this.crateMeshes && this.crateMeshes.get(i); if(cm) cm.position.y = y;
       const bm = this.buoyMeshes && this.buoyMeshes.get(i); if(bm) bm.position.y = y;
     }
-    this.updateVine();
+    if(this.rig) this.rig.sync();
   }
+  // The heavy side drops on a spring: a touch of overshoot, one small rebound,
+  // then exactly `to` (≈0.6 s). The baskets keep rocking after the promise.
   settleScales(from, to, state){
+    const rig = this.rig;
     return new Promise(res => {
       let t = 0;
       this.fx.push({ update:dt => {
-        t = Math.min(1, t + dt / 0.45);
-        this.setPans(from + (to - from) * easeIO(t), state);
-        if(t >= 1){ this.tiltShown = to; res(); return false; }
+        t += dt;
+        const done = !rig || t >= rig.settleTime;
+        this.setPans(done ? to : from + (to - from) * rig.settle(t, to - from), state);
+        if(done){ this.tiltShown = to; res(); return false; }
         return true;
       } });
     });
@@ -417,21 +394,9 @@ export class World {
   }
 
   buildAtmosphere(T, r){
-    // clouds drifting around and below the isle
-    this.clouds = [];
-    const isleSpan = this.mapSpan;
-    for(let i = 0; i < 12; i++){
-      const c = makeCloud(r);
-      // a sea of cloud BELOW the isle, plus a few far-off puffs on the horizon —
-      // never between the camera and the puzzle
-      const a = r() * Math.PI * 2, low = i < 9;
-      const rad = low ? isleSpan * 0.6 + 3 + r() * isleSpan : isleSpan * 1.6 + 10 + r() * 8;
-      const y = low ? -3.2 - r() * 2.6 : 1 + r() * 3;
-      c.position.set(Math.cos(a) * rad, y, Math.sin(a) * rad);
-      c.scale.set(1, 0.55, 1).multiplyScalar(0.7 + r() * 1.1);
-      c.userData = { a, rad, y, speed:0.008 + r() * 0.012, bob:r() * 6 };
-      this.atmos.add(c); this.clouds.push(c);
-    }
+    // the cloud deck drifting around and below the isle (props.js)
+    this.clouds = makeCloud(T, r, this.mapSpan);
+    this.atmos.add(this.clouds.group);
     // theme particles
     const n = { fireflies:70, dust:90, petals:60, lanterns:46, snow:170 }[T.particles] || 60;
     const pos = new Float32Array(n * 3), colors = new Float32Array(n * 3), seeds = [];
@@ -450,18 +415,14 @@ export class World {
       transparent:true, opacity:glow ? 0.95 : 0.8, depthWrite:false, blending:glow ? THREE.AdditiveBlending : THREE.NormalBlending });
     this.particles = { mesh:new THREE.Points(geo, pm), seeds, kind:T.particles, span, baseColors:colors.slice() };
     this.atmos.add(this.particles.mesh);
-    // critters
-    this.flyers = [];
-    for(let i = 0; i < 3; i++){
-      const f = makeFlyer(T.critter, T.critter === 'butterfly' ? T.flora[i % T.flora.length] : '#2b2433');
-      f.userData.path = { a:r() * 6, rad:T.critter === 'butterfly' ? 2 + r() * 2 : 6 + r() * 4, y:T.critter === 'butterfly' ? 0.8 + r() : 3 + r() * 2, sp:T.critter === 'butterfly' ? 0.35 : 0.22 + r() * 0.1, ph:r() * 6 };
-      if(T.critter === 'bird') f.scale.setScalar(1.6);
-      this.atmos.add(f); this.flyers.push(f);
-    }
+    // critters: flyers around the isle, a few specials on decor tiles (fauna.js)
+    this.fauna = makeFauna(this, T, r);
   }
 
   disposeGroup(g){
-    g.traverse(o => { if(o.geometry) o.geometry.dispose(); if(o.material){ (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); } });
+    g.traverse(o => { if(o.geometry && !o.geometry.userData.keep) o.geometry.dispose();   // keep = cached, shared across loads
+      if(o.isInstancedMesh) o.dispose();                // instance buffers (clouds, flyers)
+      if(o.material){ (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); } });
     g.clear();
   }
 
@@ -686,6 +647,7 @@ export class World {
     }
     if(this.level){
       for(const a of this.animated) a.update(t);
+      if(this.rig) this.rig.update(dt, t);               // Sky Scales rig (pulley.js)
       for(const [crown, ph] of this.sway){ crown.rotation.z = Math.sin(t * 1.2 + ph) * 0.05; crown.rotation.x = Math.sin(t * 0.9 + ph) * 0.03; }
       for(const g of this.goals){ const u = g.userData; u.gem.rotation.y = t * 1.4; u.gem.position.y = 0.75 + Math.sin(t * 2) * 0.06; u.ring.rotation.z = t; u.ring.scale.setScalar(1 + Math.sin(t * 2.4) * 0.08); u.beamMat.opacity = 0.11 + Math.sin(t * 1.7) * 0.04; }
       for(const p of this.portals){ const u = p.userData; u.swirl.rotation.z = -t * 3; u.glowMat.opacity = (0.45 + Math.sin(t * 3) * 0.12) * this.fadeOf(p); u.gem.rotation.y = t * 2; }
@@ -707,16 +669,9 @@ export class World {
       for(const dr of this.doors.values()){ if(dr.userData.target == null) continue; dr.userData.hinge.rotation.y = -lerp(dr, 'open', 5) * 1.7; }
       if(this.hintMesh.visible){ const u = this.hintMesh.userData; this.hintMesh.position.copy(u.at); this.hintMesh.position.y += 0.75 + Math.sin(t * 5) * 0.08; }
       // clouds, particles, critters
-      for(const c of this.clouds){ const u = c.userData; u.a += dt * u.speed; c.position.set(Math.cos(u.a) * u.rad, u.y + Math.sin(t * 0.3 + u.bob) * 0.15, Math.sin(u.a) * u.rad); }
+      this.clouds.update(dt, t);
       this.updateParticles(dt, t);
-      for(const f of this.flyers){
-        const u = f.userData.path; u.a += dt * u.sp;
-        const x = Math.cos(u.a) * u.rad, z = Math.sin(u.a * (this.T.critter === 'butterfly' ? 1.6 : 1)) * u.rad;
-        f.position.set(x, u.y + Math.sin(t * 2 + u.ph) * 0.25, z);
-        f.rotation.y = -u.a - Math.PI / 2;
-        const flap = Math.sin(t * (this.T.critter === 'butterfly' ? 14 : 8) + u.ph) * 0.9;
-        f.userData.L.rotation.z = flap; f.userData.R.rotation.z = -flap;
-      }
+      if(this.fauna) this.fauna.update(dt, t);
     }
     this.fx = this.fx.filter(e => e.update(dt, t) !== false);
     this.pip.update(dt, t);

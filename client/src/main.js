@@ -119,6 +119,7 @@ function dailyEntry(date = utcDate()){
 
 /* ---------------- app state ---------------- */
 const world = new World($('#stage'));
+if(import.meta.env.DEV) window.__klar = { world };   // dev-only handle for art/perf checks (draw calls, screenshots)
 const settings = store.get('klarbase.v2.settings', { sound:true, timer:false });
 const progress = store.get('klarbase.v2.progress', {});
 let session = null, game = null, current = null, tab = 'official', online = null;
