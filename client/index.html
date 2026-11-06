@@ -254,6 +254,15 @@
   .tool{ aspect-ratio:1; border-radius:11px; background:rgba(42,34,56,.05); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; font-size:17px; border:2px solid transparent; }
   .tool small{ font-size:9px; font-weight:800; color:var(--ink-3); line-height:1; }
   .tool.on{ border-color:var(--accent); background:#fff; }
+  .tool .ico{ display:flex; align-items:center; justify-content:center; height:30px; line-height:1; }
+  .tool .ico.thumb{ width:36px; background:center/contain no-repeat; }
+  .chip.theme{ display:inline-flex; align-items:center; gap:6px; padding-left:5px; }
+  .chip .sw{ width:18px; height:18px; border-radius:50%; flex:none; box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.6), 0 1px 2px rgba(42,34,56,.2); }
+  .biome{ display:flex; align-items:center; gap:8px; padding:4px 10px 4px 4px; border-radius:12px; background:rgba(42,34,56,.04); }
+  .biome:empty{ display:none; }
+  .biome-row{ display:flex; flex:none; }
+  .biome img{ width:42px; height:42px; }
+  .biome p{ margin:0; font-size:12.5px; font-weight:700; color:var(--ink-2); line-height:1.3; }
   #gridCanvas{ width:100%; border-radius:12px; background:rgba(42,34,56,.04); touch-action:none; cursor:crosshair; display:block; }
   .status{ font-weight:800; font-size:13.5px; padding:9px 12px; border-radius:12px; background:rgba(42,34,56,.05); }
   .status.ok{ color:#1f8a62; background:rgba(63,191,143,.12); }
