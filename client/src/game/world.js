@@ -11,6 +11,8 @@ import {
   makeBalloon, makePost, makePile, makeBuoy, makeVent, makeSeed, makeBoulder, makeThorn, makeWarning,
 } from './props.js';
 import { makeTree, makeRock, makeFlora, makeScatter, makeKit } from './biome.js';
+import { buildRig } from './pulley.js';
+import { makeFauna } from './fauna.js';
 import { Pip } from './pip.js';
 import { sfx, setScale, ambient } from './audio.js';
 
