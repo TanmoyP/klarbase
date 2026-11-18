@@ -4,6 +4,12 @@
 
 **Tiny floating isles · clever little paths.**
 
+[![CI](https://github.com/TanmoyP/klarbase/actions/workflows/ci.yml/badge.svg)](https://github.com/TanmoyP/klarbase/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/github/license/TanmoyP/klarbase)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/TanmoyP/klarbase?style=flat)](https://github.com/TanmoyP/klarbase/stargazers)
+[![Discussions](https://img.shields.io/github/discussions/TanmoyP/klarbase)](https://github.com/TanmoyP/klarbase/discussions)
+[![Play](https://img.shields.io/badge/play-klarbase.dev-f08a4b)](https://klarbase.dev)
+
 [**▶ Play at klarbase.dev**](https://klarbase.dev) · [Make an isle](#make-an-isle) · [Contribute](CONTRIBUTING.md) · MIT licensed
 
 <img src="docs/screenshots/title.png" alt="Klarbase title screen: a sandy oasis isle floating in an orange sky" width="900">
@@ -40,8 +46,8 @@ bridges, step through arches — one hop per key, to the glowing star.
   request** — automated checks make sure it's solvable and fair, and you're credited by name.
 
 Play at **[klarbase.dev](https://klarbase.dev)**. No account needed to play or build.
-Privacy: to rate difficulty the game counts plays, clears, hints, restarts, moves and time per
-isle — anonymous totals only; no account, cookie or IP address is stored.
+Privacy: anonymous play counts; signed-in players' data is listed in the
+[privacy policy](https://klarbase.dev/privacy).
 
 ## Make an isle
 
@@ -72,6 +78,17 @@ node tools/check-isles.mjs  # the same check every isle PR runs
 
 The online parts (sign-in, sharing) need the server and Postgres — see [DEPLOYMENT.md](DEPLOYMENT.md).
 
+## Where things live
+
+| Folder | What's in it |
+| --- | --- |
+| [`core/`](core) | `@klar/core` — the rules, the solver, the official isles and the contribution rules (pure JS, zero deps) |
+| [`client/`](client) | `@klar/client` — the game and builder: Vite + three.js, all art and audio procedural |
+| [`server/`](server) | `@klar/server` — Express + Prisma + better-auth: sign-in, online sharing, anonymous play stats |
+| [`isles/`](isles) | the isles as JSON: `official/`, `community/<author>/` and `daily/`, plus the format guide |
+| [`tools/`](tools) | `check-isles.mjs` (the PR gate), `author.mjs` (official isle artifacts), difficulty audit |
+| [`docs/`](docs) | screenshots, the game summary and design proposals |
+
 ## How it's built
 
 ```text
@@ -85,6 +102,17 @@ tools/    check-isles.mjs (the PR gate) · author.mjs (official isle artifacts)
 The rules live in exactly one place (`core/src/isle/`). The game, the builder, the solver, the
 PR checks and the server all use it, so they can never disagree. Engineering notes:
 [ENGINEERING.md](ENGINEERING.md).
+
+## Community
+
+- **[Discussions](https://github.com/TanmoyP/klarbase/discussions)** — ideas, questions, show your isles
+- **[Issues](https://github.com/TanmoyP/klarbase/issues/new/choose)** — bugs, isle ideas, feature requests
+- **In-game feedback** — press *Send feedback* under the title at [klarbase.dev](https://klarbase.dev); no GitHub account needed
+- **[Code of Conduct](CODE_OF_CONDUCT.md)** · [Community guidelines](https://klarbase.dev/guidelines) · [Privacy](https://klarbase.dev/privacy)
+
+## Contributors
+
+[![Contributors](https://contrib.rocks/image?repo=TanmoyP/klarbase)](https://github.com/TanmoyP/klarbase/graphs/contributors)
 
 ## License
 

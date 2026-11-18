@@ -6,6 +6,7 @@
 //   online     — isles shared in-game and stored on the server (/i/<hash>)
 import { CURATED_ISLES, CHAPTERS, SCHEMAS, parseIsle, solveIsle, solveSeeds, starsFor, isleHash, initialState,
   auditIsle, difficultyScore, playSummary, SUMMARY_MIN, TIER_IDS, skyOf, confluenceState, constellation, CONFLUENCE_NEED, dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate } from '@klar/core';
+import { siteFoot } from './sitefoot.js'; // hook(repo)
 import { World } from './game/world.js';
 import { Session } from './game/session.js';
 import { THEMES, themeOf } from './game/themes.js';
@@ -231,6 +232,7 @@ async function refreshAuth(){
     chip.append(b);
   }
 }
+$('#titleFoot')?.insertAdjacentHTML('beforeend', siteFoot()); // hook(repo)
 document.addEventListener('click', e => {
   if(e.target.id === 'siGh') signIn('github'); if(e.target.id === 'siGo') signIn('google');
   const go = e.target.closest('[data-go]'); if(go){ e.preventDefault(); sfx.ui(); nav(go.dataset.go); }
@@ -270,6 +272,7 @@ function helpModal(which = 'play'){
       <div><span class="ico">📈</span><span>Each isle shows a difficulty from <b>Breeze</b> to <b>Mythic</b>. It starts as the maker’s guess and settles as people play.</span></div>
     </div>
     <p class="facts" style="font-size:12.5px;font-weight:600;margin:10px 0 0">Privacy: to rate difficulty, the game counts plays, clears, hints, restarts, moves and time per isle — anonymous totals with no account, cookie or IP address. Signing in sets one cookie and keeps your name, email and session details. <a href="/privacy" data-go="/privacy" style="color:inherit">What's stored</a></p>
+    ${siteFoot()}<!-- hook(repo) -->
     <div class="row"><button class="btn feedback-open">✉ Send feedback</button><button class="btn primary" onclick="document.getElementById('modal').classList.remove('on')">Got it</button></div>`);
 }
 
