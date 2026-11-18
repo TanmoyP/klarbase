@@ -30,6 +30,7 @@ model User {
   reports  Report[]
   plots    Plot[]
   feedback Feedback[]
+  progress Progress?   // hook(cloudsave)
 }
 
 model Session {
@@ -143,4 +144,14 @@ model Feedback {
 
   @@index([createdAt])
   @@index([userId])
+}
+
+// hook(cloudsave) — cloud-saved progress (GET/PUT /api/progress): one JSON save per account
+// (stars, best moves/time per isle, dailies, map exploration), built and merged only by
+// mergeProgress / sanitizeProgress in @klar/core, ≤ 64 KB. Personal data: deleted with the account.
+model Progress {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data      Json
+  updatedAt DateTime @updatedAt
 }
