@@ -54,8 +54,9 @@ klarbase/
 ├── core/                 @klar/core — pure, zero-dep, isomorphic. THE rules.
 │   ├── src/isle/         format.js · rules.js · solve.js · contrib.js · isles.js → official.js (generated from isles/official/)
 │   │                     difficulty.js (audit + K3 score + tiers) · daily.js (Daily Isle pick/number/share)
+│   ├── src/atlas/        Sky Atlas — the endless overworld, pure: rng · biome · chunk · walk · content · wild (see §5b)
 │   ├── src/*.js          legacy voxel engine — kept only for the deferred world API
-│   └── test/             isles.mjs · difficulty.mjs · run.mjs (legacy, 57)
+│   └── test/             isles.mjs · difficulty.mjs · run.mjs (legacy, 57) · atlas.mjs
 ├── client/               @klar/client — Vite + three.js
 │   ├── index.html        shell + all CSS (glass UI, responsive)
 │   └── src/
@@ -416,6 +417,51 @@ already in the game, so there is nothing else to archive.
 Legacy v4 maquette rows may still exist in prod; the client tells players those links are
 from an older version.
 
+## 5b. Sky Atlas — the endless overworld (core, F1)
+
+`core/src/atlas/` is the pure, deterministic core of the overworld Pip walks across: floating isles
+in an endless sky with puzzle **shrines** on them. Zero deps, no `Math.random`/`Date`/I-O: every
+function is a pure function of `(seed, coordinates)` — same answer in Node and the browser, in any
+order. No new tile type and no new rule: the overworld obeys rule 1 by **calling** `rules.js`'s
+`heightStep` (now exported, behaviour unchanged), and every isle a shrine holds is an ordinary
+isle that goes through `parseIsle` + `solveIsle`. Test: `core/test/atlas.mjs` (in `npm test` + CI `engine`).
+
+- **`rng.js`** `hash2(seed,x,z,k)` → [0,1), `hashInt`, `hashStr`, `mulberry32`, `vnoise`.
+- **`biome.js`** jittered Voronoi (site per 24×24 tiles, ±7 jitter, domain warp 3.2). Spawn site (0,0)
+  = jungle at map tile (0,0); fixed neighbours east oasis · west mountain · south tropical · north
+  urban; night is rare: one fixed ring-2 site pulled toward spawn + 2 more by hash, ~15% beyond.
+  Rings 1–2 use a **quota** (jungle 4, oasis 3, tropical 3, urban 3, mountain 4) so the 56 official
+  isles always fit. `biomeAt`, `biomeWeights(seed,x,z,r)` (tent-stencil blend for colour grading),
+  `regionAt` → `{theme,name,site}`, `biomeEdge` (distance to a region border).
+- **`chunk.js`** `chunkAt(seed,cx,cz)` → 16×16 `cells` (row-major `z*16+x`), `bridges`, `shrines`. The map is a
+  lattice of 8×8 quadrants, one isle each (5–40 tiles), so a chunk never sees its neighbour yet seams
+  agree: an edge between two quadrants is on/off by a pure hash — a binary-tree maze inside each 8×8-quadrant
+  block plus one hashed link east and one south between blocks (a spanning tree of the infinite lattice ⇒
+  **one connected world**) plus ~30% extra edges. Plateau level 0–3 = rounded 3×3 mean of hashed levels ⇒
+  neighbours differ ≤ 1; a bridge lies at the lower plateau and the higher isle ends its corridor in a stair.
+  Terraces get stairs (else the isle is flattened); props are kept only while the isle stays *strongly*
+  connected under `heightStep`. Cell = `{kind,h,ch,dir?,flora?,theme}` with `kind` ∈ the parsed isle kinds
+  (`ground ramp rock tree water void`) + overworld-only **`bridge`** (walkable) and **`shrine`** (walkable
+  ground holding a puzzle). One shrine slot per isle (p≈.65, inner 4×4) ⇒ shrines ≥ 4 apart.
+- **`walk.js`** `cellAt`, `canStep(seed,{x,z},'U'|'D'|'L'|'R')` → `{ok,to:{x,z,h},kind:'flat'|'ramp'|'down'|'bridge'}`
+  (U = z−1), `SPAWN`, LRU of chunks.
+- **`content.js`** `placeContent(seed,{official,community,daily})` → `Map key→{x,z,kind}` (`o/<id>`, `c/<author>/<id>`,
+  `d/<date>`); `shrineAt(seed,x,z,placement)`. Official isles: chapters in order, nearest regions of the chapter's
+  theme in rings 0–2, nearest-spawn slots first; Twist/Confluence isles on the slot nearest a region border.
+  Community/daily: each key ranks the slots of its theme's regions by `hash(key,slot)` and takes its best free
+  one (input order never matters; adding isles moves an earlier one only on a slot collision).
+- **`wild.js`** `wildIsle(seed,x,z)` → `{doc,par,solution,tier,mechanics,statKey:'w/x,z',hash}` | `null`: a real
+  v5 isle (night with a boulder: a v6 one-storey map) built as a chain of full-height **barriers** — sink (crate
+  into a moat; jungle also hop-down/stairs), arch (crate on the doorstep), bridge+lever, door+key, gate+plate,
+  ice slide, boulder lane — so each mechanic is load-bearing by construction; farther from spawn adds a
+  crate-based second barrier and **pits** (one-level drops beside the solver's route: dead ends that give the
+  audit its traps). Up to 40 deterministic attempts; accepted only if solvable, par ≥ 6, the barrier mechanics
+  occur in the shortest solution, and the audit tier is in the distance band (<64 tiles breeze/easy, <160
+  easy/tricky, beyond tricky; never above tricky). Solver budget 6 000 states, audit 3 000 (anything bigger is
+  not a breeze-to-tricky isle). Measured: ~99.7% accepted, p50 5 ms, p95 ~65 ms.
+
+---
+
 ## 6. Open-source contribution pipeline
 
 Goal: a stranger's PR is either **rejected automatically** or **safe to merge** — no
@@ -737,6 +783,17 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 - **Unchanged:** `@klar/core`, rules, every isle and hash. Tests 541/179/57 green.
 - **Watch:** shader compile on first load (more programs); `fast` is the escape hatch. The renderer's
   default framebuffer MSAA is wasted in post mode (can't change after context creation).
+### 2026-11-18 (ad) — Sky Atlas core (F1): endless overworld, shrines, wild isles
+- **Added** `core/src/atlas/` (rng, biome, chunk, walk, content, wild) + `core/test/atlas.mjs` (68 checks, ~9 s; in
+  `npm test` and the CI `engine` job). Exported from `@klar/core`. See §5b.
+- **Core change:** `heightStep` in `rules.js` is now `export`ed (one word; behaviour identical) so the overworld
+  walks by the rules' own function instead of a copy.
+- **Not done / for the integrator:** client map (draw cells with `buildTerrain`, treat `bridge`/`shrine` as
+  floor), server wiring for `w/…` stat keys, the Atlas UI. `buildTerrain` renders `bridge` as water-level — feed it
+  `ground` for bridge/shrine cells (or draw the span separately).
+- **Known weak spots:** wild puzzles are template-built (barrier chains) — fair and solver-verified but samey;
+  tricky comes partly from pits (dead-end drops), which read as "don't step there" rather than a clever idea;
+  night boulders appear only in ~25% of night isles (the rest use crate barriers).
 
 ### 2026-11-06 (aa) — Soft-chunky art pass: biomes, pulley rig, fauna, builder thumbs
 - **Why:** founder feedback — trees pointy, rough edges, tropical and dry maps looked alike,
