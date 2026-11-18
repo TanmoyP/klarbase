@@ -31,11 +31,12 @@ export function regionSlots(seed, gx, gz){
   if(out) return out;
   const s = siteAt(seed, gx, gz), qx0 = Math.floor(s.x / Q), qz0 = Math.floor(s.z / Q);
   out = [];
-  for(let qz = qz0 - 6; qz <= qz0 + 6; qz++) for(let qx = qx0 - 6; qx <= qx0 + 6; qx++){
+  for(let qz = qz0 - 5; qz <= qz0 + 5; qz++) for(let qx = qx0 - 5; qx <= qx0 + 5; qx++){
     const L = isleLayout(seed, qx, qz);
-    if(L.slot < 0) continue;
-    const x = L.ox + (L.slot % Q), z = L.oz + ((L.slot / Q) | 0), e = biomeEdge(seed, x, z);
-    if(e.site[0] === gx && e.site[1] === gz) out.push({ x, z, margin:e.margin, other:e.other });
+    for(const sl of L.slots){
+      const x = L.ox + (sl % Q), z = L.oz + ((sl / Q) | 0), e = biomeEdge(seed, x, z);
+      if(e.site[0] === gx && e.site[1] === gz) out.push({ x, z, margin:e.margin, other:e.other });
+    }
   }
   if(slotsMemo.size > 4000) slotsMemo.clear();
   slotsMemo.set(key, out);
