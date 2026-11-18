@@ -15,6 +15,11 @@ import { buildRig } from './pulley.js';
 import { makeFauna } from './fauna.js';
 import { Pip } from './pip.js';
 import { sfx, setScale, ambient } from './audio.js';
+import { installLightPatch, fitSun } from './lightpatch.js';   // look(finesse): shared-material wrap / leak / soft sun shadow
+import { applyLook } from './look.js';
+import { createFollow } from './follow.js';
+import { initQuality } from './quality.js';
+installLightPatch();
 
 const CW = { U:'R', R:'D', D:'L', L:'U' }, OPPD = { U:'D', D:'U', L:'R', R:'L' };
 const FORWARD = ['U', 'R', 'D', 'L'];
@@ -36,8 +41,8 @@ export class World {
     this.renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false, powerPreference:'high-performance' });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.shadowMap.type = THREE.BasicShadowMap;     // raw depth: the sun's PCSS-lite filter lives in lightpatch.js
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // direct ('fast') render only: the post chain tone-maps itself
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(this.renderer.domElement);
@@ -54,17 +59,26 @@ export class World {
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     this.sun.shadow.bias = -0.0006; this.sun.shadow.normalBias = 0.02;
+    this.sunDir = new THREE.Vector3(-0.4, 1, 0.35).normalize(); this.fogK = [1.4, 4.5]; this.shadowExt = 12;   // look.js writes sunDir / fogK; frameIsle sizes shadowExt
+    this.reduced = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : { matches:false };
+    this.follow = createFollow({ stiffness:4.5, lookAhead:0.3, reduced:() => this.reduced.matches });
+    this.followSnap = true; this.md = { x:0, z:0 }; this.mdFresh = false;     // Pip's last step, for the camera look-ahead
     this.fill = new THREE.DirectionalLight('#9fb6ff', 0.35);
     this.scene.add(this.hemi, this.sun, this.sun.target, this.fill);
 
     // sky dome
     this.skyMat = new THREE.ShaderMaterial({
       side:THREE.BackSide, depthWrite:false, fog:false,
-      uniforms:{ top:{ value:new THREE.Color() }, mid:{ value:new THREE.Color() }, bot:{ value:new THREE.Color() } },
+      // top/mid/bot = the legacy gradient (direct 'fast' render); lut = the same gradient pre-compensated for the post chain (look.js)
+      uniforms:{ top:{ value:new THREE.Color() }, mid:{ value:new THREE.Color() }, bot:{ value:new THREE.Color() },
+        lut:{ value:Array.from({ length:17 }, () => new THREE.Vector3()) }, useLut:{ value:0 } },
       vertexShader:'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader:`uniform vec3 top; uniform vec3 mid; uniform vec3 bot; varying vec3 vP;
-        void main(){ float h = vP.y; vec3 c = h > 0.0 ? mix(mid, top, pow(h, 0.7)) : mix(mid, bot, pow(-h, 0.6));
-        gl_FragColor = vec4(c, 1.0); }`,
+      fragmentShader:`uniform vec3 top; uniform vec3 mid; uniform vec3 bot; uniform vec3 lut[17]; uniform float useLut; varying vec3 vP;
+        vec3 lutAt(float s){ float f = clamp(s, 0.0, 1.0) * 16.0; int i = int(min(floor(f), 15.0)); return mix(lut[i], lut[i + 1], f - float(i)); }
+        void main(){ float h = vP.y; vec3 c;
+          if(useLut > 0.5) c = lutAt(h > 0.0 ? 0.5 + 0.5 * pow(h, 0.7) : 0.5 - 0.5 * pow(-h, 0.6));
+          else c = h > 0.0 ? mix(mid, top, pow(h, 0.7)) : mix(mid, bot, pow(-h, 0.6));
+          gl_FragColor = vec4(c, 1.0); }`,
     });
     this.sky = new THREE.Mesh(new THREE.SphereGeometry(180, 32, 16), this.skyMat);
     this.scene.add(this.sky);
@@ -82,6 +96,7 @@ export class World {
     this.hintMesh.visible = false; this.scene.add(this.hintMesh);
 
     // follow the container, not just window resizes (rotations, split panes, embeds)
+    initQuality(this);                  // picks the tier (post chain, pixel ratio, shadow map) and calls resize()
     new ResizeObserver(() => this.resize()).observe(container);
     this.resize();
     this.renderer.setAnimationLoop(() => this.frame());
@@ -95,6 +110,7 @@ export class World {
     const ib = Math.min(this.insetB, h * 0.7); this.visFrac = (h - ib) / h;
     if(ib > 0) this.camera.setViewOffset(w, h, 0, ib / 2, w, h); else this.camera.clearViewOffset();
     this.camera.updateProjectionMatrix();
+    if(this.post) this.post.setSize(w, h);
     this.frameIsle(true);
   }
   setInsetBottom(px){ px = Math.max(0, Math.round(px)); if(px !== this.insetB){ this.insetB = px; this.resize(); } }
@@ -121,12 +137,8 @@ export class World {
     this.fx = [];
     this.hintMesh.visible = false;
 
-    // light & sky
-    this.skyMat.uniforms.top.value.set(T.sky[0]); this.skyMat.uniforms.mid.value.set(T.sky[1]); this.skyMat.uniforms.bot.value.set(T.sky[2]);
-    this.scene.fog.color.set(T.fog);
-    this.hemi.color.set(T.hemi.sky); this.hemi.groundColor.set(T.hemi.ground); this.hemi.intensity = T.hemi.intensity;
-    this.sun.color.set(T.sun.color); this.sun.intensity = T.sun.intensity;
-    this.sunDir = new THREE.Vector3(...T.sun.dir).normalize();
+    // light, sky, fog & grade: look.js is the only writer (hook(look))
+    applyLook(this, { [T.id]:1 }, T.id === 'night' ? 1 : 0);
     setScale(T.scale);
     if(this.themeName !== themeName){ ambient(T); this.themeName = themeName; }   // no pad restart while editing
     this.pip.setScarf(T.accent);
@@ -372,10 +384,10 @@ export class World {
     this.distTo = fit * (this.compact ? 1.25 : 1.02);
     this.targetTo.set((x0 + x1) / 2 - this.centre[0], (y0 + (y1 - y0) * 0.35) * LV - 0.4, (z0 + z1) / 2 - this.centre[1]);
     if(snap){ this.dist = this.distTo; this.target.copy(this.targetTo); }
-    this.scene.fog.near = this.distTo * 1.4; this.scene.fog.far = this.distTo * 4.5;
-    // shadows cover the whole map, wherever the camera looks
-    const s = this.sun.shadow.camera, ext = this.mapSpan * 0.75 + 0.8 + this.targetTo.length() + 1.5;
-    s.left = -ext; s.right = ext; s.top = ext; s.bottom = -ext; s.near = 0.5; s.far = 60 + ext; s.updateProjectionMatrix();
+    this.applyFog();
+    // the sun's shadow frustum is fitted to what is framed (fitSun, every frame); this is its size
+    this.shadowExt = radius * 1.12 + 0.8;
+    if(snap) this.followSnap = true;
     // a storey floating over the framed one fades, so the lower isle stays readable
     for(let k = 0; k < S.length; k++){
       const a = S[k], b = S[focus], over = !all && k !== focus && a.at[2] > b.at[2]
@@ -383,6 +395,9 @@ export class World {
       this.storeyGroups[k].userData.fadeTo = over ? 0.22 : 1;
     }
   }
+  applyFog(){ if(this.distTo){ this.scene.fog.near = this.distTo * this.fogK[0]; this.scene.fog.far = this.distTo * this.fogK[1]; } }
+  // Pip's last step (world units), for the follow camera's look-ahead.
+  noteMove(a, b){ this.md.x = b.x - a.x; this.md.z = b.z - a.z; this.mdFresh = true; }
   fadeStorey(g, f){
     g.userData.fade = f;
     g.traverse(o => { if(!o.material) return; for(const m of Array.isArray(o.material) ? o.material : [o.material]){
@@ -528,6 +543,7 @@ export class World {
     if(glide){
       sfx.glide();
       const a = this.cellPos(glide.from), b = this.cellPos(glide.to), tiles = Math.abs(a.x - b.x) + Math.abs(a.z - b.z);
+      this.noteMove(a, b);
       await this.pip.float(a, b, (0.22 + 0.16 * tiles) * speed);
       this.dust(glide.to);
     }
@@ -536,12 +552,13 @@ export class World {
       const pushing = ev.some(e => e.t === 'push');
       const h = this.level.cells[walk.to].h;
       if(walk.kind === 'down') sfx.hopDown(); else sfx.step(h, walk.to);
+      this.noteMove(this.cellPos(walk.from), this.cellPos(walk.to));
       await this.pip.hop(this.cellPos(walk.from), this.cellPos(walk.to), pushing ? 'push' : walk.kind, (walk.kind === 'down' ? 0.26 : 0.2) * speed);
       this.dust(walk.to);
     }
     let slid = false;
     for(const e of ev){
-      if(e.t === 'slide'){ if(!slid){ sfx.slide(); slid = true; } await this.pip.glide(this.cellPos(e.from), this.cellPos(e.to), 0.085 * speed); }
+      if(e.t === 'slide'){ if(!slid){ sfx.slide(); slid = true; } this.noteMove(this.cellPos(e.from), this.cellPos(e.to)); await this.pip.glide(this.cellPos(e.from), this.cellPos(e.to), 0.085 * speed); }
       if(e.t === 'tp'){
         sfx.tp(); this.sparkle(e.from, '#ffffff');
         if(e.gateway){ this.pipStorey = this.level.sid[e.to]; this.frameIsle(); }   // the camera follows Pip to the new storey
@@ -627,24 +644,25 @@ export class World {
 
   /* ---------------- frame ---------------- */
   frame(){
-    const dt = Math.min(0.05, this.clock.getDelta()), t = this.clock.elapsedTime;
+    const raw = this.clock.getDelta(), dt = Math.min(0.05, raw), t = this.clock.elapsedTime;
+    if(this.quality) this.quality.tick(raw);
     // camera: eased 90° turns, or a slow orbit in showcase mode
     if(this.showcase) this.yawTo -= dt * 0.12;
     this.yaw += (this.yawTo - this.yaw) * Math.min(1, dt * 6);
     const ease = Math.min(1, dt * 3.5);
-    this.dist += (this.distTo - this.dist) * ease; this.target.lerp(this.targetTo, ease);
+    this.dist += (this.distTo - this.dist) * ease;
+    // look target: critically damped spring + look-ahead + tripod drift (follow.js; hook(look))
+    if(this.followSnap){ this.follow.snap(this.targetTo); this.followSnap = false; }
+    this.target.copy(this.follow.update(dt, this.targetTo, this.mdFresh ? this.md : null)); this.mdFresh = false;
     const d = this.dist;
-    const breathe = this.showcase ? 0 : Math.sin(t * 0.35) * 0.06;
+    const breathe = this.showcase || this.reduced.matches ? 0 : Math.sin(t * 0.35) * 0.06;
     this.camera.position.set(
       this.target.x + Math.sin(this.yaw) * Math.cos(ELEV) * d,
       this.target.y + Math.sin(ELEV + breathe * 0.02) * d,
       this.target.z + Math.cos(this.yaw) * Math.cos(ELEV) * d);
     this.camera.lookAt(this.target);
-    if(this.sunDir){
-      this.sun.position.copy(this.target).addScaledVector(this.sunDir, 25);
-      this.sun.target.position.copy(this.target);
-      this.fill.position.set(-this.sunDir.x * 20, 8, -this.sunDir.z * 20);
-    }
+    fitSun(this.sun, this.sunDir, this.target, this.shadowExt);          // texel-snapped, fitted to the framed isle
+    this.fill.position.set(-this.sunDir.x * 20, 8, -this.sunDir.z * 20);
     if(this.level){
       for(const a of this.animated) a.update(t);
       if(this.rig) this.rig.update(dt, t);               // Sky Scales rig (pulley.js)
@@ -676,7 +694,13 @@ export class World {
     this.fx = this.fx.filter(e => e.update(dt, t) !== false);
     this.pip.update(dt, t);
     if(this.onFrame) this.onFrame(dt, t);
-    this.renderer.render(this.scene, this.camera);
+    if(this.post){
+      // tilt-shift focus: Pip while playing, otherwise the camera target (map view, showcase, builder)
+      const onPip = this.level && this.pip.group.visible && !this.showcase && !this.mapView;
+      this.focusAt = this.focusAt || new THREE.Vector3();
+      this.focusAt.copy(onPip ? this.pip.group.position : this.target); if(onPip) this.focusAt.y += 0.35;
+      this.post.setFocus(this.focusAt); this.post.render(dt);
+    } else this.renderer.render(this.scene, this.camera);
   }
 
   updateParticles(dt, t){

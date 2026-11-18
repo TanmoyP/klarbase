@@ -26,7 +26,7 @@ export function cached(key, build){
 export function makeKit(){
   return {
     solid:new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.86, side:THREE.DoubleSide }),
-    glow:new THREE.MeshBasicMaterial({ vertexColors:true }),        // fruit, caps, windows: unlit = glowing
+    glow:new THREE.MeshBasicMaterial({ vertexColors:true, userData:{ glow:true } }),   // fruit, caps, windows: unlit = glowing (lightpatch boosts it for bloom)
   };
 }
 export const kitMesh = (geo, mat, shadow = true) => { const m = new THREE.Mesh(geo, mat); m.castShadow = shadow; m.receiveShadow = true; return m; };

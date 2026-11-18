@@ -65,6 +65,7 @@ function render(renderer, T, kind){
     if(!o.material) return;
     o.material = Array.isArray(o.material) ? o.material.map(m => m.clone()) : o.material.clone();
     for(const m of Array.isArray(o.material) ? o.material : [o.material]){
+      m.userData.glow = false;                     // no bloom boost in a thumbnail
       if(m.isMeshBasicMaterial) m.color.multiplyScalar(K);
       if(m.emissive) m.emissiveIntensity *= K;
       mats.push(m);

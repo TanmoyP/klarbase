@@ -7,6 +7,8 @@
 import { CURATED_ISLES, CHAPTERS, SCHEMAS, parseIsle, solveIsle, solveSeeds, starsFor, isleHash, initialState,
   auditIsle, difficultyScore, playSummary, SUMMARY_MIN, TIER_IDS, skyOf, confluenceState, constellation, CONFLUENCE_NEED, dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate } from '@klar/core';
 import { World } from './game/world.js';
+import { LOOK } from './game/look.js';                       // hook(look)
+import { LABEL as Q_LABEL, ICON as Q_ICON } from './game/quality.js';   // hook(look)
 import { Session } from './game/session.js';
 import { THEMES, themeOf } from './game/themes.js';
 import { unlockAudio, setSound, soundOn, sfx } from './game/audio.js';
@@ -119,7 +121,7 @@ function dailyEntry(date = utcDate()){
 
 /* ---------------- app state ---------------- */
 const world = new World($('#stage'));
-if(import.meta.env.DEV) window.__klar = { world };   // dev-only handle for art/perf checks (draw calls, screenshots)
+if(import.meta.env.DEV) window.__klar = { world, look:LOOK, quality:world.quality, get post(){ return world.post; } };   // dev-only handle for art/perf checks (draw calls, screenshots, live look tuning) — hook(look)
 const settings = store.get('klarbase.v2.settings', { sound:true, timer:false });
 const progress = store.get('klarbase.v2.progress', {});
 let session = null, game = null, current = null, tab = 'official', online = null;
@@ -209,11 +211,14 @@ $('#modal').addEventListener('click', e => { if(e.target.id === 'modal') modal.c
 /* ---------------- top bar ---------------- */
 function syncTopbar(){
   $('#btnSound').textContent = settings.sound ? '🔊' : '🔈';
+  const qt = world.quality.tier; $('#btnQuality').textContent = Q_ICON[qt]; $('#btnQuality').title = `Graphics: ${Q_LABEL[qt]} — click to change`;   // hook(look)
   $('#btnTimer').style.opacity = settings.timer ? 1 : 0.5;
   $('#btnTimer').title = settings.timer ? 'Timer on — click to turn off' : 'Time my attempts';
   $('#statTimeWrap').style.display = settings.timer ? '' : 'none';
 }
 $('#btnSound').onclick = () => { settings.sound = !settings.sound; setSound(settings.sound); store.set('klarbase.v2.settings', settings); syncTopbar(); };
+$('#btnQuality').onclick = () => { const t = world.quality.cycle(); syncTopbar(); toast(`Graphics: ${Q_LABEL[t]}${t === 'fast' ? ' — no post effects' : ''}`); };   // hook(look)
+world.quality.onChange = syncTopbar;      // the frame-time monitor may drop a tier on its own — hook(look)
 $('#btnTimer').onclick = () => { settings.timer = !settings.timer; store.set('klarbase.v2.settings', settings); syncTopbar(); toast(settings.timer ? 'Timer on — your times are saved' : 'Timer off — take it easy'); };
 $('#btnHelp').onclick = () => helpModal(onBuilder() ? 'build' : 'play');
 async function refreshAuth(){
