@@ -12,3 +12,5 @@ export * from './lattice.js';
 // The modules above are the legacy voxel engine, kept only for the deferred
 // world lattice (server/src/routes/world.js).
 export * from './isle/index.js';
+// Sky Atlas — the endless overworld (core/src/atlas): biomes, chunks, walking, shrines, wild isles.
+export * from './atlas/index.js';

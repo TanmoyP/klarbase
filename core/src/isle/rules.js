@@ -132,7 +132,8 @@ const exitH  = (c, h, m) => c.kind !== 'ramp' ? h : m === c.dir ? h + 1 : m === 
 const entryH = (c, h, m) => c.kind !== 'ramp' ? h : m === c.dir ? h : m === OPP[c.dir] ? h + 1 : null;
 
 // -> 'flat' | 'ramp' | 'down' | null   (tilt = the scales at the start of the move)
-function heightStep(level, from, to, m, tilt){
+// (exported: the Sky Atlas overworld, core/src/atlas/walk.js, walks by exactly this rule — it only reads level.cells[from|to], so a two-cell stand-in works)
+export function heightStep(level, from, to, m, tilt){
   const a = level.cells[from], b = level.cells[to];
   const ea = exitH(a, heightAt(level, from, tilt), m), eb = entryH(b, heightAt(level, to, tilt), m);
   if(ea == null || eb == null) return null;
