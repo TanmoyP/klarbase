@@ -5,7 +5,7 @@
 // parse, solvable, par == the solver's, the family's mechanic load-bearing, tier inside the band.
 import {
   ATLAS_SEED, ATLAS_THEMES, CHUNK, SPAWN, REGION_NAMES, hash2, mulberry32, biomeAt, biomeWeights, regionAt,
-  chunkAt, cellAt, canStep, isWalkable, placeContent, shrineAt, wildIsle, wildBand, WILD_TIERS, spawnOf,
+  chunkAt, cellAt, canStep, isleOf, Q, edgeInfo, isWalkable, placeContent, shrineAt, wildIsle, wildBand, WILD_TIERS, spawnOf,
   parseIsle, solveIsle, isleHash, auditIsle, provisionalTier, mechanicsUsed, simulate, CURATED_ISLES, CHAPTERS, MOVE_DIRS,
 } from '../src/index.js';
 
@@ -73,28 +73,30 @@ const S = ATLAS_SEED;
   t('no empty chunks (an isle in each quadrant)', isles === 400);
   lap('400 chunks generated', t0);
 
-  // seams: two chunks agree about the bridge that crosses their shared edge — without ever seeing each other
+  // seams: two chunks agree about the span that crosses their shared edge — without ever seeing each other.
+  // Spans are 2-4 tiles, so a seam may cut one anywhere: wherever EITHER chunk holds a bridge tile on its
+  // edge row, the other holds the bridge's next tile (bridge or its socket), and Pip walks across both ways.
   const rnd = mulberry32(2024);
   let seamOk = 0, seams = 0, bridgesSeen = 0, stepOk = true;
   for(let i = 0; i < 200; i++){
     const seed = [S, 5, 99][i % 3], cx = Math.floor((rnd() - 0.5) * 400), cz = Math.floor((rnd() - 0.5) * 400), horiz = i % 2 === 0;
     const A = chunkAt(seed, cx, cz), B = horiz ? chunkAt(seed, cx + 1, cz) : chunkAt(seed, cx, cz + 1);
     let agree = true;
+    const axis = horiz ? 'E' : 'S';
     for(let k = 0; k < CHUNK; k++){
       const a = horiz ? A.cells[k * CHUNK + 15] : A.cells[15 * CHUNK + k], b = horiz ? B.cells[k * CHUNK] : B.cells[k];
-      if((a.kind === 'bridge') !== (b.kind === 'bridge') || (a.kind === 'bridge' && a.h !== b.h)) agree = false;
-      if(a.kind === 'bridge'){
-        bridgesSeen++;
-        // the span is walkable both ways across the seam
-        const ax = horiz ? cx * 16 + 15 : cx * 16 + k, az = horiz ? cz * 16 + k : cz * 16 + 15;
-        const fwd = canStep(seed, { x:ax, z:az }, horiz ? 'R' : 'D'), back = canStep(seed, { x:ax + (horiz ? 1 : 0), z:az + (horiz ? 0 : 1) }, horiz ? 'L' : 'U');
-        if(!fwd.ok || !back.ok) stepOk = false;
-      }
+      const ax = horiz ? cx * 16 + 15 : cx * 16 + k, az = horiz ? cz * 16 + k : cz * 16 + 15;
+      const aBr = A.bridges.some(q => q.axis === axis && q.x === ax && q.z === az), bBr = B.bridges.some(q => q.axis === axis && q.x === ax + (horiz ? 1 : 0) && q.z === az + (horiz ? 0 : 1));
+      if(!aBr && !bBr) continue;
+      bridgesSeen++;
+      if(!isWalkable(a) || !isWalkable(b) || (aBr && bBr && a.h !== b.h)) agree = false;
+      const fwd = canStep(seed, { x:ax, z:az }, horiz ? 'R' : 'D'), back = canStep(seed, { x:ax + (horiz ? 1 : 0), z:az + (horiz ? 0 : 1) }, horiz ? 'L' : 'U');
+      if(!fwd.ok || !back.ok) stepOk = false;
     }
     seams++; if(agree) seamOk++;
   }
   t('seam agreement on 200 random chunk pairs', seamOk === seams);
-  t('bridges cross seams (the test is not vacuous)', bridgesSeen > 50);
+  t('bridges cross seams (the test is not vacuous)', bridgesSeen > 25);
   t('bridge spans across seams walk both ways', stepOk);
   // a bridge span: both tiles are 'bridge' at the lower plateau; its ends are floor (or the stair that climbs)
   let spanOk = true;
@@ -106,6 +108,31 @@ const S = ATLAS_SEED;
     if(!(n1.kind === 'bridge' || isWalkable(n1)) || !(n0.kind === 'bridge' || isWalkable(n0))) spanOk = false;
   }
   t('every listed bridge tile is a bridge cell between walkable ends', spanOk);
+
+  // richer terrain: bridges span 2-4 tiles of open sky only, shrines stand on a clear 3x3, biomes have their character
+  const ofTile = (x, z) => isleOf(S, Math.floor(x / Q), Math.floor(z / Q));
+  let overLand = 0, spans = 0, lens = {}, clear = true, nShr = 0;
+  const maxH = {}, hist = {}, sizes = [];
+  for(let cz = -4; cz <= 4; cz++) for(let cx = -4; cx <= 4; cx++){
+    const ch = chunkAt(S, cx, cz);
+    for(const b of ch.bridges){ spans++; const I = ofTile(b.x, b.z); if(I.mask[(b.z - I.oz) * Q + (b.x - I.ox)]) overLand++; }
+    for(const sh of ch.shrines){
+      nShr++;
+      const h0 = cellAt(S, sh.x, sh.z).h;
+      for(let dz = -1; dz <= 1; dz++) for(let dx = -1; dx <= 1; dx++){ const c = cellAt(S, sh.x + dx, sh.z + dz); if(!(c.kind === 'ground' || c.kind === 'shrine') || c.h !== h0) clear = false; }
+    }
+    for(const c of ch.cells) if(c.kind !== 'void'){ maxH[c.theme] = Math.max(maxH[c.theme] || 0, c.h); (hist[c.theme] = hist[c.theme] || {})[c.h] = (hist[c.theme][c.h] || 0) + 1; }
+  }
+  for(let qz = -12; qz < 12; qz++) for(let qx = -12; qx < 12; qx++) sizes.push(isleOf(S, qx, qz).area);
+  for(let qz = -30; qz < 30; qz += 3) for(let qx = -30; qx < 30; qx += 3) for(const [ax, e] of [['E', edgeInfo(S, qx, qz, 'E')], ['S', edgeInfo(S, qx, qz, 'S')]]) if(e && !e.land) lens[e.gap.length] = (lens[e.gap.length] || 0) + 1;
+  const mean = Object.fromEntries(Object.entries(hist).map(([k, h]) => [k, Object.entries(h).reduce((a, [l, c]) => a + l * c, 0) / Object.values(h).reduce((a, b) => a + b, 0)]));
+  t('no bridge tile lies on land', spans > 100 && overLand === 0);
+  t('bridge spans are 2-4 tiles', Object.keys(lens).every(k => +k >= 2 && +k <= 4) && Object.keys(lens).length === 3);
+  t('every shrine stands on a clear 3x3 of open flat ground', nShr > 50 && clear);
+  t('isles are chunky: mean 40-90 tiles, none under 17', sizes.reduce((a, b) => a + b, 0) / sizes.length > 40 && sizes.reduce((a, b) => a + b, 0) / sizes.length < 90 && Math.min(...sizes) >= 17);
+  t('mountains climb to 4-5, the lagoon stays low', maxH.mountain >= 4 && (mean.mountain || 0) >= mean.jungle + 0.5 && (mean.tropical || 9) <= 1.6);
+  t('heights stay within 0-5 and every biome uses 3+ levels', Object.values(hist).every(h => Object.keys(h).length >= 3 && Object.keys(h).every(k => +k >= 0 && +k <= 5)));
+  console.log('  terrain: isle area ' + Math.min(...sizes) + '-' + Math.max(...sizes) + ', span lengths ' + JSON.stringify(lens) + ', mean height by biome ' + Object.entries(hist).map(([k, h]) => { const n = Object.values(h).reduce((a, b) => a + b, 0); return k + ' ' + (Object.entries(h).reduce((a, [l, c]) => a + l * c, 0) / n).toFixed(1); }).join(', '));
 }
 
 /* ---------------- walking: rule 1, by rules.js's own heightStep ---------------- */
@@ -169,24 +196,24 @@ function bfs(seed, from, bound, dirs = 'UDLR'){
   }
   return seen;
 }
-const ALL = (() => { // the 5x5 chunks around spawn (chunk 0,0 is the spawn chunk): bridges and shrine slots
+const ALL = (() => { // the 7x7 chunks around spawn (chunk 0,0 is the spawn chunk): bridges and shrine slots
   const out = { bridges:[], shrines:[] };
-  for(let cz = -2; cz <= 2; cz++) for(let cx = -2; cx <= 2; cx++){ const c = chunkAt(S, cx, cz); out.bridges.push(...c.bridges); out.shrines.push(...c.shrines); }
+  for(let cz = -3; cz <= 3; cz++) for(let cx = -3; cx <= 3; cx++){ const c = chunkAt(S, cx, cz); out.bridges.push(...c.bridges); out.shrines.push(...c.shrines); }
   return out;
 })();
 {
   const t0 = performance.now();
-  const reach = bfs(S, SPAWN, [-5 * 16, -5 * 16, 5 * 16 + 15, 5 * 16 + 15]);
-  t('BFS from spawn reaches every bridge of the 5x5 chunks', ALL.bridges.length > 30 && ALL.bridges.every(b => reach.has(b.x + ',' + b.z)));
-  t('BFS from spawn reaches every shrine slot of the 5x5 chunks', ALL.shrines.length > 20 && ALL.shrines.every(s => reach.has(s.x + ',' + s.z)));
+  const reach = bfs(S, SPAWN, [-7 * 16, -7 * 16, 7 * 16 + 15, 7 * 16 + 15]);
+  t('BFS from spawn reaches every bridge of the 7x7 chunks', ALL.bridges.length > 60 && ALL.bridges.every(b => reach.has(b.x + ',' + b.z)));
+  t('BFS from spawn reaches every shrine slot of the 7x7 chunks', ALL.shrines.length > 40 && ALL.shrines.every(s => reach.has(s.x + ',' + s.z)));
   let walkable = 0, unreached = 0;
-  for(let cz = -2; cz <= 2; cz++) for(let cx = -2; cx <= 2; cx++) chunkAt(S, cx, cz).cells.forEach((e, i) => {
+  for(let cz = -3; cz <= 3; cz++) for(let cx = -3; cx <= 3; cx++) chunkAt(S, cx, cz).cells.forEach((e, i) => {
     if(!isWalkable(e)) return; walkable++;
     if(!reach.has((cx * 16 + i % 16) + ',' + (cz * 16 + ((i / 16) | 0)))) unreached++;
   });
-  t('every walkable tile of the 5x5 chunks is reachable (no stranded floor)', walkable > 2000 && unreached === 0);
+  t('every walkable tile of the 7x7 chunks is reachable (no stranded floor)', walkable > 3000 && unreached === 0);
   // ...and you can always walk home: from every shrine back to spawn
-  const back = ALL.shrines.filter((_, i) => i % 3 === 0).every(s => bfs(S, { x:s.x, z:s.z }, [-5 * 16, -5 * 16, 5 * 16 + 15, 5 * 16 + 15]).has(SPAWN.x + ',' + SPAWN.z));
+  const back = ALL.shrines.filter((_, i) => i % 3 === 0).every(s => bfs(S, { x:s.x, z:s.z }, [-7 * 16, -7 * 16, 7 * 16 + 15, 7 * 16 + 15]).has(SPAWN.x + ',' + SPAWN.z));
   t('and back: spawn is reachable from the shrines', back);
   for(const seed of [2, 31337]){
     const sp = spawnOf(seed), r = bfs(seed, sp, [-96, -96, 111, 111]);
@@ -262,7 +289,7 @@ let placement;
   t('wildIsle is deterministic (fresh module, same hash)', probe.every(s => { const a = wildIsle(S, s.x, s.z), b = fresh.wildIsle(S, s.x, s.z); return (a === null && b === null) || (a && b && isleHash(a.doc) === isleHash(b.doc) && a.solution === b.solution && a.hash === isleHash(a.doc)); }));
 
   // 300 slots: 100 near, 100 mid, 100 far — spread by hash over the world
-  const rnd = mulberry32(7), slots = [], want = [[0, 64, 100], [64, 160, 100], [160, 480, 100]];
+  const rnd = mulberry32(7), slots = [], want = [[0, 64, 60], [64, 160, 120], [160, 480, 120]];
   const seen = new Set();
   for(const [lo, hi, n] of want){
     let got = 0;
@@ -309,7 +336,7 @@ let placement;
     if(why.length){ allOk = false; failures.push(s.key + ': ' + why.join(' ')); }
   }
   failures.slice(0, 8).forEach(f => console.error('  wild:', f));
-  t('300 wild slots sampled (100 near / 100 mid / 100 far)', slots.length === 300);
+  t('300 wild slots sampled (60 near / 120 mid / 120 far)', slots.length === 300);
   t('every returned wild isle: parses, solvable, par = solver par >= 6, solution wins, family mechanic present, tier in band', allOk);
   t('at most 2% of slots are quiet (null)', nulls.length <= 6);
   t('tiers never above tricky', !Object.keys(tiers).some(k => !['breeze', 'easy', 'tricky'].includes(k)));

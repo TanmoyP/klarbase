@@ -434,15 +434,19 @@ isle that goes through `parseIsle` + `solveIsle`. Test: `core/test/atlas.mjs` (i
   isles always fit. `biomeAt`, `biomeWeights(seed,x,z,r)` (tent-stencil blend for colour grading),
   `regionAt` → `{theme,name,site}`, `biomeEdge` (distance to a region border).
 - **`chunk.js`** `chunkAt(seed,cx,cz)` → 16×16 `cells` (row-major `z*16+x`), `bridges`, `shrines`. The map is a
-  lattice of 8×8 quadrants, one isle each (5–40 tiles), so a chunk never sees its neighbour yet seams
-  agree: an edge between two quadrants is on/off by a pure hash — a binary-tree maze inside each 8×8-quadrant
-  block plus one hashed link east and one south between blocks (a spanning tree of the infinite lattice ⇒
-  **one connected world**) plus ~30% extra edges. Plateau level 0–3 = rounded 3×3 mean of hashed levels ⇒
-  neighbours differ ≤ 1; a bridge lies at the lower plateau and the higher isle ends its corridor in a stair.
-  Terraces get stairs (else the isle is flattened); props are kept only while the isle stays *strongly*
-  connected under `heightStep`. Cell = `{kind,h,ch,dir?,flora?,theme}` with `kind` ∈ the parsed isle kinds
-  (`ground ramp rock tree water void`) + overworld-only **`bridge`** (walkable) and **`shrine`** (walkable
-  ground holding a puzzle). One shrine slot per isle (p≈.65, inner 4×4) ⇒ shrines ≥ 4 apart.
+  lattice of 11×11 quadrants, one isle each (organic domain-warped mask, 22–80 tiles, 2–4 isles per chunk), so a chunk
+  never sees its neighbour yet seams agree: a link between two quadrants is on/off by a pure hash — a binary-tree maze
+  inside each 8×8-quadrant block plus one hashed link east and one south between blocks (a spanning tree of the infinite
+  lattice ⇒ **one connected world**) plus ~30% extra links. A link is a 2–4 tile **bridge over open sky** (isles are
+  cleared back from the span, so never over land) or, ~28% of links, a 3-wide **land neck** that fuses two isles into
+  a continent across the seam. Plateau level 0–3 (biome-ranged hash, 3×3 mean ⇒ neighbours differ ≤ 1) + per-biome
+  **relief** from layered global noise (mountain steep +4 with cliffs, jungle rolling +2, urban plateaus, oasis dunes,
+  tropical low with lagoons, night mixed). A bridge lies at the lower plateau; the higher isle ends in a stair. Terraces
+  differing by 1 get a ramp (a terrace no stair reaches is merged into its neighbour; last resort a flat isle);
+  ≥ 2 drops are cliffs. Props (denser per biome) are kept only while the isle stays *strongly* connected under
+  `heightStep`. Cell = `{kind,h,ch,dir?,flora?,theme}` with `kind` ∈ the parsed isle kinds (`ground ramp rock tree
+  water void`) + overworld-only **`bridge`** (walkable) and **`shrine`** (walkable ground holding a puzzle). Up to two
+  shrine slots per isle, each on a clear 3×3 of flat open ground in the inner 5×5 (⇒ shrines ≥ 4 apart).
 - **`walk.js`** `cellAt`, `canStep(seed,{x,z},'U'|'D'|'L'|'R')` → `{ok,to:{x,z,h},kind:'flat'|'ramp'|'down'|'bridge'}`
   (U = z−1), `SPAWN`, LRU of chunks.
 - **`content.js`** `placeContent(seed,{official,community,daily})` → `Map key→{x,z,kind}` (`o/<id>`, `c/<author>/<id>`,
@@ -783,6 +787,11 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 - **Unchanged:** `@klar/core`, rules, every isle and hash. Tests 541/179/57 green.
 - **Watch:** shader compile on first load (more programs); `fast` is the escape hatch. The renderer's
   default framebuffer MSAA is wasted in post mode (can't change after context creation).
+### 2026-11-18 (ae) — Atlas terrain enrichment (chunk.js only; API unchanged)
+- Quadrants 8→11 tiles, organic noise-masked isles (22–80 tiles), bridges 2–4 tiles over sky only, land necks fuse
+  isles into continents, per-biome relief/steps/cliffs/lagoons, denser props, shrines on a clear 3×3. Same seeds now
+  give a different map (nothing was deployed). Tests: 74 checks incl. 7×7-chunk connectivity.
+
 ### 2026-11-18 (ad) — Sky Atlas core (F1): endless overworld, shrines, wild isles
 - **Added** `core/src/atlas/` (rng, biome, chunk, walk, content, wild) + `core/test/atlas.mjs` (68 checks, ~9 s; in
   `npm test` and the CI `engine` job). Exported from `@klar/core`. See §5b.
