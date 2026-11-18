@@ -37,5 +37,5 @@ ${list(SERVER)}
 <p>All art and audio are generated in code. There are no model, texture, image or audio files.</p>
 
 <h3>Fonts</h3>
-<p>Fredoka and Nunito, both under the SIL Open Font License 1.1, are loaded from Google Fonts.</p>
+<p>Fredoka and Nunito, both under the SIL Open Font License 1.1, are bundled with the game (via the @fontsource packages) and served from klarbase.dev.</p>
 ${otherPages}`;

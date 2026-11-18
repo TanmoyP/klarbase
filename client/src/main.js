@@ -6,6 +6,9 @@
 //   online     — isles shared in-game and stored on the server (/i/<hash>)
 import { CURATED_ISLES, CHAPTERS, SCHEMAS, parseIsle, solveIsle, solveSeeds, starsFor, isleHash, initialState,
   auditIsle, difficultyScore, playSummary, SUMMARY_MIN, TIER_IDS, skyOf, confluenceState, constellation, CONFLUENCE_NEED, dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate, timeBucket } from '@klar/core';
+// self-hosted fonts (OFL-1.1, bundled by Vite): visitors' browsers never contact Google Fonts
+import '@fontsource/fredoka/500.css'; import '@fontsource/fredoka/600.css'; import '@fontsource/fredoka/700.css';
+import '@fontsource/nunito/500.css'; import '@fontsource/nunito/600.css'; import '@fontsource/nunito/700.css'; import '@fontsource/nunito/800.css';
 import { siteFoot } from './sitefoot.js'; // hook(repo)
 import { World } from './game/world.js';
 import { Session } from './game/session.js';

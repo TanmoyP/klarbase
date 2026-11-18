@@ -49,7 +49,6 @@ ${eventsHtml()}
 
 <p><b>Page views and delivery</b> (Art. 6(1)(f)). All traffic passes through Cloudflare, which processes your IP address to deliver the site and protect it. We use Cloudflare Web Analytics, which sets no cookies and does not track you across sites. Our host (Railway) also handles connection data such as IP addresses in its technical logs.</p>
 
-<p><b>Fonts</b> (Art. 6(1)(f) — to show the game in its intended look). The game's two typefaces, Fredoka and Nunito, are loaded from Google Fonts. Your browser therefore connects to Google's servers, which receive your IP address and browser details. Google does not give us any of this.</p>
 
 <h3>3. Who receives your data</h3>
 <p>These providers process data on our behalf, or — for sign-in — under their own responsibility:</p>
@@ -58,7 +57,7 @@ ${eventsHtml()}
   <li><b>Neon</b> — hosts the database (Europe, Frankfurt, as configured in our setup notes).</li>
   <li><b>Cloudflare</b> — delivery, security and cookieless page-view statistics (global network).</li>
   <li><b>PostHog</b> — usage analytics, EU cloud (Frankfurt), via our proxy without your IP address.</li>
-  <li><b>Google</b> — delivers the game's fonts (see above), and signs you in if you choose Google. <b>GitHub</b> — only if you choose to sign in with it. They tell us who you are; their own privacy policies apply to what they do. If you open a pull request through the "propose on GitHub" button, that happens on GitHub under your own GitHub account.</li>
+  <li><b>Google</b> — only if you choose to sign in with it. (The game's fonts are served from klarbase.dev itself, not from Google.) <b>GitHub</b> — only if you choose to sign in with it. They tell us who you are; their own privacy policies apply to what they do. If you open a pull request through the "propose on GitHub" button, that happens on GitHub under your own GitHub account.</li>
 </ul>
 <p>Your comments, isles and names are also visible to everyone who opens them. We do not sell data and do not use it for advertising.</p>
 
