@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ideas & questions
+    url: https://github.com/TanmoyP/klarbase/discussions
+    about: Open-ended ideas, questions and show-and-tell belong in Discussions.
+  - name: In-game feedback
+    url: https://klarbase.dev
+    about: No GitHub account? Use the "Send feedback" link under the title at klarbase.dev.

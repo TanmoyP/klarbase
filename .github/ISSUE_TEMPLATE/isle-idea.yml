@@ -1,0 +1,23 @@
+name: Isle idea
+description: A puzzle idea you'd love to see as an isle (no building needed)
+labels: [isle-idea]
+body:
+  - type: markdown
+    attributes:
+      value: Want to build it yourself? See [CONTRIBUTING.md](https://github.com/TanmoyP/klarbase/blob/main/CONTRIBUTING.md). Ideas here stay within the existing tiles and rules.
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should the player discover or feel?
+    validations: { required: true }
+  - type: textarea
+    id: mechanic
+    attributes:
+      label: Mechanic(s) it plays with
+      description: Which tiles or rules (crates, ice, plates, levers, keys, portals ...)?
+  - type: textarea
+    id: sketch
+    attributes:
+      label: Sketch
+      description: Paste isle text, an ASCII sketch, or drag in a picture.
