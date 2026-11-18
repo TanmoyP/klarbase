@@ -16,6 +16,7 @@ import { buildGuideHtml } from './buildguide.js';
 import { getSession, signOut } from './auth.js';
 import { openSignIn, startSignIn } from './signin.js';          // hook(cloudsave)
 import { initCloudSave, syncOnSignIn, pushSoon } from './cloudsave.js';   // hook(cloudsave)
+import { openComments, commentCount } from './comments.js';   // hook(comments)
 import { api } from './net.js';
 
 export const REPO_URL = 'https://github.com/TanmoyP/klarbase';
@@ -434,6 +435,7 @@ function play(entry){
     onHazard:() => { if(!warned){ warned = true; toast('Bonk! Something comes through there on the next beat — the glowing rings show where. Space waits a beat.'); } } });
   freeHints = 1; attemptOpen = false;
   $('#hudName').textContent = entry.name;
+  $('#btnComments').style.display = entry.statKey && !entry.draft ? '' : 'none';   // hook(comments): drafts/replays have no thread
   $('#hudSub').innerHTML = tierBadge(entry) + ' ' + (entry.author && !entry.daily ? `by <a href="https://github.com/${esc(entry.author)}" target="_blank" rel="noopener" style="color:inherit">@${esc(entry.author)}</a>` : esc(entry.sub || ''));   // tier first, so phones never ellipsize it away
   $('#statPar').textContent = entry.par || '–';
   $('#statKeysWrap').style.display = level.keys.length ? '' : 'none';
@@ -504,7 +506,9 @@ function won(s){
       ${e.par && unlocked(e) ? `<button class="btn" id="wWatch">▶ Watch solution</button>` : ''}
       ${e.online ? `<button class="btn" id="wShare">🔗 Copy link</button>` : ''}
       ${!e.draft ? `<button class="btn ghost" id="wList">All isles</button>` : ''}
-    </div>`);
+    </div>
+    ${e.statKey && !e.draft ? `<div class="facts" style="margin-top:10px"><a href="#" id="wComments">💬 Comments</a></div>` : ''}`);   // hook(comments)
+  if($('#wComments')){ const wc = $('#wComments'); wc.onclick = ev => { ev.preventDefault(); commentsOpen(e); }; commentCount(e.statKey).then(n => { if(n != null && wc.isConnected) wc.textContent = `💬 Comments (${n})`; }); }   // hook(comments)
   // spoiler-free daily result: moves, par and stars — never the route
   const copyShare = quiet => (navigator.clipboard ? navigator.clipboard.writeText(`${share}\n${shareUrl}`) : Promise.reject())
     .then(() => toast('Result copied — no spoilers inside'), () => quiet || toast('Copy failed — select the text above', true));
@@ -628,6 +632,9 @@ $('#btnUndo').onclick = () => game && game.undo();
 $('#btnRestart').onclick = restartGame;
 $('#btnHint').onclick = hint;
 $('#btnSolution').onclick = watch;
+// hook(comments): `unlocked(current)` is the same earned-solution test, so a thread's spoilers stay gated with it
+const commentsOpen = e => openComments(e, { modal, unlocked:unlocked(e), signedIn:!!session, onSignIn:() => openSignIn() });
+$('#btnComments').onclick = () => current && current.statKey && !current.draft && commentsOpen(current);
 $('#btnTurn').onclick = () => { world.turn(1); sfx.ui(); };
 // Archipelago maps: the camera frames Pip's storey; M (or the button) shows the whole map.
 const syncMap = () => $('#btnMap').classList.toggle('primary', world.mapView);

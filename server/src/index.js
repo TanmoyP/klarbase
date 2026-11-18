@@ -13,6 +13,7 @@ import { stats } from './routes/stats.js';
 import { plays } from './routes/plays.js';
 import { feedback } from './routes/feedback.js';
 import { progress } from './routes/progress.js';   // hook(cloudsave)
+import { comments } from './routes/comments.js';   // hook(comments)
 
 const app = express();
 app.disable('x-powered-by');
@@ -35,6 +36,7 @@ app.use('/api/stats', stats);
 app.use('/api/plays', plays);     // anonymous per-isle play sums (K7)
 app.use('/api/feedback', feedback);
 app.use('/api/progress', progress);   // hook(cloudsave)
+app.use('/api/comments', comments);   // hook(comments)
 
 // ---- static client (production build) ----
 const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');

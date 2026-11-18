@@ -558,6 +558,10 @@ POST   /api/plays  {key, event, moves?, ms?}   public, anonymous play event (K7)
 GET    /api/plays                          public per-isle sums for the picker; Cache-Control: public, max-age=60
 POST   /api/feedback {message, email?, page?}  public → 201; message 1..2000 chars; userId attached if signed in; 10 / h per IP (in memory)
 GET    /api/feedback?limit                 maintainer: newest first (≤ 500); 404 unless STATS_TOKEN is set and sent as Bearer
+GET    /api/comments?key&cursor&limit      public; one isle's thread, newest first, never hidden ones → {comments, next, count}; never a userId/email
+POST   /api/comments {key, body}           login; 20 / h; key = same validator as plays; body via parseComment (comment-rules.js)
+DELETE /api/comments/:id                   own only (404 otherwise)
+POST   /api/comments/:id/report            login; one per user; 3 distinct reports hide it
 ```
 Isles reuse `Puzzle` (`json` holds the canonical isle + `par` + `solution`, and since Phase 1 an
 optional `tier` and the solver `audit` numbers `{states, traps, greedy, routes, par, capped}`
@@ -579,10 +583,20 @@ everything it sent, which is what `/privacy` promises. Anonymous feedback is del
 request (matched by reply email). Read with `curl -H "Authorization: Bearer $STATS_TOKEN"
 https://klarbase.dev/api/feedback`.
 
+**`Comment` + `CommentReport` (migration `20261118120000_comments`) — hold user data.** `Comment`:
+`id, isleKey, userId → User Cascade, body, hidden, reports, createdAt`, index `(isleKey, createdAt)`;
+`isleKey` is the `IslePlay` key (validated on write, no FK: official/community/daily isles aren't rows).
+`CommentReport`: `commentId → Comment Cascade, reporterId → User Cascade`, unique per pair; the third
+distinct report sets `hidden`. **`parseComment`** (`server/src/routes/comment-rules.js`, pure, tested by
+`server/test/comments.mjs`, run by `npm test`): trimmed, 1..500 chars, plain text — **no links/domains
+and no route strings** (≥ 6 move letters U/D/L/R/X or arrows, run together or separated by space , ; . - > / |;
+real words DULL/LULL/DUD/RUDD/UR excepted). Solutions are earned (§4), so threads must not leak them.
+The client blurs bodies until the isle is `unlocked()` (the solution-gating test) or the player clicks "Show comments anyway".
+
 **What is stored, per person (keep `/privacy` in sync).** Anonymous: `localStorage` only (progress,
 settings, draft, dailies, effort, GitHub name) + anonymous `IslePlay` sums. Signed in: better-auth
 `User` (name, email, avatar), `Account` (provider link + OAuth tokens), `Session` (cookie token,
-**ipAddress, userAgent**), plus their `Puzzle`, `Report`, `Plot`, `Feedback` rows — all cascade
+**ipAddress, userAgent**), plus their `Puzzle`, `Report`, `Plot`, `Feedback`, `Comment`, `CommentReport` rows — all cascade
 from `User`. Cloudflare Web Analytics (cookieless). No cookie banner: the only cookie is the
 sign-in session, strictly necessary. Account deletion is manual: the player signs in and sends
 feedback asking for it (the `userId` on the row proves who asked); delete the `User` row.
@@ -665,6 +679,13 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-11-18 — Native per-isle comments (workstream B)
+- `Comment` / `CommentReport` tables (§8, hand-written migration `20261118120000_comments`, not yet applied),
+  `/api/comments` routes, `commentLimiter` (20/h), `parseComment` (no links, no route strings) + test in `npm test`.
+- `plays.js` now exports `validIsleKey` / `isleExists`; comments reuse them (one key validator).
+- Client: `client/src/comments.js` (sheet in the shared modal, spoiler blur gated on `unlocked()`), 💬 HUD button
+  and a "Comments (n)" link in the win modal; hidden for drafts. Sign-in modal extracted to `signInModal()`.
 
 ### 2026-11-06 (aa) — Soft-chunky art pass: biomes, pulley rig, fauna, builder thumbs
 - **Why:** founder feedback — trees pointy, rough edges, tropical and dry maps looked alike,

@@ -32,11 +32,21 @@ const COMMUNITY_KEY = new RegExp(`^c/(${CONTRIB.AUTHOR.source.slice(1, -1)})/(${
 const DAILY_KEY = new RegExp(`^d/(${DAILY.DATE.source.slice(1, -1)})$`);
 const ONLINE_KEY = /^i\/([0-9a-f]{64})$/;
 
+// The one isle-key validator (plays + comments): official id · c/<author>/<id> · d/<date> · i/<hash>.
+export const validIsleKey = key => typeof key === 'string' && key.length <= 80
+  && (OFFICIAL.has(key) || COMMUNITY_KEY.test(key) || DAILY_KEY.test(key) || ONLINE_KEY.test(key));
+// ...and that the isle exists in this build / table (keeps junk keys out of the DB).
+export async function isleExists(key){
+  if(key.startsWith('c/') || key.startsWith('d/')) return !(BUNDLED.size && !BUNDLED.has(key));
+  if(key.startsWith('i/')) return !!(await prisma.puzzle.findUnique({ where:{ hash:key.slice(2) }, select:{ hash:true } }));
+  return true;
+}
+
 // body -> { key, event, moves?, bucket? } | { error }. Pure; exported for tests.
 export function parsePlay(body){
   const b = body && typeof body === 'object' ? body : {};
-  const key = typeof b.key === 'string' && b.key.length <= 80 ? b.key : '';
-  if(!(OFFICIAL.has(key) || COMMUNITY_KEY.test(key) || DAILY_KEY.test(key) || ONLINE_KEY.test(key))) return { error:'unknown isle key' };
+  const key = typeof b.key === 'string' ? b.key : '';
+  if(!validIsleKey(key)) return { error:'unknown isle key' };
   if(!Object.hasOwn(EVENTS, b.event)) return { error:'event must be start, clear, hint or restart' };
   const out = { key, event:b.event };
   if(b.event === 'clear'){
@@ -74,11 +84,7 @@ plays.post('/', playLimiter, async (req, res, next) => {
   const p = parsePlay(req.body);
   if(p.error) return res.status(400).json({ error:p.error });
   try {
-    if(p.key.startsWith('c/') || p.key.startsWith('d/')){ if(BUNDLED.size && !BUNDLED.has(p.key)) return res.status(404).json({ error:'unknown isle' }); }
-    else if(p.key.startsWith('i/')){
-      const hash = p.key.slice(2);
-      if(!(await prisma.puzzle.findUnique({ where:{ hash }, select:{ hash:true } }))) return res.status(404).json({ error:'unknown isle' });
-    }
+    if(!(await isleExists(p.key))) return res.status(404).json({ error:'unknown isle' });
     await prisma.$executeRaw(playSql(p));
     res.status(204).end();
   } catch(e){ next(e); }

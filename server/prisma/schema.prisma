@@ -31,6 +31,8 @@ model User {
   plots    Plot[]
   feedback Feedback[]
   progress Progress?   // hook(cloudsave)
+  comments Comment[]               // hook(comments)
+  commentReports CommentReport[]   // hook(comments)
 }
 
 model Session {
@@ -154,4 +156,35 @@ model Progress {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   data      Json
   updatedAt DateTime @updatedAt
+}
+
+// Per-isle comment threads (GET/POST /api/comments). User data: deleted with the
+// account (Cascade). isleKey is the same key IslePlay uses (official id ·
+// c/<author>/<id> · d/<date> · i/<hash>) — validated on write, no FK because
+// official/community/daily isles aren't rows. 3 distinct reports hide a comment.
+model Comment {
+  id         String          @id @default(cuid())
+  isleKey    String
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body       String // 1..500 chars, plain text, no links, no route strings
+  hidden     Boolean         @default(false) // moderation hook: set at 3 reports
+  reports    Int             @default(0)
+  reportRows CommentReport[]
+  createdAt  DateTime        @default(now())
+
+  @@index([isleKey, createdAt])
+  @@index([userId])
+}
+
+model CommentReport {
+  id         String   @id @default(cuid())
+  commentId  String
+  comment    Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reporterId String
+  reporter   User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([commentId, reporterId]) // one report per user per comment
+  @@index([reporterId])
 }
