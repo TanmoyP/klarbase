@@ -13,7 +13,9 @@ import { THEMES, themeOf } from './game/themes.js';
 import { unlockAudio, setSound, soundOn, sfx } from './game/audio.js';
 import { mountBuilder, TOOLS } from './builder.js';
 import { buildGuideHtml } from './buildguide.js';
-import { getSession, signIn, signOut } from './auth.js';
+import { getSession, signOut } from './auth.js';
+import { openSignIn, startSignIn } from './signin.js';          // hook(cloudsave)
+import { initCloudSave, syncOnSignIn, pushSoon } from './cloudsave.js';   // hook(cloudsave)
 import { api } from './net.js';
 
 export const REPO_URL = 'https://github.com/TanmoyP/klarbase';
@@ -226,15 +228,20 @@ async function refreshAuth(){
     out.onclick = async () => { await signOut(); location.reload(); };
     chip.append(who, out);
   } else {
-    const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Sign in';
-    b.onclick = () => modal.open(`<h2>Sign in</h2><p class="facts">Only needed to share isles online. Playing and building are free for everyone.</p>
-      <div class="row"><button class="btn primary" id="siGh">GitHub</button><button class="btn" id="siGo">Google</button></div>`);
+    const b = document.createElement('button'); b.className = 'btn small primary'; b.textContent = 'Sign in';   // hook(cloudsave): a clear pill
+    b.onclick = () => openSignIn();
     chip.append(b);
   }
+  syncOnSignIn(session);   // hook(cloudsave): merge this device's progress with the account's
 }
 $('#titleFoot')?.insertAdjacentHTML('beforeend', siteFoot()); // hook(repo)
+// hook(cloudsave): the cloud merge refreshes whatever shows stars
+initCloudSave({ progress, dailies, toast, refresh:() => {
+  if(document.getElementById('scr-select').classList.contains('on')) selectScreen(tab);
+  else if(document.getElementById('scr-title').classList.contains('on')) renderSkyStrip();
+} });
 document.addEventListener('click', e => {
-  if(e.target.id === 'siGh') signIn('github'); if(e.target.id === 'siGo') signIn('google');
+  if(e.target.id === 'siGh') startSignIn('github'); if(e.target.id === 'siGo') startSignIn('google');
   const go = e.target.closest('[data-go]'); if(go){ e.preventDefault(); sfx.ui(); nav(go.dataset.go); }
   const hp = e.target.closest('[data-help]'); if(hp){ sfx.ui(); helpModal(hp.dataset.help); }
   if(e.target.closest('.feedback-open')){ sfx.ui(); feedbackModal(); }
@@ -471,6 +478,7 @@ function won(s){
     progress[e.key] = best; store.set('klarbase.v2.progress', progress);
   }
   if(e.daily){ dailies[e.daily.date] = Math.max(stars, dailies[e.daily.date] || 0); store.set('klarbase.v2.dailies', dailies); }
+  if(!e.draft) pushSoon();   // hook(cloudsave): debounced save to the account (no-op signed out)
   const news = before ? skyNews(before, mySky()) : { html:'', open:null };
   postPlay('clear', { moves:s.moves, ms:Math.round(s.time * 1000) }); attemptOpen = false;
   // the main path skips side paths (Twist, Confluence); a daily has no "next"

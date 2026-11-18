@@ -25,6 +25,11 @@ export const feedbackLimiter = rateLimit({
   windowMs: 60*60*1000, limit: 10,
   message: { error: 'too much feedback at once — try again in a while' },
 });
+// Progress sync (hook(cloudsave)): a sync per sign-in plus a debounced push after clears.
+export const progressLimiter = rateLimit({
+  windowMs: 60*60*1000, limit: 60, keyGenerator: key,
+  message: { error: 'too many saves — slow down' },
+});
 export const worldLimiter = rateLimit({
   windowMs: 60*60*1000, limit: 60, keyGenerator: key,
   message: { error: 'too many world actions — slow down' },
