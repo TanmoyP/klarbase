@@ -11,6 +11,7 @@ const last = () => { try { const p = JSON.parse(localStorage.getItem(KEY)); retu
 // remember the choice, then hand over to better-auth's OAuth redirect
 export function startSignIn(provider){
   try { localStorage.setItem(KEY, JSON.stringify(provider)); } catch {}
+  try { sessionStorage.setItem('klarbase.signin', provider); } catch {}   // hook(analytics): sign_in fires once after the OAuth return
   return signIn(provider);
 }
 

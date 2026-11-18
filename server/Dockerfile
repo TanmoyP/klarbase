@@ -11,6 +11,11 @@ COPY core core
 COPY client client
 # community isles are bundled into the client at build time (import.meta.glob)
 COPY isles isles
+# VITE_* are baked into the client at build time; Railway passes service variables as build args.
+ARG VITE_POSTHOG_KEY
+ARG VITE_IMPRINT_NAME
+ARG VITE_IMPRINT_ADDRESS
+ARG VITE_IMPRINT_EMAIL
 RUN npm run build -w @klar/client
 
 FROM node:20-alpine
