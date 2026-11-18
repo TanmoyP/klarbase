@@ -76,6 +76,10 @@ GITHUB_CLIENT_SECRET = <from step 3>
 GOOGLE_CLIENT_ID     = <from step 3, optional>
 GOOGLE_CLIENT_SECRET = <from step 3, optional>
 PORT                 = 3000
+VITE_POSTHOG_KEY     = <PostHog EU project key, optional: analytics is off without it>
+VITE_IMPRINT_NAME    = <legal name for the Impressum>
+VITE_IMPRINT_ADDRESS = <postal address; write \n for line breaks>
+VITE_IMPRINT_EMAIL   = <contact email>
 ```
 
 The container boot command runs `prisma migrate deploy` (idempotent) then serves. First deploy creates the tables.

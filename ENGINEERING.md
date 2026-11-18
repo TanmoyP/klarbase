@@ -557,6 +557,7 @@ GET    /api/stats                          maintainer aggregates (counts only); 
 POST   /api/plays  {key, event, moves?, ms?}   public, anonymous play event (K7) → 204; 120 / 10 min per IP (in memory)
 GET    /api/plays                          public per-isle sums for the picker; Cache-Control: public, max-age=60
 POST   /api/feedback {message, email?, page?}  public → 201; message 1..2000 chars; userId attached if signed in; 10 / h per IP (in memory)
+*      /ingest/*                           PostHog EU reverse proxy (analytics): raw body; forwards ONLY content-type/-encoding + user-agent — never cookie, auth or any IP header; /ingest/static/* -> eu-assets; 600 / 10 min per IP (memory)
 GET    /api/feedback?limit                 maintainer: newest first (≤ 500); 404 unless STATS_TOKEN is set and sent as Bearer
 ```
 Isles reuse `Puzzle` (`json` holds the canonical isle + `par` + `solution`, and since Phase 1 an
@@ -584,7 +585,13 @@ settings, draft, dailies, effort, GitHub name) + anonymous `IslePlay` sums. Sign
 `User` (name, email, avatar), `Account` (provider link + OAuth tokens), `Session` (cookie token,
 **ipAddress, userAgent**), plus their `Puzzle`, `Report`, `Plot`, `Feedback` rows — all cascade
 from `User`. Cloudflare Web Analytics (cookieless). No cookie banner: the only cookie is the
-sign-in session, strictly necessary. Account deletion is manual: the player signs in and sends
+sign-in session (plus a short-lived OAuth state cookie), strictly necessary. **Analytics (2026-11-18):** cookieless PostHog EU via `/ingest`
+(`client/src/analytics.js`): `persistence:'memory'`, only the fixed `EVENTS` list with allow-listed props, off when `VITE_POSTHOG_KEY` is unset, when
+DNT/GPC is sent, or when `localStorage klarbase.v2.analytics = 'off'` (toggle on `/privacy`). Signed-in players are identified by the opaque user id only.
+Set PostHog's "Discard client IP data" project setting and its data-retention period (the policy says ≤ 12 months). Fonts come from Google Fonts
+(discloses the player's IP to Google — self-host them to drop that line from `/privacy`). **Legal pages** (`/privacy /terms /guidelines /imprint /licenses`,
+`client/src/legal/*`, one `#scr-legal` screen): the imprint reads `VITE_IMPRINT_NAME/ADDRESS/EMAIL` at build time (Dockerfile ARGs) — never commit them.
+Any new stored data or processor means updating `legal/privacy.js` in the same change. Account deletion is manual: the player signs in and sends
 feedback asking for it (the `userId` on the row proves who asked); delete the `User` row.
 
 **Stats (2026-10-19).** `/api/stats` returns `{users, users7d, isles, isles7d, sharers7d}`: counts
@@ -665,6 +672,12 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-11-18 (ab) — Analytics + legal pages
+- **Analytics:** posthog-js 1.447.15 (exact pin), cookieless/memory-only, EU, through our `/ingest` proxy (IP/cookies dropped; `forwardHeaders` tested in `server/test/ingest.mjs`).
+  Event catalogue + sanitiser in `client/src/analytics.js` (`client/test/analytics.mjs`); hooks in `main.js`/`builder.js` are marked `hook(analytics)`.
+- **Legal:** `#scr-privacy` replaced by `#scr-legal` + lazy `client/src/legal/*` (privacy, terms, guidelines, imprint, licences); sitemap lists them.
+  Imprint details from `VITE_IMPRINT_*` env vars. Not legal advice — have it reviewed before launch.
 
 ### 2026-11-06 (aa) — Soft-chunky art pass: biomes, pulley rig, fauna, builder thumbs
 - **Why:** founder feedback — trees pointy, rough edges, tropical and dry maps looked alike,

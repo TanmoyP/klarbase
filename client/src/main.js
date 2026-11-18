@@ -5,7 +5,7 @@
 //                bundled at build time with credit to their author
 //   online     — isles shared in-game and stored on the server (/i/<hash>)
 import { CURATED_ISLES, CHAPTERS, SCHEMAS, parseIsle, solveIsle, solveSeeds, starsFor, isleHash, initialState,
-  auditIsle, difficultyScore, playSummary, SUMMARY_MIN, TIER_IDS, skyOf, confluenceState, constellation, CONFLUENCE_NEED, dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate } from '@klar/core';
+  auditIsle, difficultyScore, playSummary, SUMMARY_MIN, TIER_IDS, skyOf, confluenceState, constellation, CONFLUENCE_NEED, dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate, timeBucket } from '@klar/core';
 import { World } from './game/world.js';
 import { Session } from './game/session.js';
 import { THEMES, themeOf } from './game/themes.js';
@@ -14,6 +14,8 @@ import { mountBuilder, TOOLS } from './builder.js';
 import { buildGuideHtml } from './buildguide.js';
 import { getSession, signIn, signOut } from './auth.js';
 import { api } from './net.js';
+import { initAnalytics, track, identify, reset as resetAnalytics } from './analytics.js';   // hook(analytics)
+import { showLegal, LEGAL_PAGES } from './legal/index.js';   // hook(legal)
 
 export const REPO_URL = 'https://github.com/TanmoyP/klarbase';
 const $ = s => document.querySelector(s);
@@ -96,8 +98,16 @@ const entryByKey = k => [...official, ...community, ...DATED, ...(online || [])]
 // Fire-and-forget; counts only — no id, no cookie (credentials omitted).
 function postPlay(event, extra = {}){
   if(!current || current.draft || !current.statKey) return;
+  trackPlay(event, extra);   // hook(analytics)
   fetch('/api/plays', { method:'POST', headers:{ 'content-type':'application/json' }, credentials:'omit', keepalive:true,
     body:JSON.stringify({ key:current.statKey, event, ...extra }) }).catch(() => {});
+}
+// hook(analytics): the same four moments as the anonymous play totals; source from the isle's stat key
+function trackPlay(event, extra){
+  const k = current.statKey, source = k.startsWith('c/') ? 'community' : k.startsWith('d/') ? 'daily' : k.startsWith('i/') ? 'online' : k.startsWith('w/') ? 'wild' : 'official';
+  if(event === 'start') track('isle_start', { source, par:current.par });
+  else if(event === 'clear') track('isle_clear', { source, par:current.par, moves:extra.moves, ms_bucket:timeBucket(extra.ms) });
+  else track(event);
 }
 let attemptOpen = false;   // a "start" is the first move of a visit, or the first move after a clear
 
@@ -218,11 +228,15 @@ $('#btnTimer').onclick = () => { settings.timer = !settings.timer; store.set('kl
 $('#btnHelp').onclick = () => helpModal(onBuilder() ? 'build' : 'play');
 async function refreshAuth(){
   session = await getSession();
+  if(session){   // hook(analytics): opaque id only; sign_in once, after the OAuth round-trip
+    identify(session.user.id);
+    try { const p = sessionStorage.getItem('klarbase.signin'); if(p){ sessionStorage.removeItem('klarbase.signin'); track('sign_in', { provider:p }); } } catch {}
+  }
   const chip = $('#authchip'); chip.innerHTML = '';
   if(session){
     const who = document.createElement('span'); who.className = 'glass who'; who.textContent = session.user.name || session.user.email;
     const out = document.createElement('button'); out.className = 'btn small ghost'; out.textContent = 'Sign out';
-    out.onclick = async () => { await signOut(); location.reload(); };
+    out.onclick = async () => { await signOut(); resetAnalytics(); location.reload(); };
     chip.append(who, out);
   } else {
     const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Sign in';
@@ -232,7 +246,8 @@ async function refreshAuth(){
   }
 }
 document.addEventListener('click', e => {
-  if(e.target.id === 'siGh') signIn('github'); if(e.target.id === 'siGo') signIn('google');
+  if(e.target.id === 'siGh'){ try { sessionStorage.setItem('klarbase.signin', 'github'); } catch {} signIn('github'); }   // hook(analytics)
+  if(e.target.id === 'siGo'){ try { sessionStorage.setItem('klarbase.signin', 'google'); } catch {} signIn('google'); }
   const go = e.target.closest('[data-go]'); if(go){ e.preventDefault(); sfx.ui(); nav(go.dataset.go); }
   const hp = e.target.closest('[data-help]'); if(hp){ sfx.ui(); helpModal(hp.dataset.help); }
   if(e.target.closest('.feedback-open')){ sfx.ui(); feedbackModal(); }
@@ -671,8 +686,9 @@ async function route(){
   if(location.hash.startsWith('#/')) history.replaceState(null, '', location.hash.slice(1));
   const h = location.pathname.replace(/\/+$/, '') || '/';
   let m;
+  track('pageview', { path:h });   // hook(analytics)
   if(h === '/') return titleScreen();
-  if(h === '/privacy') return titleScreen('privacy');   // the showcase isle behind the text
+  if(LEGAL_PAGES.includes(h.slice(1))){ titleScreen('legal'); return showLegal(h.slice(1)); }   // hook(legal): privacy · terms · guidelines · imprint · licenses, over the showcase isle
   if(h === '/play') return selectScreen('official');
   if(h === '/community') return selectScreen('community');
   if(h === '/daily'){ const e = dailyEntry(); return e ? play(e) : nav('/play'); }
@@ -685,6 +701,7 @@ async function route(){
     return e ? play({ ...e, archived:past }) : nav('/community');
   }
   if(h === '/create' || h === '/how-to-build'){
+    track('builder_open');   // hook(analytics)
     stopGame(); world.setShowcase(false); show('create'); builder.show(); setAccent(builder.draft.theme);
     if(h === '/how-to-build') helpModal('build');
     else if(!store.get('klarbase.v2.guideSeen', false)) toast('New here? Press ? for How to build');
@@ -702,5 +719,6 @@ async function route(){
   nav('/');
 }
 syncTopbar();
+initAnalytics();   // hook(analytics)
 refreshAuth();
 route();

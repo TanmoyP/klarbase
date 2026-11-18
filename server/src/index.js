@@ -12,6 +12,7 @@ import { world } from './routes/world.js';
 import { stats } from './routes/stats.js';
 import { plays } from './routes/plays.js';
 import { feedback } from './routes/feedback.js';
+import { ingest } from './routes/ingest.js';   // hook(analytics)
 
 const app = express();
 app.disable('x-powered-by');
@@ -24,6 +25,9 @@ app.use((req, res, next) => req.hostname.startsWith('www.')
 
 // better-auth needs the RAW body — mount it before express.json()
 app.all('/api/auth/*', authHandler);
+
+// hook(analytics): PostHog EU proxy — raw body, IP and cookies stripped; must precede express.json
+app.use('/ingest', ingest);
 
 app.use(express.json({ limit:'512kb' }));   // puzzles are small; cap the body
 

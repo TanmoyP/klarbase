@@ -8,6 +8,7 @@ import {
 } from '@klar/core';
 import { themeOf, PORTAL_COLORS } from './game/themes.js';
 import { sfx } from './game/audio.js';
+import { track } from './analytics.js';   // hook(analytics)
 import { GUIDE } from './buildguide.js';
 import { propThumb, thumbKind } from './game/thumbs.js';
 
@@ -281,6 +282,7 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
       const r = await api('/puzzles', { method:'POST', body:{ title:draft.name, puzzle:docOf() } });
       const url = `${location.origin}/i/${r.hash}`;
       await navigator.clipboard.writeText(url).catch(() => {});
+      track('share_online');   // hook(analytics)
       toast(r.deduped ? 'Already shared — link copied' : 'Shared! Link copied to clipboard');
     } catch(e){ toast(e.validation ? e.validation[0].text : e.message, true); }
   };
@@ -304,9 +306,10 @@ export function mountBuilder({ world, onTest, api, getSession, toast, repoUrl, c
     if(url.length <= MAX_GITHUB_URL){
       note.innerHTML = passed + `<a class="btn small primary" style="text-decoration:none" href="${esc(url)}" target="_blank" rel="noopener">⇪ Open the pull request on GitHub</a><br>
         It opens <code>${esc(path)}</code> prefilled — sign in, then “Commit changes…” → “Propose changes” → “Create pull request” (${how}).`;
+      note.querySelector('a.btn').addEventListener('click', () => track('propose_github'));   // hook(analytics)
       show(); return;
     }
-    download(`${file.id}.json`, text);
+    download(`${file.id}.json`, text); track('propose_github');   // hook(analytics)
     note.innerHTML = passed + `Too big to prefill on GitHub, so it downloaded instead.
       Add it to <code>${esc(path)}</code> and open a pull request — ${how}.`;
     show();
