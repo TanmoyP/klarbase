@@ -29,3 +29,8 @@ export const worldLimiter = rateLimit({
   windowMs: 60*60*1000, limit: 60, keyGenerator: key,
   message: { error: 'too many world actions — slow down' },
 });
+// Comments: 20 posts an hour per user (falls back to IP).  // hook(comments)
+export const commentLimiter = rateLimit({
+  windowMs: 60*60*1000, limit: 20, keyGenerator: key,
+  message: { error: 'comment limit reached — 20 per hour' },
+});
