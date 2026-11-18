@@ -53,7 +53,7 @@ t('sanitize keeps a good save', S && S.progress['o:a'].stars === 2 && S.dailies[
 same('sanitize is idempotent', sanitizeProgress(S), S);
 for(const bad of [null, undefined, 5, 'x', [], true]) t('sanitize rejects ' + JSON.stringify(bad), sanitizeProgress(bad) === null);
 const dirty = sanitizeProgress({ evil:'<script>', progress:{ 'o:a':{ stars:9, moves:'x' }, '../../etc':{ stars:1 }, 'o:ok':{ stars:1, moves:4, extra:1 } },
-  dailies:{ 'not-a-date':1, '2026-11-01':7, '2026-11-02':2 }, map:{ pos:{ x:'a', z:1, t:1 }, explored:['ok', 5, { a:1 }, 'a'.repeat(50)], lit:'nope' } });
+  dailies:{ 'not-a-date':1, '2026-11-01':7, '2026-11-02':2 }, map:{ pos:{ x:'a', z:1, t:1 }, explored:['ok', 5, { a:1 }, 'a'.repeat(81)], lit:'nope' } });
 same('sanitize drops junk', dirty, { v:1, progress:{ 'o:ok':{ stars:1, moves:4 } }, dailies:{ '2026-11-02':2 }, map:{ explored:['ok'], lit:[] } });
 const many = {}; for(let i = 0; i <= MAX_ISLES; i++) many['o:' + i] = { stars:1 };
 t('sanitize rejects too many isles', sanitizeProgress({ progress:many }) === null);
