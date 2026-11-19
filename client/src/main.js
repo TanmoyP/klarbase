@@ -681,7 +681,7 @@ async function openMap(start){
   world.setShowcase(false); show('map'); syncTopbar();
   let mod; try { mod = await import('./map/index.js'); } catch(e){ console.error(e); toast('The map could not be loaded', true); if(my === mapToken) nav('/'); return; }
   if(my !== mapToken) return;
-  mapCtl = mod.mountMap({ world, start, progress, community, dated:pastDailies(), entryFor:mapEntry, badge:tierBadge, starsHtml,
+  mapCtl = mod.mountMap({ world, start, progress, community, dated:pastDailies(), entryFor:mapEntry, badge:tierBadge, starsHtml, onSave:pushSoon,
     lockOf:e => e.joins ? lockOf(e) : null, play, nav, track, setAccent });
   if(import.meta.env.DEV) window.__klar.map = mapCtl;
 }

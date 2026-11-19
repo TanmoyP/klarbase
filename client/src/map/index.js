@@ -209,7 +209,7 @@ export function mountMap(ctx){
   }
   function saveSoon(){
     const now = performance.now();
-    const flush = () => { saveTimer = 0; lastSave = performance.now(); saveMap(P, explored, saved.extra); };
+    const flush = () => { saveTimer = 0; lastSave = performance.now(); saveMap(P, explored, saved.extra); if(ctx.onSave) ctx.onSave(); };   // onSave = cloudsave's debounced push
     if(now - lastSave > 2000) flush(); else if(!saveTimer) saveTimer = setTimeout(flush, 2000);
     if(now - lastUrl > 1000){ lastUrl = now; try { history.replaceState(null, '', `/map/${P.x},${P.z}`); } catch {} }
   }
@@ -250,7 +250,8 @@ export function mountMap(ctx){
     saveMap(P, explored, saved.extra); sfx.ui();
     ctx.play({ ...s.entry, fromMap:{ x:s.x, z:s.z } });
   }
-  card.addEventListener('click', e => { const b = e.target.closest('[data-mc]'); if(!b) return; if(b.dataset.mc === 'go') playHere(); else { skipCard = P.x + ',' + P.z; hideCard(); } });
+  // onclick, not addEventListener: #mapCard outlives this mount, and a stacked listener would keep every disposed map alive
+  card.onclick = e => { const b = e.target.closest('[data-mc]'); if(!b) return; if(b.dataset.mc === 'go') playHere(); else { skipCard = P.x + ',' + P.z; hideCard(); } };
 
   /* ---------------- the atlas page ---------------- */
   const atlas = createAtlas({ root:$('#mapAtlas'), getPos:() => P, getExplored:() => explored, shrineInfo:(x, z) => info(x, z), onTravel:travelTo,

@@ -1,5 +1,5 @@
 // Wild-isle key tests (zero deps, no DB): node server/test/wild-key.mjs
-// parseWildKey is the one parse for `w/<x>,<z>`; wildExists regenerates with core's wildIsle behind an LRU.
+// parseWildKey is the one parse for `w/<x>,<z>`; wildExists = "a shrine slot stands there" (cellAt), behind an LRU.
 import { parseWildKey, wildExists, lruMemo, WILD_LIMIT } from '../src/routes/wild-key.js';
 import { ATLAS_SEED, wildIsle, placeContent, shrineAt, chunkAt } from '@klar/core';
 
@@ -20,7 +20,7 @@ const slots = [];
 for(let cz = -1; cz <= 1; cz++) for(let cx = -1; cx <= 1; cx++) for(const s of chunkAt(ATLAS_SEED, cx, cz).shrines) slots.push(s);
 t('found shrine slots', slots.length >= 8);
 let some = 0;
-for(const s of slots.slice(0, 6)){ const w = wildIsle(ATLAS_SEED, s.x, s.z); t('exists agrees with wildIsle at ' + s.key, wildExists(s.key) === (w !== null)); if(w) some++; }
+for(const s of slots.slice(0, 6)){ const w = wildIsle(ATLAS_SEED, s.x, s.z); t('a shrine slot exists at ' + s.key, wildExists(s.key) === true); if(w) some++; }
 t('most slots hold a puzzle', some >= 4);
 t('a non-shrine tile never exists', wildExists('w/0,0') === false || slots.some(s => s.key === 'w/0,0'));
 t('far-off key does not throw', typeof wildExists('w/999999,-999999') === 'boolean');

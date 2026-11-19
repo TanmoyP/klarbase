@@ -95,7 +95,9 @@ plays.post('/', playLimiter, async (req, res, next) => {
 // Aggregates for the picker. Short public cache: scores evolve, but slowly.
 plays.get('/', async (_req, res, next) => {
   try {
-    const rows = await prisma.islePlay.findMany({ orderBy:{ updatedAt:'desc' }, take:2000 });
+    // Sky Atlas wild isles (w/x,z) are endless: their rows stay out of the picker feed, so they can
+    // never push official/community/daily/online isles out of the 2000 most recent.
+    const rows = await prisma.islePlay.findMany({ where:{ NOT:{ isleKey:{ startsWith:'w/' } } }, orderBy:{ updatedAt:'desc' }, take:2000 });
     const out = {};
     for(const r of rows) out[r.isleKey] = { started:r.started, cleared:r.cleared, hints:r.hints, restarts:r.restarts, moves:r.moves, time:r.times };
     res.set('Cache-Control', 'public, max-age=60').json({ plays:out });

@@ -3,6 +3,7 @@
 // SPOILER GATE: until the player has "earned" the isle (same condition as the
 // solution), bodies are blurred behind one button — threads may hint at routes.
 import { api } from './net.js';
+import { track } from './analytics.js';
 
 const MAX = 500;
 const counts = new Map();                 // statKey -> total comments (cached; kept in step by post/delete)
@@ -145,7 +146,7 @@ export function openComments(entry, opts = {}){
         const r = await api('/comments', { method:'POST', body:{ key, body:ta.value } });
         list.prepend(item(r.comment)); setCount(total + 1);
         ta.value = ''; cnt.textContent = `0 / ${MAX}`;
-        // hook(analytics): comment_post
+        track('comment_post');   // hook(analytics)
         sync();
       } catch(e){ flash(e.message); }
       post.disabled = false;

@@ -1,9 +1,8 @@
 // Sky Atlas wild-isle keys: `w/<x>,<z>` — a shrine tile of the endless overworld (core/src/atlas).
-// Pure (no DB, no Express): the key parse, and "does a wild isle stand there?" by regenerating it with
-// the SAME @klar/core function the client uses (wildIsle) — one code path, nothing stored per isle.
-// The tile must be a shrine slot (cellAt) — otherwise anyone could mint a row per coordinate — and
-// a small LRU keeps repeated stat posts for popular shrines off the generator (p95 ≈ 65 ms a miss).
-import { ATLAS_SEED, wildIsle, cellAt } from '@klar/core';
+// Pure (no DB, no Express): the key parse, and "is there a shrine there?" from the SAME @klar/core
+// overworld the client walks (cellAt) — one code path, nothing stored per isle. The tile must be a
+// shrine slot, so junk coordinates never become rows; a small LRU keeps repeat posts off chunkAt.
+import { ATLAS_SEED, cellAt } from '@klar/core';
 
 export const WILD_LIMIT = 1e6;                       // |x|, |z| ≤ 1 000 000: well inside float-exact territory
 const WILD_KEY = /^w\/(-?\d{1,7}),(-?\d{1,7})$/;
@@ -35,7 +34,9 @@ export function lruMemo(max, fn){
 function check(key){
   const p = parseWildKey(key);
   if(!p) return false;
-  try { return cellAt(ATLAS_SEED, p.x, p.z).kind === 'shrine' && wildIsle(ATLAS_SEED, p.x, p.z) !== null; } catch { return false; }
+  try { return cellAt(ATLAS_SEED, p.x, p.z).kind === 'shrine'; } catch { return false; }
 }
-// true iff a shrine stands at the tile AND a puzzle is generated there (wildIsle is null for the rare empty slot)
+// true iff a shrine stands at the tile. NOT wildIsle: regenerating the puzzle (solver + audit, up to
+// ~370 ms) on an anonymous request is a CPU lever, and shrine slots are endless anyway; the rare quiet
+// slot (wildIsle null, ~0.5%) has no Play button, so the client never sends stats for it.
 export const wildExists = lruMemo(1000, check);
