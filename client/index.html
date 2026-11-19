@@ -206,6 +206,30 @@
   .dpad .use{ font-size:12px; }
   @media (pointer:coarse){ .dpad{ display:grid; } .legend{ display:none; } }
 
+  /* ---------- Sky Atlas ---------- */
+  body.in-map #authchip{ display:none; }
+  .map-lit{ position:absolute; right:14px; top:max(62px, calc(env(safe-area-inset-top) + 54px)); padding:8px 14px; font-weight:800; font-size:14px; color:#8a5a00; }
+  .region-toast{ position:absolute; left:50%; top:max(76px, calc(env(safe-area-inset-top) + 68px)); transform:translate(-50%, -10px); padding:10px 22px; opacity:0; pointer-events:none; transition:opacity .5s ease, transform .5s ease;
+    font-family:Fredoka, Nunito, ui-rounded, sans-serif; font-weight:700; font-size:22px; letter-spacing:.3px; white-space:nowrap; }
+  .region-toast.on{ opacity:1; transform:translate(-50%, 0); }
+  .map-card{ position:absolute; left:50%; bottom:max(86px, calc(env(safe-area-inset-bottom) + 80px)); transform:translate(-50%, 16px); width:min(340px, calc(100vw - 24px)); padding:14px 16px 14px; text-align:center;
+    opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; }
+  .map-card.on{ opacity:1; transform:translate(-50%, 0); pointer-events:auto; }
+  .map-card .mc-kind{ font-size:12px; font-weight:800; color:var(--ink-3); text-transform:uppercase; letter-spacing:.6px; }
+  .map-card .mc-name{ font-family:Fredoka, Nunito, ui-rounded, sans-serif; font-weight:700; font-size:22px; line-height:1.15; margin:2px 0 4px; }
+  .map-card .mc-meta{ display:flex; gap:10px; justify-content:center; align-items:center; font-weight:800; font-size:13.5px; color:var(--ink-2); min-height:24px; }
+  .map-card .row{ display:flex; gap:8px; justify-content:center; margin-top:10px; }
+  .map-card .mc-lock{ font-weight:700; font-size:13px; color:var(--ink-2); margin-top:6px; }
+  .atlas{ position:absolute; inset:0; display:none; z-index:20; background:#e8d9b8; }
+  .atlas.on{ display:block; }
+  .atlas canvas{ position:absolute; inset:0; touch-action:none; cursor:grab; }
+  .atlas-bar{ position:absolute; left:50%; top:max(12px, env(safe-area-inset-top)); transform:translateX(-50%); display:flex; gap:12px; align-items:center; padding:8px 10px 8px 18px; z-index:2; max-width:calc(100vw - 20px); }
+  .atlas-bar b{ font-family:Fredoka, Nunito, ui-rounded, sans-serif; font-size:19px; } .atlas-bar span{ font-size:12.5px; font-weight:700; color:var(--ink-3); }
+  .atlas-legend{ position:absolute; left:50%; bottom:max(14px, env(safe-area-inset-bottom)); transform:translateX(-50%); display:flex; gap:14px; padding:8px 16px; font-size:12.5px; font-weight:800; color:var(--ink-2); z-index:2; }
+  .atlas-legend i{ display:inline-block; vertical-align:middle; margin-right:5px; } .atlas-legend .you{ width:10px; height:10px; border-radius:50%; background:#ff7a6b; border:2px solid #fff; box-shadow:0 0 0 1px #c55; }
+  .atlas-legend .star{ color:#ffb02e; font-style:normal; } .atlas-legend .dot{ width:7px; height:7px; border-radius:50%; background:#78543a; }
+  @media (max-width:640px){ .map-lit{ top:auto; right:auto; left:10px; bottom:max(74px, calc(env(safe-area-inset-bottom) + 68px)); } .region-toast{ font-size:18px; top:max(112px, calc(env(safe-area-inset-top) + 104px)); } .map-card{ bottom:auto; top:max(62px, calc(env(safe-area-inset-top) + 54px)); transform:translate(-50%, -12px); } .map-card.on{ transform:translate(-50%, 0); } .atlas-bar span{ display:none; } }
+
   /* ---------- modals & toast ---------- */
   .modal{ position:absolute; inset:0; display:none; place-items:center; background:rgba(30,20,50,.25); z-index:40; }
   .modal.on{ display:grid; }
@@ -339,6 +363,7 @@
         <button class="btn primary" data-go="/play">▶ Play</button>
         <button class="btn" data-go="/create">✎ Create</button>
         <button class="btn" data-go="/community">☁ Community</button>
+        <button class="btn" data-go="/map" title="Wander an endless sky of isles and shrines">🗺 Explore</button>
         <button class="btn" data-go="/daily" id="btnDaily" title="One isle a day, the same for everyone">☀ Daily</button>
       </div>
       <div class="fine">No account needed to play or build. Sign in only to share online.
@@ -394,6 +419,28 @@
       <button class="btn" data-arrow="left">◀</button><button class="btn use" data-arrow="use">USE</button><button class="btn" data-arrow="right">▶</button>
       <span></span><button class="btn" data-arrow="down">▼</button><span></span>
     </div>
+  </section>
+
+  <!-- Sky Atlas (client/src/map, loaded on demand) -->
+  <section class="screen" id="scr-map">
+    <div class="hud-tl">
+      <button class="btn icon-btn" id="mapBack" title="Back (Esc)">←</button>
+      <div class="glass hud-title"><div class="name">Sky Atlas</div><div class="sub" id="mapRegion"></div></div>
+    </div>
+    <div class="glass map-lit" id="mapLit" title="Beacons lit: isles you have cleared">✦ lit 0</div>
+    <div class="glass region-toast" id="mapToast"></div>
+    <div class="glass map-card" id="mapCard"></div>
+    <div class="hud-bottom">
+      <button class="btn" id="mapAtlasBtn" title="Atlas (M)">🗺<span class="lbl"> Atlas</span> <span class="kbd">M</span></button>
+      <button class="btn" id="mapTurn" title="Turn the view (Q / E)">⟳<span class="lbl"> Turn</span> <span class="kbd">Q</span><span class="kbd">E</span></button>
+    </div>
+    <div class="glass legend"><div><span class="kbd">←↑→↓</span> or <span class="kbd">WASD</span> walk · hold to keep going</div><div><span class="kbd">M</span> atlas · <span class="kbd">Q</span><span class="kbd">E</span> turn</div></div>
+    <div class="dpad">
+      <span></span><button class="btn" data-arrow="up">▲</button><span></span>
+      <button class="btn" data-arrow="left">◀</button><button class="btn use" data-arrow="use">GO</button><button class="btn" data-arrow="right">▶</button>
+      <span></span><button class="btn" data-arrow="down">▼</button><span></span>
+    </div>
+    <div class="atlas" id="mapAtlas"></div>
   </section>
 
   <!-- legal: privacy · terms · guidelines · imprint · licences (filled by src/legal/index.js) — hook(legal) -->

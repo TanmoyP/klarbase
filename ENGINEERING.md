@@ -619,6 +619,29 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
   `confluenceState` opens them; a direct `/isle/<id>` link always plays. **Side paths:** Twist and
   Confluence isles (`offPath`) have no main number and are skipped by Continue / Next isle. A clear
   that lights a constellation says so on the win modal, with "✦ Play <isle>" when one opens.
+- **Sky Atlas (client, F2+F3 — `client/src/map/`, loaded with `import()` on `/map` and `/map/<x>,<z>`):** title button
+  🗺 Explore. `World.setExternal(ext)` is the only change to the game's world: while set, the World holds no isle (level = null),
+  the map steers the same camera rig (`targetTo`, `distTo`, `shadowExt`, Q/E) and gets `update(dt,t)` after Pip; renderer, post
+  chain, look, quality and Pip are shared. `buildTerrain` gained optional `{own, keel}` (chunk windows; the isle game never passes them).
+  - `chunkmesh.js`: a chunk is built by a generator in 4 sub-rectangles × themes (each job sees a 6-tile padded window of real
+    neighbours but only emits its own tiles, keel length = distance to open sky ⇒ seams agree), the game's `buildTerrain` /
+    `makeTree|Rock|Flora|Scatter` per cell theme, bridges as plank-and-rope spans, shrine = crossed arches. Meshes are **merged per
+    material signature**; props/shrines are `InstancedMesh`es of the shared cached geometries. ≈ 21–39 meshes and ≈ 50 k triangles per
+    chunk; a full frame (25 chunks, shadow pass included) ≈ 220 draw calls / 0.7 M triangles. A scheduler runs ≤ 4 ms of build per frame
+    (single units ≤ 20 ms). Radius 2 chunks (1 on `fast`), dispose beyond 3.
+  - `spring.js` / reveal: chunk rises from below the cloud sea on an underdamped spring (≈ 5 % overshoot + flutter), ripple delay
+    grows with distance from Pip; props pop on their own springs (per-instance matrices) after it lands; chunks sink before disposal.
+    `prefers-reduced-motion`: terrain fades, props appear at the end.
+  - `sky.js`: instanced cloud sea wrapped on a torus around the focus + a haze disc in the fog colour; 12-min day (`?t=0..1` freezes it
+    in dev): night amount + sun/moon direction → `applyLook(world, smoothedBiomeWeights, night)`; fog is set per frame to melt the streaming edge.
+  - `index.js` (controller): `canStep` hops (hold a key = keep walking; arriving at a shrine ends the run), shrine card (name, region, tier,
+    par, stars, ▶ Play), `placeContent` placement (official / community / past dailies; else wild via `wild.worker.js`, cached),
+    beacons (lit = `progress[key].stars > 0`, key `o:id` · `c:a/id` · `d:date` · `w:x,z`) and light columns (2 instanced draws),
+    region toast + ambient by region, URL `/map/x,z` (≤ 1/s), `klarbase.v2.map` `{pos, explored}` (+ `klarbase:map` merge), analytics `map_*`.
+    Plays get `entry.fromMap`: ← and the win modal return to `/map/x,z`; no "Next isle" / "All isles".
+  - `atlas.js`: 2D parchment page (M / Tab / 🗺): explored chunks as 16×16 images, region names, shrine pins (lit ★), drag / wheel / pinch,
+    tap a lit star to fast-travel. Server: `wild-key.js` (`w/<x>,<z>` parse + shrine-tile check + `wildIsle` behind a 1000-entry LRU)
+    feeds `validIsleKey` / `isleExists` (plays + comments); test `server/test/wild-key.mjs`.
 - **Bundle:** ~823 KB / ~247 KB gzip (mostly three.js; the 2026-11 art pass added ≈ +29 KB gzip,
   the finesse pass ≈ +12 KB gzip; no asset files). Code-splitting the builder is a cheap future win.
 
@@ -767,6 +790,13 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
 
+### 2026-11-19 — Sky Atlas client (F2+F3): streamed map, shrines, atlas page, wild keys on the server
+- **Added** `client/src/map/` (chunkmesh, spring, sky, shrines, wild(+worker), atlas, persist, index) and the `World.setExternal` hook; `/map`,
+  `/map/x,z`, title **🗺 Explore**, sitemap, help section, analytics hooks; `validIsleKey`/`isleExists` accept `w/x,z` (shrine tile + `wildIsle`, LRU).
+- **Measured (dev, 1280×800, fancy):** 60 fps steady, no frame > 40 ms while a 70-tile fast-travel streamed 17 chunks; map chunk ≈ 19 KB gzip
+  (+ the worker, ≈ 42 KB raw); main bundle unchanged.
+- **Not verified:** a real phone; `prefers-reduced-motion` path (code only); long-session memory beyond a map→title→map→title cycle.
+- **Known:** first chunk set compiles shaders (one ~300 ms frame on load); a Pip on unrevealed ground is hidden until it lands; trees do not sway on the map.
 ### 2026-11-18 — Native per-isle comments (workstream B)
 - `Comment` / `CommentReport` tables (§8, hand-written migration `20261118120000_comments`, not yet applied),
   `/api/comments` routes, `commentLimiter` (20/h), `parseComment` (no links, no route strings) + test in `npm test`.
