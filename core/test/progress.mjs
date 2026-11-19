@@ -54,6 +54,9 @@ same('sanitize is idempotent', sanitizeProgress(S), S);
 for(const bad of [null, undefined, 5, 'x', [], true]) t('sanitize rejects ' + JSON.stringify(bad), sanitizeProgress(bad) === null);
 const dirty = sanitizeProgress({ evil:'<script>', progress:{ 'o:a':{ stars:9, moves:'x' }, '../../etc':{ stars:1 }, 'o:ok':{ stars:1, moves:4, extra:1 } },
   dailies:{ 'not-a-date':1, '2026-11-01':7, '2026-11-02':2 }, map:{ pos:{ x:'a', z:1, t:1 }, explored:['ok', 5, { a:1 }, 'a'.repeat(81)], lit:'nope' } });
+// Sky Atlas wild isles are keyed 'w:<x>,<z>' — a clear there must survive a merge (it lights a beacon)
+t('wild-isle keys survive merge + sanitize', mergeProgress({ progress:{ 'w:38,18':{ stars:3, moves:12 } } }, {}).progress['w:38,18']?.stars === 3
+  && sanitizeProgress({ progress:{ 'w:-4,120':{ stars:1, moves:9 } } }).progress['w:-4,120']?.stars === 1);
 same('sanitize drops junk', dirty, { v:1, progress:{ 'o:ok':{ stars:1, moves:4 } }, dailies:{ '2026-11-02':2 }, map:{ explored:['ok'], lit:[] } });
 const many = {}; for(let i = 0; i <= MAX_ISLES; i++) many['o:' + i] = { stars:1 };
 t('sanitize rejects too many isles', sanitizeProgress({ progress:many }) === null);

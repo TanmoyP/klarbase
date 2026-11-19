@@ -7,7 +7,7 @@
 > cozy, turn-based **Isles**. The v1 document (voxel engine, illusion maths, the first deploy
 > day, sessions a–k) is preserved in [`docs/archive/v1/ENGINEERING-v1.md`](docs/archive/v1/ENGINEERING-v1.md).
 >
-> **Last updated:** 2026-10-23 · **Owner:** CTO · **Repo:** `TanmoyP/klarbase` (public, MIT)
+> **Last updated:** 2026-11-19 · **Owner:** CTO · **Repo:** `TanmoyP/klarbase` (public, MIT)
 
 ## 0. How to use this document
 - It is **living**. Every session that changes rules, data, infra or the roadmap updates the
@@ -54,20 +54,27 @@ klarbase/
 ├── core/                 @klar/core — pure, zero-dep, isomorphic. THE rules.
 │   ├── src/isle/         format.js · rules.js · solve.js · contrib.js · isles.js → official.js (generated from isles/official/)
 │   │                     difficulty.js (audit + K3 score + tiers) · daily.js (Daily Isle pick/number/share)
+│   ├── src/atlas/        Sky Atlas — the endless overworld, pure: rng · biome · chunk · walk · content · wild (see §5b)
+│   ├── src/progress.js   cloud-save merge + sanitize (mergeProgress / sanitizeProgress), shared by browser and server
 │   ├── src/*.js          legacy voxel engine — kept only for the deferred world API
-│   └── test/             isles.mjs · difficulty.mjs · run.mjs (legacy, 57)
+│   └── test/             isles.mjs · difficulty.mjs · progress.mjs · run.mjs (legacy, 57) · atlas.mjs
 ├── client/               @klar/client — Vite + three.js
 │   ├── index.html        shell + all CSS (glass UI, responsive)
 │   └── src/
 │       ├── main.js       screens, routing, catalogue, HUD, solution gating, input
 │       ├── builder.js    the isle builder (2D paint + live 3D + live solver + export)
+│       ├── comments.js · cloudsave.js · signin.js · analytics.js · sitefoot.js   community, accounts, analytics
+│       ├── legal/        privacy · terms · guidelines · imprint · licenses (lazy, one #scr-legal screen)
+│       ├── map/          Sky Atlas client (lazy): chunkmesh · spring · sky · shrines · wild(+worker) · atlas · persist · index
 │       └── game/         world.js (scene) · props.js (pieces, terrain, clouds) · pip.js (critter)
 │                         softkit.js (shape kit) · biome.js → trees.js, ground.js · pulley.js (scales rig)
 │                         fauna.js (critters) · thumbs.js (builder prop thumbnails)
 │                         session.js (play/undo/hint/replay) · audio.js (synth) · themes.js
+│                         look.js (grades) · post.js (HDR chain) · lightpatch.js · follow.js · quality.js
 ├── server/               @klar/server — Express + Prisma + better-auth
 │   └── src/routes/       puzzles.js (isle publish gate, public play/browse) · plays.js (anonymous
 │                         per-isle stats, K7) · stats.js (maintainer counts) · world.js (deferred)
+│                         feedback.js · comments.js + comment-rules.js · progress.js · ingest.js (PostHog proxy) · wild-key.js
 ├── isles/
 │   ├── community/<user>/<id>.json   community isles — bundled into the client with credit
 │   ├── daily/<YYYY-MM-DD>.json      hand-made Daily Isles (same gate, daily rules)
@@ -416,6 +423,55 @@ already in the game, so there is nothing else to archive.
 Legacy v4 maquette rows may still exist in prod; the client tells players those links are
 from an older version.
 
+## 5b. Sky Atlas — the endless overworld (core, F1)
+
+`core/src/atlas/` is the pure, deterministic core of the overworld Pip walks across: floating isles
+in an endless sky with puzzle **shrines** on them. Zero deps, no `Math.random`/`Date`/I-O: every
+function is a pure function of `(seed, coordinates)` — same answer in Node and the browser, in any
+order. No new tile type and no new rule: the overworld obeys rule 1 by **calling** `rules.js`'s
+`heightStep` (now exported, behaviour unchanged), and every isle a shrine holds is an ordinary
+isle that goes through `parseIsle` + `solveIsle`. Test: `core/test/atlas.mjs` (in `npm test` + CI `engine`).
+
+- **`rng.js`** `hash2(seed,x,z,k)` → [0,1), `hashInt`, `hashStr`, `mulberry32`, `vnoise`.
+- **`biome.js`** jittered Voronoi (site per 24×24 tiles, ±7 jitter, domain warp 3.2). Spawn site (0,0)
+  = jungle at map tile (0,0); fixed neighbours east oasis · west mountain · south tropical · north
+  urban; night is rare: one fixed ring-2 site pulled toward spawn + 2 more by hash, ~15% beyond.
+  Rings 1–2 use a **quota** (jungle 4, oasis 3, tropical 3, urban 3, mountain 4) so the 56 official
+  isles always fit. `biomeAt`, `biomeWeights(seed,x,z,r)` (tent-stencil blend for colour grading),
+  `regionAt` → `{theme,name,site}`, `biomeEdge` (distance to a region border).
+- **`chunk.js`** `chunkAt(seed,cx,cz)` → 16×16 `cells` (row-major `z*16+x`), `bridges`, `shrines`. The map is a
+  lattice of 11×11 quadrants, one isle each (organic domain-warped mask, 22–80 tiles, 2–4 isles per chunk), so a chunk
+  never sees its neighbour yet seams agree: a link between two quadrants is on/off by a pure hash — a binary-tree maze
+  inside each 8×8-quadrant block plus one hashed link east and one south between blocks (a spanning tree of the infinite
+  lattice ⇒ **one connected world**) plus ~30% extra links. A link is a 2–4 tile **bridge over open sky** (isles are
+  cleared back from the span, so never over land) or, ~28% of links, a 3-wide **land neck** that fuses two isles into
+  a continent across the seam. Plateau level 0–3 (biome-ranged hash, 3×3 mean ⇒ neighbours differ ≤ 1) + per-biome
+  **relief** from layered global noise (mountain steep +4 with cliffs, jungle rolling +2, urban plateaus, oasis dunes,
+  tropical low with lagoons, night mixed). A bridge lies at the lower plateau; the higher isle ends in a stair. Terraces
+  differing by 1 get a ramp (a terrace no stair reaches is merged into its neighbour; last resort a flat isle);
+  ≥ 2 drops are cliffs. Props (denser per biome) are kept only while the isle stays *strongly* connected under
+  `heightStep`. Cell = `{kind,h,ch,dir?,flora?,theme}` with `kind` ∈ the parsed isle kinds (`ground ramp rock tree
+  water void`) + overworld-only **`bridge`** (walkable) and **`shrine`** (walkable ground holding a puzzle). Up to two
+  shrine slots per isle, each on a clear 3×3 of flat open ground in the inner 5×5 (⇒ shrines ≥ 4 apart).
+- **`walk.js`** `cellAt`, `canStep(seed,{x,z},'U'|'D'|'L'|'R')` → `{ok,to:{x,z,h},kind:'flat'|'ramp'|'down'|'bridge'}`
+  (U = z−1), `SPAWN`, LRU of chunks.
+- **`content.js`** `placeContent(seed,{official,community,daily})` → `Map key→{x,z,kind}` (`o/<id>`, `c/<author>/<id>`,
+  `d/<date>`); `shrineAt(seed,x,z,placement)`. Official isles: chapters in order, nearest regions of the chapter's
+  theme in rings 0–2, nearest-spawn slots first; Twist/Confluence isles on the slot nearest a region border.
+  Community/daily: each key ranks the slots of its theme's regions by `hash(key,slot)` and takes its best free
+  one (input order never matters; adding isles moves an earlier one only on a slot collision).
+- **`wild.js`** `wildIsle(seed,x,z)` → `{doc,par,solution,tier,mechanics,statKey:'w/x,z',hash}` | `null`: a real
+  v5 isle (night with a boulder: a v6 one-storey map) built as a chain of full-height **barriers** — sink (crate
+  into a moat; jungle also hop-down/stairs), arch (crate on the doorstep), bridge+lever, door+key, gate+plate,
+  ice slide, boulder lane — so each mechanic is load-bearing by construction; farther from spawn adds a
+  crate-based second barrier and **pits** (one-level drops beside the solver's route: dead ends that give the
+  audit its traps). Up to 40 deterministic attempts; accepted only if solvable, par ≥ 6, the barrier mechanics
+  occur in the shortest solution, and the audit tier is in the distance band (<64 tiles breeze/easy, <160
+  easy/tricky, beyond tricky; never above tricky). Solver budget 6 000 states, audit 3 000 (anything bigger is
+  not a breeze-to-tricky isle). Measured: ~99.7% accepted, p50 5 ms, p95 ~65 ms.
+
+---
+
 ## 6. Open-source contribution pipeline
 
 Goal: a stranger's PR is either **rejected automatically** or **safe to merge** — no
@@ -569,6 +625,29 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
   `confluenceState` opens them; a direct `/isle/<id>` link always plays. **Side paths:** Twist and
   Confluence isles (`offPath`) have no main number and are skipped by Continue / Next isle. A clear
   that lights a constellation says so on the win modal, with "✦ Play <isle>" when one opens.
+- **Sky Atlas (client, F2+F3 — `client/src/map/`, loaded with `import()` on `/map` and `/map/<x>,<z>`):** title button
+  🗺 Explore. `World.setExternal(ext)` is the only change to the game's world: while set, the World holds no isle (level = null),
+  the map steers the same camera rig (`targetTo`, `distTo`, `shadowExt`, Q/E) and gets `update(dt,t)` after Pip; renderer, post
+  chain, look, quality and Pip are shared. `buildTerrain` gained optional `{own, keel}` (chunk windows; the isle game never passes them).
+  - `chunkmesh.js`: a chunk is built by a generator in 4 sub-rectangles × themes (each job sees a 6-tile padded window of real
+    neighbours but only emits its own tiles, keel length = distance to open sky ⇒ seams agree), the game's `buildTerrain` /
+    `makeTree|Rock|Flora|Scatter` per cell theme, bridges as plank-and-rope spans, shrine = crossed arches. Meshes are **merged per
+    material signature**; props/shrines are `InstancedMesh`es of the shared cached geometries. ≈ 21–39 meshes and ≈ 50 k triangles per
+    chunk; a full frame (25 chunks, shadow pass included) ≈ 220 draw calls / 0.7 M triangles. A scheduler runs ≤ 4 ms of build per frame
+    (single units ≤ 20 ms). Radius 2 chunks (1 on `fast`), dispose beyond 3.
+  - `spring.js` / reveal: chunk rises from below the cloud sea on an underdamped spring (≈ 5 % overshoot + flutter), ripple delay
+    grows with distance from Pip; props pop on their own springs (per-instance matrices) after it lands; chunks sink before disposal.
+    `prefers-reduced-motion`: terrain fades, props appear at the end.
+  - `sky.js`: instanced cloud sea wrapped on a torus around the focus + a haze disc in the fog colour; 12-min day (`?t=0..1` freezes it
+    in dev): night amount + sun/moon direction → `applyLook(world, smoothedBiomeWeights, night)`; fog is set per frame to melt the streaming edge.
+  - `index.js` (controller): `canStep` hops (hold a key = keep walking; arriving at a shrine ends the run), shrine card (name, region, tier,
+    par, stars, ▶ Play), `placeContent` placement (official / community / past dailies; else wild via `wild.worker.js`, cached),
+    beacons (lit = `progress[key].stars > 0`, key `o:id` · `c:a/id` · `d:date` · `w:x,z`) and light columns (2 instanced draws),
+    region toast + ambient by region, URL `/map/x,z` (≤ 1/s), `klarbase.v2.map` `{pos, explored}` (+ `klarbase:map` merge), analytics `map_*`.
+    Plays get `entry.fromMap`: ← and the win modal return to `/map/x,z`; no "Next isle" / "All isles".
+  - `atlas.js`: 2D parchment page (M / Tab / 🗺): explored chunks as 16×16 images, region names, shrine pins (lit ★), drag / wheel / pinch,
+    tap a lit star to fast-travel. Server: `wild-key.js` (`w/<x>,<z>` parse + shrine-tile check + `wildIsle` behind a 1000-entry LRU)
+    feeds `validIsleKey` / `isleExists` (plays + comments); test `server/test/wild-key.mjs`.
 - **Bundle:** ~823 KB / ~247 KB gzip (mostly three.js; the 2026-11 art pass added ≈ +29 KB gzip,
   the finesse pass ≈ +12 KB gzip; no asset files). Code-splitting the builder is a cheap future win.
 
@@ -593,18 +672,23 @@ GET    /api/comments?key&cursor&limit      public; one isle's thread, newest fir
 POST   /api/comments {key, body}           login; 20 / h; key = same validator as plays; body via parseComment (comment-rules.js)
 DELETE /api/comments/:id                   own only (404 otherwise)
 POST   /api/comments/:id/report            login; one per user; 3 distinct reports hide it
+GET    /api/progress                       login; this account's cloud save → {data, updatedAt} | {data:null}
+PUT    /api/progress {data}                login; 60 / h; sanitizeProgress → mergeProgress(stored, incoming) under a row lock → the merged save
 ```
 Isles reuse `Puzzle` (`json` holds the canonical isle + `par` + `solution`, and since Phase 1 an
 optional `tier` and the solver `audit` numbers `{states, traps, greedy, routes, par, capped}`
 computed at publish; `portsJson` = `'{}'`). Browse returns `tier` + `audit`. Rate limits: publish 20/h.
 
 **`IslePlay` (migration `20261019200000_isle_play`) — holds NO user data.** One row per isle key
-(official id · `c/<author>/<id>` · `d/<YYYY-MM-DD>` · `i/<64-hex>`) with running sums: `started,
+(official id · `c/<author>/<id>` · `d/<YYYY-MM-DD>` · `i/<64-hex>` · `w/<x>,<z>` Sky Atlas wild isle) with running sums: `started,
 cleared, hints, restarts`, `moves` jsonb `{moves: count}` (clamped 1..500), `times` jsonb
 `{bucket: count}` (buckets = `TIME_BUCKETS` in core), `updatedAt`. No user reference, no IP, no
 cookie, nothing per person — so no cascade delete is needed. Keys are validated (official ids from
-core, community/daily files present in the bundled `isles/`, online hashes must exist in `Puzzle`).
-Writes are one atomic `INSERT … ON CONFLICT DO UPDATE` with `jsonb_set` increments.
+core, community/daily files present in the bundled `isles/`, online hashes must exist in `Puzzle`, wild
+keys must name a shrine tile — `cellAt(ATLAS_SEED, x, z).kind === 'shrine'`, `server/src/routes/wild-key.js`,
+LRU 1000; the puzzle itself is NOT regenerated on the request path, it is up to ~370 ms of solver CPU).
+Writes are one atomic `INSERT … ON CONFLICT DO UPDATE` with `jsonb_set` increments. `GET /api/plays` (the
+picker feed, newest 2000) **leaves `w/` rows out**: the map is endless and would push every other isle out.
 
 **`Feedback` (migration `20261025120000_feedback`) — holds user data.** `id, message, email?,
 page, userId? → User onDelete: Cascade, createdAt`. The message (trimmed, ≤ 2000), the reply email
@@ -624,16 +708,25 @@ and no route strings** (≥ 6 move letters U/D/L/R/X or arrows, run together or 
 real words DULL/LULL/DUD/RUDD/UR excepted). Solutions are earned (§4), so threads must not leak them.
 The client blurs bodies until the isle is `unlocked()` (the solution-gating test) or the player clicks "Show comments anyway".
 
+**`Progress` (migration `20261118121000_progress`) — holds user data.** `userId (PK) → User Cascade, data
+jsonb, updatedAt`: one cloud save per account — `{v:1, progress:{<isle key>:{stars, moves, time?, seeds?}},
+dailies:{date:stars}, map?:{pos:{x,z,t}, explored:[chunk keys], lit:[]}}`. Built and merged ONLY by
+`core/src/progress.js` (`mergeProgress`: stars/seeds max, moves/time min, dailies max, map sets union, newer
+`pos` wins; `sanitizeProgress`: the trust boundary — shape, key patterns incl. `w:<x>,<z>`, ≤ 5000 isles,
+≤ 2000 per set, ≤ 64 KB), so the browser (`client/src/cloudsave.js`: pull + merge + push on sign-in, debounced
+push after a clear or a map save) and the server can never disagree. Device keys (settings, draft, effort,
+GitHub name, quality, last provider) never sync.
+
 **What is stored, per person (keep `/privacy` in sync).** Anonymous: `localStorage` only (progress,
-settings, draft, dailies, effort, GitHub name) + anonymous `IslePlay` sums. Signed in: better-auth
+settings, quality, draft, dailies, map position + explored chunks, effort, GitHub name, last provider) + anonymous `IslePlay` sums. Signed in: better-auth
 `User` (name, email, avatar), `Account` (provider link + OAuth tokens), `Session` (cookie token,
-**ipAddress, userAgent**), plus their `Puzzle`, `Report`, `Plot`, `Feedback`, `Comment`, `CommentReport` rows — all cascade
+**ipAddress, userAgent**), plus their `Puzzle`, `Report`, `Plot`, `Feedback`, `Comment`, `CommentReport`, `Progress` rows — all cascade
 from `User`. Cloudflare Web Analytics (cookieless). No cookie banner: the only cookie is the
 sign-in session (plus a short-lived OAuth state cookie), strictly necessary. **Analytics (2026-11-18):** cookieless PostHog EU via `/ingest`
 (`client/src/analytics.js`): `persistence:'memory'`, only the fixed `EVENTS` list with allow-listed props, off when `VITE_POSTHOG_KEY` is unset, when
 DNT/GPC is sent, or when `localStorage klarbase.v2.analytics = 'off'` (toggle on `/privacy`). Signed-in players are identified by the opaque user id only.
-Set PostHog's "Discard client IP data" project setting and its data-retention period (the policy says ≤ 12 months). Fonts come from Google Fonts
-(discloses the player's IP to Google — self-host them to drop that line from `/privacy`). **Legal pages** (`/privacy /terms /guidelines /imprint /licenses`,
+Set PostHog's "Discard client IP data" project setting and its data-retention period (the policy says ≤ 12 months). Fonts are
+**self-hosted** (`@fontsource/fredoka` + `nunito`, OFL-1.1, bundled by Vite) — no request ever goes to Google Fonts; keep it that way. **Legal pages** (`/privacy /terms /guidelines /imprint /licenses`,
 `client/src/legal/*`, one `#scr-legal` screen): the imprint reads `VITE_IMPRINT_NAME/ADDRESS/EMAIL` at build time (Dockerfile ARGs) — never commit them.
 Any new stored data or processor means updating `legal/privacy.js` in the same change. Account deletion is manual: the player signs in and sends
 feedback asking for it (the `userId` on the row proves who asked); delete the `User` row.
@@ -663,8 +756,9 @@ managed robots.txt must stay **off** or it overrides ours.
 
 ## 10. Current state & numbers
 
-- ✅ Engine: 540 isle assertions + 179 difficulty/daily/sky + 57 legacy, green (CI's `engine` job runs
-  all three). 56 official isles (24 + 5 Twist + 8 Hanging Gardens + 10 Windward + 6 Nightfall maps + 3 Confluence) verified;
+- ✅ Engine: 541 isle assertions + 179 difficulty/daily/sky + 41 progress + 74 atlas + 57 legacy, green (CI's
+  `engine` job runs them all, plus the zero-dep `server/test/comments.mjs` and `client/test/analytics.mjs`). `npm test`
+  also runs `server/test/{wild-key,ingest}.mjs` (they need installed deps, so not in CI). 56 official isles (24 + 5 Twist + 8 Hanging Gardens + 10 Windward + 6 Nightfall maps + 3 Confluence) verified;
   artifacts deterministic.
 - ✅ Client: all screens verified in the browser (title, picker with real mini-map thumbnails,
   play, replay, win, lock modal, builder with live verdict, community tab). Phone-width layout done; the phone builder is a bottom sheet (paint tools first) and the 3D isle is framed above it (`World.setInsetBottom`).
@@ -684,7 +778,7 @@ managed robots.txt must stay **off** or it overrides ours.
 | **World (v1 idea)** | stitch isles into a walkable archipelago — now **Sky Atlas** (below) | strong demand |
 | **Phase 5 · Confluence** | ✅ Your Sky + 3 Confluence isles (2026-10-23). Next: a Confluence isle for every pair worth fusing (Nightfall is a constellation now, so its pairs are open too) | — |
 | **Whispers** | secret isles found by insight (a riddle in a cleared catch, par + all seeds opens a door) — the hidden layer players come back for | Confluence |
-| **Sky Atlas** | Pip walks between isles on a map that is itself a puzzle; stuck on one isle → walk to another | Confluence, art time |
+| **Sky Atlas** | ✅ endless map mode (2026-11-19, §5b + §7): biomes, streamed chunks, shrines for every official/community/daily isle, solver-verified wild isles, beacons, atlas page + fast travel. Next: less samey wild motifs (pits read as "don't step there"), tree sway + phone pass on the map, a map that is itself a puzzle (gates opened by clears) | — |
 | **Guest Isles** | a credited shelf for invited puzzle designers | outreach |
 | **Accessibility** | colour-blind-safe arch/plate markers, reduced motion, screen-reader isle summary | — |
 
@@ -717,26 +811,69 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
 
-### 2026-11-18 — Native per-isle comments (workstream B)
-- `Comment` / `CommentReport` tables (§8, hand-written migration `20261118120000_comments`, not yet applied),
-  `/api/comments` routes, `commentLimiter` (20/h), `parseComment` (no links, no route strings) + test in `npm test`.
-- `plays.js` now exports `validIsleKey` / `isleExists`; comments reuse them (one key validator).
-- Client: `client/src/comments.js` (sheet in the shared modal, spoiler blur gated on `unlocked()`), 💬 HUD button
-  and a "Comments (n)" link in the win modal; hidden for drafts. Sign-in modal extracted to `signInModal()`.
-### 2026-11-18 (ab) — Analytics + legal pages
-- **Analytics:** posthog-js 1.447.15 (exact pin), cookieless/memory-only, EU, through our `/ingest` proxy (IP/cookies dropped; `forwardHeaders` tested in `server/test/ingest.mjs`).
-  Event catalogue + sanitiser in `client/src/analytics.js` (`client/test/analytics.mjs`); hooks in `main.js`/`builder.js` are marked `hook(analytics)`.
-- **Legal:** `#scr-privacy` replaced by `#scr-legal` + lazy `client/src/legal/*` (privacy, terms, guidelines, imprint, licences); sitemap lists them.
-  Imprint details from `VITE_IMPRINT_*` env vars. Not legal advice — have it reviewed before launch.
-### 2026-11-18 (ac) — Visual finesse pass: post chain, look grades, soft shadows, follow camera
-- **Why:** polish toward a filmic, tilt-shift miniature look (papertrails' techniques, our own
-  soft-chunky art): contact AO, DoF, bloom on emissives only, per-theme/day-night grade, soft warm shadows.
-- **Done:** `look.js` (grades + `applyLook`), `lightpatch.js` (wrap, leak, PCSS-lite, glow, `fitSun`),
-  `post.js` (HDR chain), `follow.js`, `quality.js` + ✨ button; minimal hooks in `world.js`, `main.js`,
-  `index.html` (`hook(look)`), `softkit.js` (glow flag), `thumbs.js` (no boost in thumbnails).
-- **Unchanged:** `@klar/core`, rules, every isle and hash. Tests 541/179/57 green.
-- **Watch:** shader compile on first load (more programs); `fast` is the escape hatch. The renderer's
-  default framebuffer MSAA is wasted in post mode (can't change after context creation).
+### 2026-11-19 (ah) — Integration: review fixes, local-DB route checks, PRs
+- **How this release was built:** an Opus plan, then six Sonnet agents in parallel worktrees (A repo · B comments ·
+  C cloud save · D analytics + legal · E look · F1 atlas core), then F2/F3 (map client) on the integration branch
+  `feat/atlas-community`; Opus merged, resolved the `hook(<feature>)` seams, reviewed and tested.
+- **Checked against a throwaway local Postgres only** (embedded-postgres from a scratch folder, `klar/klar/klarbase`
+  on :5432 — never Neon): both migrations apply, `prisma migrate diff` migrations → schema: no difference; 32 route
+  checks pass (comments auth/links/route strings/3-report hide/own-delete, progress merge/caps/isolation, wild keys,
+  cascade delete of a test user's comments, reports, progress and sessions).
+- **Review fixes (code-review high):** cloud saves kept `w:<x>,<z>` keys (they were dropped, wiping wild clears on
+  sign-in); `GET /api/plays` leaves `w/` rows out; the server validates wild keys by `cellAt` only (no solver on an
+  anonymous request); the map card listener no longer stacks per visit; `comment_post` is tracked; map exploration
+  triggers the cloud push; `/privacy` storage list completed; CI runs the new zero-dep tests and syntax-checks
+  `client/src/map` + `client/src/legal`. Fonts are self-hosted (no Google Fonts request).
+- **Not verified:** the map on a real phone, `prefers-reduced-motion` on the map, a long-session memory trace.
+- **Founder to do:** PostHog EU project → `VITE_POSTHOG_KEY` (Railway build var), "Discard client IP data" +
+  retention ≤ 12 months; `VITE_IMPRINT_NAME/ADDRESS/EMAIL`; a legal review of `client/src/legal/*`.
+
+### 2026-11-19 (ag) — Sky Atlas client (F2+F3): streamed map, shrines, atlas page, wild keys
+- **Added** `client/src/map/` (chunkmesh, spring, sky, shrines, wild + worker, atlas, persist, index) loaded by
+  `import()` on `/map`, and `World.setExternal(ext)` (the map borrows renderer, post, look, quality, camera rig and
+  Pip; `world.load()` untouched). `buildTerrain` gained optional `{own, keel}` (chunks build from padded windows and
+  emit only their own tiles; the isle game never passes them). `/map`, `/map/x,z`, title **🗺 Explore**, sitemap,
+  help section, analytics hooks; `validIsleKey`/`isleExists` accept `w/x,z`.
+- **Measured (dev, 1280×800, fancy):** 60 fps; a 70-tile fast travel streaming 17 chunks had no frame > 40 ms; one
+  ~300 ms frame at load (shader compile). Per chunk 21–39 meshes, ~50k triangles; 25 chunks + shadows ≈ 220 draw
+  calls. Map chunk ≈ 19 KB gzip (+ worker ≈ 42 KB raw).
+- **Known:** wild shrine cards wait for the worker ("Listening…"); trees don't sway on the map; edge chunks take
+  ~1 s per row to build while walking; mountain clouds blend into snow.
+
+### 2026-11-18 (af) — Visual finesse pass: post chain, look grades, soft shadows, follow camera
+- **Why:** a filmic, tilt-shift miniature look using papertrails' *techniques* (MIT; no code or assets copied) on our
+  own soft-chunky art: contact AO, DoF, bloom on emissives only, per-theme day/night grade, soft warm shadows.
+- **Done:** `look.js` (grades + `applyLook`, the only writer of look tunables), `lightpatch.js` (wrap, light leak,
+  PCSS-lite sun shadows, glow, `fitSun`), `post.js` (own HDR chain on `FullScreenQuad`), `follow.js` (critically
+  damped spring + look-ahead + drift), `quality.js` (Fancy/Cozy/Fast, auto-drop on slow frames) + ✨ button.
+- **Measured:** Fancy holds 16.7 ms median / 16.8 ms p95 on the dev laptop; +11.6 KB gzip.
+- **Watch:** shader compile on first load; `fast` is the escape hatch; MSAA on the default framebuffer is wasted in post mode.
+
+### 2026-11-18 (ae) — Analytics + legal pages
+- **Analytics:** posthog-js 1.447.15 (exact pin), lazy-loaded, memory persistence (no cookie, no storage), EU, only
+  through our `/ingest` proxy (cookies, auth and every IP header dropped; `forwardHeaders` tested). Off unless
+  `VITE_POSTHOG_KEY` is set, and off on DNT/GPC or the `/privacy` toggle. Fixed event catalogue in `analytics.js`.
+- **Legal:** `#scr-privacy` → `#scr-legal` + lazy `client/src/legal/*` (privacy (GDPR Art. 13), terms, guidelines,
+  imprint (§ 5 DDG, from `VITE_IMPRINT_*`), licences); sitemap + site footer list them. Not legal advice.
+
+### 2026-11-18 (ad) — Comments, cloud save, sign-in, repo visibility
+- **Comments (B):** `Comment` / `CommentReport` (§8), `/api/comments`, `parseComment` (no links, no route strings),
+  `client/src/comments.js` (spoiler blur until `unlocked()`), 💬 HUD button + win-modal link. `plays.js` exports the
+  one isle-key validator.
+- **Cloud save + sign-in (C):** `Progress` (§8), `/api/progress`, `core/src/progress.js` (`mergeProgress`,
+  `sanitizeProgress`, `core/test/progress.mjs`), `client/src/cloudsave.js`; `client/src/signin.js` is the one sign-in
+  modal (benefits, last provider first, Terms/Privacy line) used by the top bar and comments.
+- **Repo (A):** README badges/where-things-live/community/contributors, issue + discussion forms, `CODE_OF_CONDUCT.md`,
+  GitHub button in the top bar, `siteFoot()` on the title and help modal. Discussions enabled; topics added.
+
+### 2026-11-18 (ac) — Sky Atlas core (F1): endless overworld, shrines, wild isles
+- **Added** `core/src/atlas/` (rng, biome, chunk, walk, content, wild) + `core/test/atlas.mjs` (74 checks, ~10 s; in
+  `npm test` and CI). Exported from `@klar/core`. See §5b. Terrain retuned once: organic 22–80-tile isles, per-biome
+  relief, 2–4-tile sky-only bridges, flat 3×3 shrines, 7×7-chunk connectivity test.
+- **Core change:** `heightStep` in `rules.js` is now `export`ed (one word; behaviour identical) so the overworld
+  walks by the rules' own function instead of a copy. No tile or rule added.
+- **Known weak spots:** wild puzzles are template-built (barrier chains) — fair and solver-verified but samey; tricky
+  comes partly from pits; night boulders appear in ~25% of night isles.
 
 ### 2026-11-06 (aa) — Soft-chunky art pass: biomes, pulley rig, fauna, builder thumbs
 - **Why:** founder feedback — trees pointy, rough edges, tropical and dry maps looked alike,

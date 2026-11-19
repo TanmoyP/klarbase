@@ -36,6 +36,12 @@ jobs:
         run: node core/test/progress.mjs
       - name: Legacy voxel engine (deferred world lattice)
         run: node core/test/run.mjs
+      - name: Sky Atlas (deterministic overworld, seams, connectivity, official placement, wild isles)
+        run: node core/test/atlas.mjs
+      - name: Comment text rules (no links, no route strings) + analytics catalogue sanitiser
+        run: |
+          node server/test/comments.mjs
+          node client/test/analytics.mjs
       - name: Official isles verified and core/src/isle/official.js current
         run: |
           node tools/author.mjs
@@ -72,6 +78,6 @@ jobs:
       - name: Syntax check server and client
         run: |
           for f in server/src/index.js server/src/auth.js server/src/routes/*.js \
-                   client/src/*.js client/src/game/*.js tools/*.mjs; do
+                   client/src/*.js client/src/game/*.js client/src/map/*.js client/src/legal/*.js tools/*.mjs; do
             node --check "$f"
           done

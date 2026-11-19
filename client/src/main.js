@@ -142,6 +142,7 @@ if(import.meta.env.DEV) window.__klar = { world, look:LOOK, quality:world.qualit
 const settings = store.get('klarbase.v2.settings', { sound:true, timer:false });
 const progress = store.get('klarbase.v2.progress', {});
 let session = null, game = null, current = null, tab = 'official', online = null;
+let mapCtl = null, mapToken = 0;   // Sky Atlas (client/src/map, loaded on demand)
 
 /* ---------------- Your Sky (Phase 5) ---------------- */
 // Every chapter is a constellation (skyOf in @klar/core). Clear CONFLUENCE_NEED of its
@@ -214,7 +215,7 @@ function setAccent(theme){
   const T = themeOf(theme);
   document.documentElement.style.setProperty('--accent', T.accent);
 }
-function show(id){ document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'scr-' + id)); document.body.classList.toggle('in-game', id === 'game'); syncInset(); }
+function show(id){ document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'scr-' + id)); document.body.classList.toggle('in-game', id === 'game'); document.body.classList.toggle('in-map', id === 'map'); syncInset(); }
 // Phone builder: the panel is a bottom sheet — keep the isle framed in the space above it.
 const sheet = document.querySelector('#scr-create .side');
 function syncInset(){
@@ -281,7 +282,7 @@ function helpModal(which = 'play'){
       ${buildGuideHtml(TOOLS)}
       <div class="row"><button class="btn primary" onclick="document.getElementById('modal').classList.remove('on')">Start building</button></div>`, true);
   }
-  modal.open(`${helpTabs('play')}<h2>How to play</h2>
+  modal.open(`${helpTabs('play')}${mapCtl ? atlasHelp() : ''}<h2>How to play</h2>
     <div class="rules">
       <div><span class="ico">🐣</span><span>Hop one tile per key. <b>↑ always means away from you</b> — turn the view with Q / E.</span></div>
       <div><span class="ico">⬆</span><span>Stairs climb one level. You can hop <b>down</b> a ledge, but never climb one.</span></div>
@@ -305,6 +306,15 @@ function helpModal(which = 'play'){
     ${siteFoot()}<!-- hook(repo) -->
     <div class="row"><button class="btn feedback-open">✉ Send feedback</button><button class="btn primary" onclick="document.getElementById('modal').classList.remove('on')">Got it</button></div>`);
 }
+
+// Sky Atlas: how the map works (shown first while exploring)
+const atlasHelp = () => `<h2>Sky Atlas</h2>
+    <div class="rules">
+      <div><span class="ico">🐣</span><span>Walk with <b>arrows / WASD</b> (or the d-pad) — <b>hold</b> a key to keep going. Stairs climb a level; ledges you can hop down, never up. Q / E turn the view.</span></div>
+      <div><span class="ico">⛩</span><span>Every <b>shrine</b> (a little arch with a light column) holds an isle. Step onto it, then <b>Play</b>.</span></div>
+      <div><span class="ico">✦</span><span>Clear an isle and its shrine lights a <b>beacon</b>. Official, community, daily and wild isles all count.</span></div>
+      <div><span class="ico">🗺</span><span>Press <b>M</b> for the Atlas page of everywhere you've seen. Drag and zoom it; <b>tap a lit star</b> to fly straight there.</span></div>
+    </div><div style="height:6px"></div>`;
 
 // Feedback: the way to reach the maker without a GitHub account (POST /api/feedback).
 const FEEDBACK_MAX = 2000;   // = MESSAGE_MAX in server/src/routes/feedback.js
@@ -445,7 +455,7 @@ $('#btnContinue').onclick = () => { const next = official.find(e => !progress[e.
 function play(entry){
   const { ok, errors, level } = parseIsle(entry.doc);
   if(!ok){ toast('This isle is broken: ' + errors[0].text, true); nav('/play'); return; }
-  stopGame();
+  stopGame(); stopMap();
   current = entry;
   world.setShowcase(false); world.view = 0; world.turn(0);
   world.load(level, entry.doc.theme); world.pip.group.visible = true;
@@ -506,7 +516,7 @@ function won(s){
   const news = before ? skyNews(before, mySky()) : { html:'', open:null };
   postPlay('clear', { moves:s.moves, ms:Math.round(s.time * 1000) }); attemptOpen = false;
   // the main path skips side paths (Twist, Confluence); a daily has no "next"
-  const next = e.index != null && !e.daily ? official.slice(e.index + 1).find(x => !x.side) : null;
+  const next = e.index != null && !e.daily && !e.fromMap ? official.slice(e.index + 1).find(x => !x.side) : null;
   const share = e.daily ? dailyShareText({ no:e.daily.no, moves:s.moves, par:e.par, stars }) : null;
   const shareUrl = location.origin + (e.archived ? '/daily/' + e.daily.date : '/daily');
   modal.open(`<h2>${e.daily ? `Daily #${e.daily.no} cleared!` : 'Isle cleared!'}</h2>
@@ -522,12 +532,13 @@ function won(s){
     <div class="row">
       ${share ? `<button class="btn primary" id="wDaily">📋 Copy result</button>` : ''}
       ${news.open ? `<button class="btn primary" id="wConf">✦ Play ${esc(news.open.name)}</button>` : ''}
+      ${e.fromMap ? `<button class="btn primary" id="wMap">🗺 Return to map</button>` : ''}
       ${next ? `<button class="btn primary" id="wNext">Next isle ▶</button>` : ''}
       ${e.draft ? `<button class="btn primary" id="wBuild">Back to builder</button>` : ''}
       <button class="btn" id="wAgain">⟲ Again</button>
       ${e.par && unlocked(e) ? `<button class="btn" id="wWatch">▶ Watch solution</button>` : ''}
       ${e.online ? `<button class="btn" id="wShare">🔗 Copy link</button>` : ''}
-      ${!e.draft ? `<button class="btn ghost" id="wList">All isles</button>` : ''}
+      ${!e.draft && !e.fromMap ? `<button class="btn ghost" id="wList">All isles</button>` : ''}
     </div>
     ${e.statKey && !e.draft ? `<div class="facts" style="margin-top:10px"><a href="#" id="wComments">💬 Comments</a></div>` : ''}`);   // hook(comments)
   if($('#wComments')){ const wc = $('#wComments'); wc.onclick = ev => { ev.preventDefault(); commentsOpen(e); }; commentCount(e.statKey).then(n => { if(n != null && wc.isConnected) wc.textContent = `💬 Comments (${n})`; }); }   // hook(comments)
@@ -536,6 +547,7 @@ function won(s){
     .then(() => toast('Result copied — no spoilers inside'), () => quiet || toast('Copy failed — select the text above', true));
   if(share){ $('#wDaily').onclick = () => copyShare(false); copyShare(true); }   // try right away; the button is the reliable path
   $('#wConf') && ($('#wConf').onclick = () => { nav('/isle/' + news.open.doc.id); });
+  $('#wMap') && ($('#wMap').onclick = () => { nav(mapUrl(e)); });
   $('#wNext') && ($('#wNext').onclick = () => { nav('/isle/' + next.doc.id); });
   $('#wBuild') && ($('#wBuild').onclick = () => { nav('/create'); });
   $('#wAgain').onclick = () => { modal.close(); game.restart(); };
@@ -649,11 +661,30 @@ function hint(){
   if(h.stuck) toast('Hmm — this spot can’t reach the goal any more. Undo or restart.', true);
   else toast((h.move === 'X' ? `Best next move: ${game.level.hazards && game.level.hazards.length ? 'Use or wait' : 'Use'} (Space) · ${h.left} to go` : `Best next move: ${glyphFor(h.move)} · ${h.left} to go`) + (unlocked(current) ? '' : ' · that was your free hint'));
 }
-$('#btnBack').onclick = () => { nav(current?.draft ? '/create' : current?.archived ? '/community' : current?.daily ? '/' : current?.author ? '/community' : current?.online ? '/community' : '/play'); };
+$('#btnBack').onclick = () => { nav(current?.fromMap ? mapUrl(current) : current?.draft ? '/create' : current?.archived ? '/community' : current?.daily ? '/' : current?.author ? '/community' : current?.online ? '/community' : '/play'); };
 $('#btnUndo').onclick = () => game && game.undo();
 $('#btnRestart').onclick = restartGame;
 $('#btnHint').onclick = hint;
 $('#btnSolution').onclick = watch;
+/* ---------------- Sky Atlas ---------------- */
+const mapUrl = e => `/map/${e.fromMap.x},${e.fromMap.z}`;
+// shrine key ('o/<id>' · 'c/<author>/<id>' · 'd/<date>') -> the catalogue entry the picker would play
+function mapEntry(k){
+  if(k.startsWith('o/')) return official.find(e => e.doc.id === k.slice(2));
+  if(k.startsWith('c/')){ const [, a, i] = k.split('/'); return community.find(e => e.author === a && e.doc.id === i); }
+  if(k.startsWith('d/')){ const e = dailyEntry(k.slice(2)); return e && { ...e, archived:true }; }
+  return null;
+}
+function stopMap(){ mapToken++; if(mapCtl){ mapCtl.dispose(); mapCtl = null; if(import.meta.env.DEV) delete window.__klar.map; } }
+async function openMap(start){
+  stopGame(); stopMap(); const my = ++mapToken;
+  world.setShowcase(false); show('map'); syncTopbar();
+  let mod; try { mod = await import('./map/index.js'); } catch(e){ console.error(e); toast('The map could not be loaded', true); if(my === mapToken) nav('/'); return; }
+  if(my !== mapToken) return;
+  mapCtl = mod.mountMap({ world, start, progress, community, dated:pastDailies(), entryFor:mapEntry, badge:tierBadge, starsHtml, onSave:pushSoon,
+    lockOf:e => e.joins ? lockOf(e) : null, play, nav, track, setAccent });
+  if(import.meta.env.DEV) window.__klar.map = mapCtl;
+}
 // hook(comments): `unlocked(current)` is the same earned-solution test, so a thread's spoilers stay gated with it
 const commentsOpen = e => openComments(e, { modal, unlocked:unlocked(e), signedIn:!!session, onSignIn:() => openSignIn() });
 $('#btnComments').onclick = () => current && current.statKey && !current.draft && commentsOpen(current);
@@ -668,7 +699,8 @@ const KEYS = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'rig
 addEventListener('keydown', e => {
   unlockAudio();
   if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
-  if(e.key === 'Escape'){ if($('#modal').classList.contains('on')) return modal.close(); if(game?.replaying) return watch(); if(game) return $('#btnBack').click(); }
+  if(e.key === 'Escape'){ if($('#modal').classList.contains('on')) return modal.close(); if(mapCtl) return mapCtl.onKey(e, true); if(game?.replaying) return watch(); if(game) return $('#btnBack').click(); }
+  if(mapCtl){ if(!$('#modal').classList.contains('on')) mapCtl.onKey(e, true); return; }
   if(!game || $('#modal').classList.contains('on')) return;
   if(KEYS[e.key]){ e.preventDefault(); game.input(world.arrowToMove(KEYS[e.key])); return; }
   switch(e.key){
@@ -681,16 +713,24 @@ addEventListener('keydown', e => {
     case 'm': case 'M': toggleMap(); break;
   }
 });
-document.querySelectorAll('.dpad [data-arrow]').forEach(b => b.addEventListener('pointerdown', e => {
-  e.preventDefault(); unlockAudio(); if(!game) return;
-  const a = b.dataset.arrow; game.input(a === 'use' ? 'X' : world.arrowToMove(a));
-}));
+addEventListener('keyup', e => { if(mapCtl) mapCtl.onKey(e, false); });
+addEventListener('blur', () => { if(mapCtl) mapCtl.releaseAll(); });
+document.querySelectorAll('.dpad [data-arrow]').forEach(b => {
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault(); unlockAudio();
+    if(mapCtl) return mapCtl.press(b.dataset.arrow);
+    if(!game) return;
+    const a = b.dataset.arrow; game.input(a === 'use' ? 'X' : world.arrowToMove(a));
+  });
+  for(const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => mapCtl && mapCtl.release(b.dataset.arrow));
+});
 let swipe = null;
 $('#stage').addEventListener('pointerdown', e => { unlockAudio(); swipe = { x:e.clientX, y:e.clientY }; });
 $('#stage').addEventListener('pointerup', e => {
-  if(!swipe || !game) return; const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y; swipe = null;
+  if(!swipe || (!game && !mapCtl)) return; const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y; swipe = null;
   if(Math.max(Math.abs(dx), Math.abs(dy)) < 28) return;
-  game.input(world.arrowToMove(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up')));
+  const arrow = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+  if(mapCtl) mapCtl.swipe(arrow); else game.input(world.arrowToMove(arrow));
 });
 addEventListener('pointerdown', () => unlockAudio(), { once:true });
 
@@ -711,9 +751,12 @@ async function route(){
   if(location.hash.startsWith('#/')) history.replaceState(null, '', location.hash.slice(1));
   const h = location.pathname.replace(/\/+$/, '') || '/';
   let m;
+  if(!h.startsWith('/map')) stopMap();
   track('pageview', { path:h });   // hook(analytics)
   if(h === '/') return titleScreen();
   if(LEGAL_PAGES.includes(h.slice(1))){ titleScreen('legal'); return showLegal(h.slice(1)); }   // hook(legal): privacy · terms · guidelines · imprint · licenses, over the showcase isle
+  if(h === '/map') return openMap(null);
+  if((m = /^\/map\/(-?\d{1,7}),(-?\d{1,7})$/.exec(h))) return openMap({ x:+m[1], z:+m[2] });
   if(h === '/play') return selectScreen('official');
   if(h === '/community') return selectScreen('community');
   if(h === '/daily'){ const e = dailyEntry(); return e ? play(e) : nav('/play'); }

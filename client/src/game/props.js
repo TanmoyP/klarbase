@@ -171,7 +171,11 @@ function rimDecor(rims, T, r){
 // Returns { group, animated:[{update(t)}], centre:[cx,cz] }. Columns show
 // layered strata on their cut sides, roots hang below, crystals glint, and
 // water at the rim pours off the edge as a waterfall.
-export function buildTerrain(level, T){
+// opts (Sky Atlas, optional - the isle game never passes them): own(x, z) -> only those cells get columns, keels and
+// rim decor while ALL cells still count as neighbours (a chunk of a bigger isle: no fake rims at its cut edge);
+// keel(x, z) -> the keel's base length for that cell (default: longest under the middle of the grid).
+export function buildTerrain(level, T, opts = {}){
+  const { own, keel: keelOf } = opts;
   const W = level.w, H = level.h, cx = (W - 1) / 2, cz = (H - 1) / 2;
   const r = rng(hashStr(level.cells.map(c => c.ch + c.h).join('')));
   const strata = T.strata.map(col), top = col(T.top), topAlt = col(T.topAlt), lip = col(T.lip), keelC = col(T.keel);
@@ -186,7 +190,7 @@ export function buildTerrain(level, T){
 
   for(let z = 0; z < H; z++) for(let x = 0; x < W; x++){
     const cell = level.cells[z*W + x];
-    if(cell.kind === 'void') continue;
+    if(cell.kind === 'void' || (own && !own(x, z))) continue;
     const X = x - cx, Z = z - cz, topY = cell.h * LV;
     const wet = cell.kind === 'water' || cell.kind === 'bridge';
     const colTop = wet ? topY - 0.32 : topY - 0.12;
@@ -227,7 +231,7 @@ export function buildTerrain(level, T){
     // keel: a rounded root-rock lobe under every column — longest under the middle
     // of the isle, blunt-tipped (no spikes), gently lumpy and soft-faceted
     const d = Math.hypot(x - cx, z - cz);
-    const len = 0.35 + (1 - d / maxD) * 2.4 + r() * 0.7;
+    const len = (keelOf ? keelOf(x, z) : 0.35 + (1 - d / maxD) * 2.4) + r() * 0.7;
     keel.push(keelLobe(len, 0.58 + r() * 0.07, keelC, r, X + (r() - 0.5) * 0.15, Z + (r() - 0.5) * 0.15));
 
     // crystals glinting in the cut faces of the rim: stubby gems half sunk in the rock

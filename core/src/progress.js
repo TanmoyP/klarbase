@@ -21,7 +21,7 @@ export const MAX_ISLES = 5000;          // per-isle entries
 export const MAX_SET   = 2000;          // explored / lit entries each
 
 const BAD_KEY = new Set(['__proto__', 'constructor', 'prototype']);
-const ISLE_KEY = /^[\w:/.\-]{1,80}$/;
+const ISLE_KEY = /^[\w:/.,\-]{1,80}$/;   // the comma is for Sky Atlas wild isles: 'w:<x>,<z>'
 const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
 const SET_KEY = /^[\w:/.,\-]{1,80}$/;   // chunk keys "cx,cz" and isle keys (i:<64 hex> is 66)
 const isObj = x => x && typeof x === 'object' && !Array.isArray(x);

@@ -127,6 +127,19 @@ export class World {
   get storeyCount(){ return this.level ? this.level.storeys.length : 1; }
   setMapView(on){ this.mapView = !!on; this.frameIsle(); }
 
+  // Sky Atlas hook (client/src/map): while an external driver is set the world holds no isle — the driver owns
+  // the scene content, steers target / distTo / shadowExt / yawTo (the same camera rig) and gets update(dt, t, rawDt)
+  // once a frame, after Pip. Renderer, post chain, look, quality and Pip are shared. null hands the world back;
+  // the next load() builds an isle as usual.
+  setExternal(ext){
+    if(ext){
+      this.disposeGroup(this.isle); this.disposeGroup(this.atmos);
+      this.level = null; this.fx = []; this.showcase = false; this.mapView = false; this.hintMesh.visible = false;
+      this.particles = null; this.fauna = null; this.clouds = null; this.followSnap = true;
+    }
+    this.external = ext || null;
+  }
+
   /* ---------------- isle construction ---------------- */
   // storey: the builder frames the storey being edited instead of Pip's.
   load(level, themeName, { showcase = false, storey = null } = {}){
@@ -694,6 +707,7 @@ export class World {
     this.fx = this.fx.filter(e => e.update(dt, t) !== false);
     this.pip.update(dt, t);
     if(this.onFrame) this.onFrame(dt, t);
+    if(this.external) this.external.update(dt, t, raw);
     if(this.post){
       // tilt-shift focus: Pip while playing, otherwise the camera target (map view, showcase, builder)
       const onPip = this.level && this.pip.group.visible && !this.showcase && !this.mapView;
