@@ -1,0 +1,29 @@
+name: Bug report
+description: Something in Klarbase isn't working
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead? Screenshots welcome.
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open ...
+2. Press ...
+3. See ..."
+    validations: { required: true }
+  - type: input
+    id: env
+    attributes:
+      label: Browser and device
+      placeholder: Firefox 130 on Windows 11 / Safari on iPhone 15
+    validations: { required: true }
+  - type: input
+    id: isle
+    attributes:
+      label: Isle link
+      description: If it's about one isle, paste its link or name (e.g. https://klarbase.dev/i/...).

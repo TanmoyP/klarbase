@@ -25,7 +25,23 @@ export const feedbackLimiter = rateLimit({
   windowMs: 60*60*1000, limit: 10,
   message: { error: 'too much feedback at once — try again in a while' },
 });
+// Progress sync (hook(cloudsave)): a sync per sign-in plus a debounced push after clears.
+export const progressLimiter = rateLimit({
+  windowMs: 60*60*1000, limit: 60, keyGenerator: key,
+  message: { error: 'too many saves — slow down' },
+});
+// Analytics proxy (/ingest): a real player sends a handful of small events per minute.
+// Keyed by IP in this process's memory only — never stored, never forwarded to PostHog.
+export const ingestLimiter = rateLimit({
+  windowMs: 10*60*1000, limit: 600, keyGenerator: req => req.ip,
+  message: { error: 'too many analytics events' },
+});
 export const worldLimiter = rateLimit({
   windowMs: 60*60*1000, limit: 60, keyGenerator: key,
   message: { error: 'too many world actions — slow down' },
+});
+// Comments: 20 posts an hour per user (falls back to IP).  // hook(comments)
+export const commentLimiter = rateLimit({
+  windowMs: 60*60*1000, limit: 20, keyGenerator: key,
+  message: { error: 'comment limit reached — 20 per hour' },
 });

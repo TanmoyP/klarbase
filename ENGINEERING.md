@@ -557,7 +557,12 @@ GET    /api/stats                          maintainer aggregates (counts only); 
 POST   /api/plays  {key, event, moves?, ms?}   public, anonymous play event (K7) → 204; 120 / 10 min per IP (in memory)
 GET    /api/plays                          public per-isle sums for the picker; Cache-Control: public, max-age=60
 POST   /api/feedback {message, email?, page?}  public → 201; message 1..2000 chars; userId attached if signed in; 10 / h per IP (in memory)
+*      /ingest/*                           PostHog EU reverse proxy (analytics): raw body; forwards ONLY content-type/-encoding + user-agent — never cookie, auth or any IP header; /ingest/static/* -> eu-assets; 600 / 10 min per IP (memory)
 GET    /api/feedback?limit                 maintainer: newest first (≤ 500); 404 unless STATS_TOKEN is set and sent as Bearer
+GET    /api/comments?key&cursor&limit      public; one isle's thread, newest first, never hidden ones → {comments, next, count}; never a userId/email
+POST   /api/comments {key, body}           login; 20 / h; key = same validator as plays; body via parseComment (comment-rules.js)
+DELETE /api/comments/:id                   own only (404 otherwise)
+POST   /api/comments/:id/report            login; one per user; 3 distinct reports hide it
 ```
 Isles reuse `Puzzle` (`json` holds the canonical isle + `par` + `solution`, and since Phase 1 an
 optional `tier` and the solver `audit` numbers `{states, traps, greedy, routes, par, capped}`
@@ -579,12 +584,28 @@ everything it sent, which is what `/privacy` promises. Anonymous feedback is del
 request (matched by reply email). Read with `curl -H "Authorization: Bearer $STATS_TOKEN"
 https://klarbase.dev/api/feedback`.
 
+**`Comment` + `CommentReport` (migration `20261118120000_comments`) — hold user data.** `Comment`:
+`id, isleKey, userId → User Cascade, body, hidden, reports, createdAt`, index `(isleKey, createdAt)`;
+`isleKey` is the `IslePlay` key (validated on write, no FK: official/community/daily isles aren't rows).
+`CommentReport`: `commentId → Comment Cascade, reporterId → User Cascade`, unique per pair; the third
+distinct report sets `hidden`. **`parseComment`** (`server/src/routes/comment-rules.js`, pure, tested by
+`server/test/comments.mjs`, run by `npm test`): trimmed, 1..500 chars, plain text — **no links/domains
+and no route strings** (≥ 6 move letters U/D/L/R/X or arrows, run together or separated by space , ; . - > / |;
+real words DULL/LULL/DUD/RUDD/UR excepted). Solutions are earned (§4), so threads must not leak them.
+The client blurs bodies until the isle is `unlocked()` (the solution-gating test) or the player clicks "Show comments anyway".
+
 **What is stored, per person (keep `/privacy` in sync).** Anonymous: `localStorage` only (progress,
 settings, draft, dailies, effort, GitHub name) + anonymous `IslePlay` sums. Signed in: better-auth
 `User` (name, email, avatar), `Account` (provider link + OAuth tokens), `Session` (cookie token,
-**ipAddress, userAgent**), plus their `Puzzle`, `Report`, `Plot`, `Feedback` rows — all cascade
+**ipAddress, userAgent**), plus their `Puzzle`, `Report`, `Plot`, `Feedback`, `Comment`, `CommentReport` rows — all cascade
 from `User`. Cloudflare Web Analytics (cookieless). No cookie banner: the only cookie is the
-sign-in session, strictly necessary. Account deletion is manual: the player signs in and sends
+sign-in session (plus a short-lived OAuth state cookie), strictly necessary. **Analytics (2026-11-18):** cookieless PostHog EU via `/ingest`
+(`client/src/analytics.js`): `persistence:'memory'`, only the fixed `EVENTS` list with allow-listed props, off when `VITE_POSTHOG_KEY` is unset, when
+DNT/GPC is sent, or when `localStorage klarbase.v2.analytics = 'off'` (toggle on `/privacy`). Signed-in players are identified by the opaque user id only.
+Set PostHog's "Discard client IP data" project setting and its data-retention period (the policy says ≤ 12 months). Fonts come from Google Fonts
+(discloses the player's IP to Google — self-host them to drop that line from `/privacy`). **Legal pages** (`/privacy /terms /guidelines /imprint /licenses`,
+`client/src/legal/*`, one `#scr-legal` screen): the imprint reads `VITE_IMPRINT_NAME/ADDRESS/EMAIL` at build time (Dockerfile ARGs) — never commit them.
+Any new stored data or processor means updating `legal/privacy.js` in the same change. Account deletion is manual: the player signs in and sends
 feedback asking for it (the `userId` on the row proves who asked); delete the `User` row.
 
 **Stats (2026-10-19).** `/api/stats` returns `{users, users7d, isles, isles7d, sharers7d}`: counts
@@ -665,6 +686,18 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
 ## 13. Session Log
 
 > Newest first. Sessions (a)–(k) of 2026-08-19 are in `docs/archive/v1/ENGINEERING-v1.md`.
+
+### 2026-11-18 — Native per-isle comments (workstream B)
+- `Comment` / `CommentReport` tables (§8, hand-written migration `20261118120000_comments`, not yet applied),
+  `/api/comments` routes, `commentLimiter` (20/h), `parseComment` (no links, no route strings) + test in `npm test`.
+- `plays.js` now exports `validIsleKey` / `isleExists`; comments reuse them (one key validator).
+- Client: `client/src/comments.js` (sheet in the shared modal, spoiler blur gated on `unlocked()`), 💬 HUD button
+  and a "Comments (n)" link in the win modal; hidden for drafts. Sign-in modal extracted to `signInModal()`.
+### 2026-11-18 (ab) — Analytics + legal pages
+- **Analytics:** posthog-js 1.447.15 (exact pin), cookieless/memory-only, EU, through our `/ingest` proxy (IP/cookies dropped; `forwardHeaders` tested in `server/test/ingest.mjs`).
+  Event catalogue + sanitiser in `client/src/analytics.js` (`client/test/analytics.mjs`); hooks in `main.js`/`builder.js` are marked `hook(analytics)`.
+- **Legal:** `#scr-privacy` replaced by `#scr-legal` + lazy `client/src/legal/*` (privacy, terms, guidelines, imprint, licences); sitemap lists them.
+  Imprint details from `VITE_IMPRINT_*` env vars. Not legal advice — have it reviewed before launch.
 
 ### 2026-11-06 (aa) — Soft-chunky art pass: biomes, pulley rig, fauna, builder thumbs
 - **Why:** founder feedback — trees pointy, rough edges, tropical and dry maps looked alike,

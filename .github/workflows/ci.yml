@@ -32,6 +32,8 @@ jobs:
         run: node core/test/isles.mjs
       - name: Difficulty audit, evolving score, daily pick
         run: node core/test/difficulty.mjs
+      - name: Progress save merge + sanitize (cloud sync)
+        run: node core/test/progress.mjs
       - name: Legacy voxel engine (deferred world lattice)
         run: node core/test/run.mjs
       - name: Official isles verified and core/src/isle/official.js current

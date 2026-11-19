@@ -42,9 +42,7 @@
   "sameAs": ["https://github.com/TanmoyP/klarbase"]
 }
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+<!-- fonts are self-hosted (bundled from @fontsource in main.js): no request to Google -->
 <style>
   :root{
     --ink:#2a2238; --ink-2:#5b5368; --ink-3:#8d859b;
@@ -99,9 +97,14 @@
 
   .hero .fine a, .hero .fine button{ color:#fff; font:inherit; text-decoration:underline; text-underline-offset:2px; }
   .fine-links{ margin-top:8px; opacity:.9; }
+  /* hook(repo) site footer: small, muted, wraps on phones; light variant over the hero sky */
+  .site-foot{ margin-top:10px; font-size:12px; line-height:1.7; color:var(--ink-3); text-align:center; }
+  .site-foot a{ color:inherit; text-decoration:underline; text-underline-offset:2px; font:inherit; }
+  .hero .site-foot{ color:#fff; opacity:.85; text-shadow:0 1px 8px rgba(30,20,50,.5); font-weight:700; }
+  #btnGithub{ text-decoration:none; color:inherit; }
 
-  /* ---------- privacy ---------- */
-  #scr-privacy .panel{ position:absolute; left:50%; top:max(64px, calc(env(safe-area-inset-top) + 56px)); bottom:18px; transform:translateX(-50%);
+  /* ---------- legal (privacy, terms, ...) ---------- */
+  #scr-legal .panel{ position:absolute; left:50%; top:max(64px, calc(env(safe-area-inset-top) + 56px)); bottom:18px; transform:translateX(-50%);
     width:min(720px, calc(100vw - 24px)); display:flex; flex-direction:column; overflow:hidden; }
   .prose{ font-size:15px; font-weight:600; color:var(--ink-2); line-height:1.5; max-width:62ch; }
   .prose h3{ margin:18px 0 4px; font-size:17px; color:var(--ink); }
@@ -109,6 +112,9 @@
   .prose ul{ padding-left:20px; }
   .prose a{ color:inherit; text-underline-offset:2px; }
   .prose .btn{ font-size:14px; }
+  .prose code{ font-size:.9em; }
+  .prose small{ opacity:.8; }
+  .prose .legal-links{ margin-top:18px; font-size:13.5px; }
 
   /* ---------- select ---------- */
   #scr-select .panel{ position:absolute; left:50%; top:max(64px, calc(env(safe-area-inset-top) + 56px)); bottom:18px; transform:translateX(-50%);
@@ -317,6 +323,7 @@
 <div id="ui">
   <div id="topbar">
     <div id="authchip"></div>
+    <a class="btn icon-btn" id="btnGithub" href="https://github.com/TanmoyP/klarbase" target="_blank" rel="noopener" aria-label="Klarbase on GitHub" title="Klarbase on GitHub"><svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a> <!-- hook(repo) -->
     <button class="btn icon-btn" id="btnTimer" title="Time my attempts">⏱</button>
     <button class="btn icon-btn" id="btnSound" title="Sound">🔊</button>
     <button class="btn icon-btn" id="btnHelp" title="How to play">?</button>
@@ -334,7 +341,8 @@
         <button class="btn" data-go="/daily" id="btnDaily" title="One isle a day, the same for everyone">☀ Daily</button>
       </div>
       <div class="fine">No account needed to play or build. Sign in only to share online.
-        <div class="fine-links"><button class="feedback-open">Send feedback</button> · <a href="/privacy" data-go="/privacy">Privacy</a></div></div>
+        <div class="fine-links"><button class="feedback-open">Send feedback</button> · <a href="/privacy" data-go="/privacy">Privacy</a></div>
+        <div id="titleFoot"></div></div> <!-- hook(repo): filled with siteFoot() by main.js -->
       <button class="sky-strip" id="skyStrip" title="Your sky — every chapter is a constellation"></button>
     </div>
   </section>
@@ -372,6 +380,7 @@
       <button class="btn" id="btnRestart" title="Restart (R)">⟲<span class="lbl"> Restart</span> <span class="kbd">R</span></button>
       <button class="btn" id="btnHint" title="Hint (H)">💡<span class="lbl"> Hint</span> <span class="kbd">H</span></button>
       <button class="btn" id="btnSolution" title="Watch the smart solution">▶<span class="lbl"> Solution</span></button>
+      <button class="btn" id="btnComments" title="Comments" style="display:none">💬<span class="lbl"> Comments</span></button><!-- hook(comments) -->
       <button class="btn" id="btnTurn" title="Turn the view (Q / E)">⟳<span class="lbl"> Turn</span> <span class="kbd">Q</span><span class="kbd">E</span></button>
       <button class="btn" id="btnMap" title="Whole map (M)" style="display:none">🗺<span class="lbl"> Map</span> <span class="kbd">M</span></button>
     </div>
@@ -386,47 +395,14 @@
     </div>
   </section>
 
-  <!-- privacy -->
-  <section class="screen" id="scr-privacy">
+  <!-- legal: privacy · terms · guidelines · imprint · licences (filled by src/legal/index.js) — hook(legal) -->
+  <section class="screen" id="scr-legal">
     <div class="panel glass">
       <div class="panel-head">
         <button class="btn small ghost" data-go="/">←</button>
         <h2>Privacy</h2>
       </div>
-      <div class="scroll prose">
-        <p>Klarbase is a small open-source game made by one person. It collects as little as it can, sells nothing and shows no ads. This page lists everything that is stored. <i>Last updated 25 October 2026.</i></p>
-
-        <h3>On your device</h3>
-        <p>Your progress (stars, best moves and times), settings, the isle you're building, your Daily stars and the GitHub name you type for exports are kept in your browser's local storage. They never leave your device. Clearing this site's data in your browser removes them.</p>
-
-        <h3>Anonymous play totals</h3>
-        <p>To rate how hard each isle is, the game sends small events when you start, clear, restart or ask for a hint on an isle, with your moves and a rough time for a clear. The server only adds them to running totals per isle. They are sent without cookies and carry no account, device id or IP address, so they can't be traced back to you.</p>
-
-        <h3>If you sign in</h3>
-        <p>Signing in is only needed to share isles online. When you sign in with GitHub or Google we receive and keep:</p>
-        <ul>
-          <li>your <b>name, email address and profile picture</b> from that account, and the link to it (including the sign-in tokens it hands us);</li>
-          <li>a <b>session cookie</b> that keeps you signed in — the only cookie Klarbase sets;</li>
-          <li>for each session, the <b>IP address and browser (user agent)</b> it was started from, used to keep accounts secure. Signing out ends the session.</li>
-        </ul>
-        <p>Isles you share online are public, with your name as their maker. Reports you file on isles are kept with your account.</p>
-
-        <h3>Feedback</h3>
-        <p>When you send feedback we store your message, the page you sent it from, the reply email if you give one, and your account if you're signed in. No IP address is stored.</p>
-
-        <h3>Page views</h3>
-        <p>Visits are counted with Cloudflare Web Analytics, which uses no cookies and doesn't track you across sites.</p>
-
-        <h3>Who handles the data</h3>
-        <p>The game runs on Railway, the database on Neon, and all traffic passes through Cloudflare. GitHub and Google handle sign-in. To protect the server from abuse, it remembers IP addresses in memory for up to an hour to limit how often one address can send requests; they are never written down.</p>
-
-        <h3>Why there's no cookie banner</h3>
-        <p>The only cookie is the sign-in one, and local storage only holds your own game. Both are strictly necessary for what you asked the game to do, so there's nothing to consent to.</p>
-
-        <h3>Getting your data deleted</h3>
-        <p>To delete your account, sign in and send feedback asking for it — that tells us the request really comes from you. Deleting an account removes your profile, sign-in links, sessions, shared isles, reports and feedback. For feedback sent without signing in, tell us the reply email you used. You can also <a href="https://github.com/TanmoyP/klarbase/issues" target="_blank" rel="noopener">open an issue on GitHub</a>.</p>
-        <div class="row-btns" style="margin-top:14px"><button class="btn primary feedback-open">Send feedback</button></div>
-      </div>
+      <div class="scroll prose"></div>
     </div>
   </section>
 

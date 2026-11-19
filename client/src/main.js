@@ -5,15 +5,24 @@
 //                bundled at build time with credit to their author
 //   online     — isles shared in-game and stored on the server (/i/<hash>)
 import { CURATED_ISLES, CHAPTERS, SCHEMAS, parseIsle, solveIsle, solveSeeds, starsFor, isleHash, initialState,
-  auditIsle, difficultyScore, playSummary, SUMMARY_MIN, TIER_IDS, skyOf, confluenceState, constellation, CONFLUENCE_NEED, dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate } from '@klar/core';
+  auditIsle, difficultyScore, playSummary, SUMMARY_MIN, TIER_IDS, skyOf, confluenceState, constellation, CONFLUENCE_NEED, dailyPick, dailyNumber, dailyEpoch, dailyShareText, utcDate, timeBucket } from '@klar/core';
+// self-hosted fonts (OFL-1.1, bundled by Vite): visitors' browsers never contact Google Fonts
+import '@fontsource/fredoka/500.css'; import '@fontsource/fredoka/600.css'; import '@fontsource/fredoka/700.css';
+import '@fontsource/nunito/500.css'; import '@fontsource/nunito/600.css'; import '@fontsource/nunito/700.css'; import '@fontsource/nunito/800.css';
+import { siteFoot } from './sitefoot.js'; // hook(repo)
 import { World } from './game/world.js';
 import { Session } from './game/session.js';
 import { THEMES, themeOf } from './game/themes.js';
 import { unlockAudio, setSound, soundOn, sfx } from './game/audio.js';
 import { mountBuilder, TOOLS } from './builder.js';
 import { buildGuideHtml } from './buildguide.js';
-import { getSession, signIn, signOut } from './auth.js';
+import { getSession, signOut } from './auth.js';
+import { openSignIn, startSignIn } from './signin.js';          // hook(cloudsave)
+import { initCloudSave, syncOnSignIn, pushSoon } from './cloudsave.js';   // hook(cloudsave)
+import { openComments, commentCount } from './comments.js';   // hook(comments)
 import { api } from './net.js';
+import { initAnalytics, track, identify, reset as resetAnalytics } from './analytics.js';   // hook(analytics)
+import { showLegal, LEGAL_PAGES } from './legal/index.js';   // hook(legal)
 
 export const REPO_URL = 'https://github.com/TanmoyP/klarbase';
 const $ = s => document.querySelector(s);
@@ -96,8 +105,16 @@ const entryByKey = k => [...official, ...community, ...DATED, ...(online || [])]
 // Fire-and-forget; counts only — no id, no cookie (credentials omitted).
 function postPlay(event, extra = {}){
   if(!current || current.draft || !current.statKey) return;
+  trackPlay(event, extra);   // hook(analytics)
   fetch('/api/plays', { method:'POST', headers:{ 'content-type':'application/json' }, credentials:'omit', keepalive:true,
     body:JSON.stringify({ key:current.statKey, event, ...extra }) }).catch(() => {});
+}
+// hook(analytics): the same four moments as the anonymous play totals; source from the isle's stat key
+function trackPlay(event, extra){
+  const k = current.statKey, source = k.startsWith('c/') ? 'community' : k.startsWith('d/') ? 'daily' : k.startsWith('i/') ? 'online' : k.startsWith('w/') ? 'wild' : 'official';
+  if(event === 'start') track('isle_start', { source, par:current.par });
+  else if(event === 'clear') track('isle_clear', { source, par:current.par, moves:extra.moves, ms_bucket:timeBucket(extra.ms) });
+  else track(event);
 }
 let attemptOpen = false;   // a "start" is the first move of a visit, or the first move after a clear
 
@@ -218,21 +235,31 @@ $('#btnTimer').onclick = () => { settings.timer = !settings.timer; store.set('kl
 $('#btnHelp').onclick = () => helpModal(onBuilder() ? 'build' : 'play');
 async function refreshAuth(){
   session = await getSession();
+  if(session){   // hook(analytics): opaque id only; sign_in once, after the OAuth round-trip
+    identify(session.user.id);
+    try { const p = sessionStorage.getItem('klarbase.signin'); if(p){ sessionStorage.removeItem('klarbase.signin'); track('sign_in', { provider:p }); } } catch {}
+  }
   const chip = $('#authchip'); chip.innerHTML = '';
   if(session){
     const who = document.createElement('span'); who.className = 'glass who'; who.textContent = session.user.name || session.user.email;
     const out = document.createElement('button'); out.className = 'btn small ghost'; out.textContent = 'Sign out';
-    out.onclick = async () => { await signOut(); location.reload(); };
+    out.onclick = async () => { await signOut(); resetAnalytics(); location.reload(); };
     chip.append(who, out);
   } else {
-    const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Sign in';
-    b.onclick = () => modal.open(`<h2>Sign in</h2><p class="facts">Only needed to share isles online. Playing and building are free for everyone.</p>
-      <div class="row"><button class="btn primary" id="siGh">GitHub</button><button class="btn" id="siGo">Google</button></div>`);
+    const b = document.createElement('button'); b.className = 'btn small primary'; b.textContent = 'Sign in';   // hook(cloudsave): a clear pill
+    b.onclick = () => openSignIn();
     chip.append(b);
   }
+  syncOnSignIn(session);   // hook(cloudsave): merge this device's progress with the account's
 }
+$('#titleFoot')?.insertAdjacentHTML('beforeend', siteFoot()); // hook(repo)
+// hook(cloudsave): the cloud merge refreshes whatever shows stars
+initCloudSave({ progress, dailies, toast, refresh:() => {
+  if(document.getElementById('scr-select').classList.contains('on')) selectScreen(tab);
+  else if(document.getElementById('scr-title').classList.contains('on')) renderSkyStrip();
+} });
 document.addEventListener('click', e => {
-  if(e.target.id === 'siGh') signIn('github'); if(e.target.id === 'siGo') signIn('google');
+  if(e.target.id === 'siGh') startSignIn('github'); if(e.target.id === 'siGo') startSignIn('google');
   const go = e.target.closest('[data-go]'); if(go){ e.preventDefault(); sfx.ui(); nav(go.dataset.go); }
   const hp = e.target.closest('[data-help]'); if(hp){ sfx.ui(); helpModal(hp.dataset.help); }
   if(e.target.closest('.feedback-open')){ sfx.ui(); feedbackModal(); }
@@ -270,6 +297,7 @@ function helpModal(which = 'play'){
       <div><span class="ico">📈</span><span>Each isle shows a difficulty from <b>Breeze</b> to <b>Mythic</b>. It starts as the maker’s guess and settles as people play.</span></div>
     </div>
     <p class="facts" style="font-size:12.5px;font-weight:600;margin:10px 0 0">Privacy: to rate difficulty, the game counts plays, clears, hints, restarts, moves and time per isle — anonymous totals with no account, cookie or IP address. Signing in sets one cookie and keeps your name, email and session details. <a href="/privacy" data-go="/privacy" style="color:inherit">What's stored</a></p>
+    ${siteFoot()}<!-- hook(repo) -->
     <div class="row"><button class="btn feedback-open">✉ Send feedback</button><button class="btn primary" onclick="document.getElementById('modal').classList.remove('on')">Got it</button></div>`);
 }
 
@@ -424,6 +452,7 @@ function play(entry){
     onHazard:() => { if(!warned){ warned = true; toast('Bonk! Something comes through there on the next beat — the glowing rings show where. Space waits a beat.'); } } });
   freeHints = 1; attemptOpen = false;
   $('#hudName').textContent = entry.name;
+  $('#btnComments').style.display = entry.statKey && !entry.draft ? '' : 'none';   // hook(comments): drafts/replays have no thread
   $('#hudSub').innerHTML = tierBadge(entry) + ' ' + (entry.author && !entry.daily ? `by <a href="https://github.com/${esc(entry.author)}" target="_blank" rel="noopener" style="color:inherit">@${esc(entry.author)}</a>` : esc(entry.sub || ''));   // tier first, so phones never ellipsize it away
   $('#statPar').textContent = entry.par || '–';
   $('#statKeysWrap').style.display = level.keys.length ? '' : 'none';
@@ -468,6 +497,7 @@ function won(s){
     progress[e.key] = best; store.set('klarbase.v2.progress', progress);
   }
   if(e.daily){ dailies[e.daily.date] = Math.max(stars, dailies[e.daily.date] || 0); store.set('klarbase.v2.dailies', dailies); }
+  if(!e.draft) pushSoon();   // hook(cloudsave): debounced save to the account (no-op signed out)
   const news = before ? skyNews(before, mySky()) : { html:'', open:null };
   postPlay('clear', { moves:s.moves, ms:Math.round(s.time * 1000) }); attemptOpen = false;
   // the main path skips side paths (Twist, Confluence); a daily has no "next"
@@ -493,7 +523,9 @@ function won(s){
       ${e.par && unlocked(e) ? `<button class="btn" id="wWatch">▶ Watch solution</button>` : ''}
       ${e.online ? `<button class="btn" id="wShare">🔗 Copy link</button>` : ''}
       ${!e.draft ? `<button class="btn ghost" id="wList">All isles</button>` : ''}
-    </div>`);
+    </div>
+    ${e.statKey && !e.draft ? `<div class="facts" style="margin-top:10px"><a href="#" id="wComments">💬 Comments</a></div>` : ''}`);   // hook(comments)
+  if($('#wComments')){ const wc = $('#wComments'); wc.onclick = ev => { ev.preventDefault(); commentsOpen(e); }; commentCount(e.statKey).then(n => { if(n != null && wc.isConnected) wc.textContent = `💬 Comments (${n})`; }); }   // hook(comments)
   // spoiler-free daily result: moves, par and stars — never the route
   const copyShare = quiet => (navigator.clipboard ? navigator.clipboard.writeText(`${share}\n${shareUrl}`) : Promise.reject())
     .then(() => toast('Result copied — no spoilers inside'), () => quiet || toast('Copy failed — select the text above', true));
@@ -617,6 +649,9 @@ $('#btnUndo').onclick = () => game && game.undo();
 $('#btnRestart').onclick = restartGame;
 $('#btnHint').onclick = hint;
 $('#btnSolution').onclick = watch;
+// hook(comments): `unlocked(current)` is the same earned-solution test, so a thread's spoilers stay gated with it
+const commentsOpen = e => openComments(e, { modal, unlocked:unlocked(e), signedIn:!!session, onSignIn:() => openSignIn() });
+$('#btnComments').onclick = () => current && current.statKey && !current.draft && commentsOpen(current);
 $('#btnTurn').onclick = () => { world.turn(1); sfx.ui(); };
 // Archipelago maps: the camera frames Pip's storey; M (or the button) shows the whole map.
 const syncMap = () => $('#btnMap').classList.toggle('primary', world.mapView);
@@ -671,8 +706,9 @@ async function route(){
   if(location.hash.startsWith('#/')) history.replaceState(null, '', location.hash.slice(1));
   const h = location.pathname.replace(/\/+$/, '') || '/';
   let m;
+  track('pageview', { path:h });   // hook(analytics)
   if(h === '/') return titleScreen();
-  if(h === '/privacy') return titleScreen('privacy');   // the showcase isle behind the text
+  if(LEGAL_PAGES.includes(h.slice(1))){ titleScreen('legal'); return showLegal(h.slice(1)); }   // hook(legal): privacy · terms · guidelines · imprint · licenses, over the showcase isle
   if(h === '/play') return selectScreen('official');
   if(h === '/community') return selectScreen('community');
   if(h === '/daily'){ const e = dailyEntry(); return e ? play(e) : nav('/play'); }
@@ -685,6 +721,7 @@ async function route(){
     return e ? play({ ...e, archived:past }) : nav('/community');
   }
   if(h === '/create' || h === '/how-to-build'){
+    track('builder_open');   // hook(analytics)
     stopGame(); world.setShowcase(false); show('create'); builder.show(); setAccent(builder.draft.theme);
     if(h === '/how-to-build') helpModal('build');
     else if(!store.get('klarbase.v2.guideSeen', false)) toast('New here? Press ? for How to build');
@@ -702,5 +739,6 @@ async function route(){
   nav('/');
 }
 syncTopbar();
+initAnalytics();   // hook(analytics)
 refreshAuth();
 route();
