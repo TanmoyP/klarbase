@@ -441,7 +441,8 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
   perspective (fov 30, 40° elevation, 28° yaw offset so ↑ ≈ north); terrain columns with
   banded strata on cut faces, hanging root keel, emissive crystals in the rim; waterfalls where
   water meets the edge; low-poly props per theme; grass tufts; gradient sky dome; fog; soft
-  PCF shadows; ACES tone mapping. **All procedural — no model or texture files.**
+  PCSS-lite sun shadows; ACES tone mapping (in the post chain; see *Finesse pass*).
+  **All procedural — no model or texture files.**
 - **Soft-chunky art pass (2026-11):** big low-poly volumes with rounded silhouettes — no knife
   points on decor (thorns stay spiky: that's a gameplay warning). `softkit.js` = the shared
   kit: `soften` (blend faceted↔smooth normals; foliage/clouds 1, rocks/wood ~0.6), `tint`
@@ -463,6 +464,35 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
   `settleScales` = underdamped spring (≈12 % overshoot at 270 ms, tiny rebound, exact snap at
   600 ms, resolves ≈630 ms); sheaves turn by the rope run; baskets swing ≤ 3° from the jolt and
   ≤ 0.6° in the breeze (`rig.update`). Riders only follow y. `sfx.scales` adds sheave ticks.
+- **Finesse pass (2026-11, workstream E; techniques after papertrails, MIT — code is ours):**
+  - `look.js` is the ONLY writer of look tunables: `GRADE[theme] = { day, night }` (light rig, fog,
+    sky, shadow leak, wrap, glow boost, post grade) for the six themes, DAY starting from `themes.js`.
+    `applyLook(world, { theme:weight }, nightAmount)` blends in linear RGB (flat float buffers, no
+    allocation) and writes lights / fog / sky / `KLAR` uniforms; `OUT` is the blended result that
+    `post.js` reads. Play = `{[theme]:1}`, night = theme === 'night'; the map mode will call it with
+    biome weights + a clock. Tune live: edit `__klar.look.GRADE`, then `__klar.look.rebuild()`.
+  - `lightpatch.js` patches the shared `MeshStandardMaterial` / `MeshBasicMaterial` prototypes once
+    (no creator touched): wrap diffuse for the sun, warm shadow **light leak** (a per-theme fraction of
+    the sun's own light), **PCSS-lite** sun shadows (blocker search + Vogel PCF, penumbra grows with
+    blocker distance, receiver-plane bias; raw-depth `BasicShadowMap` + our filter; tap counts are
+    uniforms per quality tier), and a glow boost for `userData.glow` materials. `fitSun` fits the sun's
+    ortho shadow camera to the framed isle each frame and snaps it to shadow texels (no shimmer).
+  - `post.js` (own pass chain on `FullScreenQuad`): HDR half-float MSAA scene + depth texture →
+    contact AO from depth (half res) → tilt-shift DoF (CoC from screen-row distance mixed with depth
+    distance, golden-angle gather at half res, ≤ 8 px @1080p) → 2-level bloom with a high threshold (sky
+    masked) → final: vignette, ACES (exposure/WB), saturation, contrast, shadow tint+lift, triangular
+    grain/dither. The renderer's own ACES only runs in `fast` (direct render). The sky dome is unlit, so
+    with the chain on its gradient is pre-compensated through a 17-stop LUT (`look.js`) to land on the
+    established sky colours.
+  - `follow.js`: critically damped spring (exact integration) + look-ahead in Pip's last step (fades when
+    idle) + tiny deterministic drift; `createFollow` is standalone for the map mode. `frameIsle` /
+    `setInsetBottom` / Q-E / map view / showcase framing rules are untouched.
+  - `quality.js`: `fancy` / `cozy` / `fast` (see file header). Auto-picked (coarse pointer, DPR > 2 on a
+    small screen → cozy; no HDR targets → fast); a frame time > 22 ms for 3 s drops one tier once;
+    the ✨ top-bar button cycles and persists to `klarbase.v2.quality`; `?quality=fancy|cozy|fast`
+    forces a tier for one visit (dev). The builder uses the player's tier (no separate cap).
+    `prefers-reduced-motion`: no camera drift / breathing, no DoF breathing.
+  - Dev: `window.__klar = { world, post, look, quality }`.
 - **Perf budget (art pass):** ≤ 2 meshes per tree/rock/flora tile (+1 glow), scatter = 1 merged
   mesh per storey, flora casts no shadow, no per-frame allocation. Draw calls vs before:
   root-bridge 92→69, palm-plates 115→79, sky-scales 154→109, the-crane 188→130, rooftops
@@ -539,8 +569,8 @@ copier; malformed JSON ✗; wrong par ✗; non-JSON file ✗; maintainer fix ✓
   `confluenceState` opens them; a direct `/isle/<id>` link always plays. **Side paths:** Twist and
   Confluence isles (`offPath`) have no main number and are skipped by Continue / Next isle. A clear
   that lights a constellation says so on the win modal, with "✦ Play <isle>" when one opens.
-- **Bundle:** ~793 KB / ~235 KB gzip (mostly three.js; the 2026-11 art pass added ≈ +29 KB gzip,
-  no asset files). Code-splitting the builder is a cheap future win.
+- **Bundle:** ~823 KB / ~247 KB gzip (mostly three.js; the 2026-11 art pass added ≈ +29 KB gzip,
+  the finesse pass ≈ +12 KB gzip; no asset files). Code-splitting the builder is a cheap future win.
 
 ## 8. Server & API
 
@@ -698,6 +728,15 @@ cozy hazards, no gore; gust vents; anonymous per-isle stats; staged execution).
   Event catalogue + sanitiser in `client/src/analytics.js` (`client/test/analytics.mjs`); hooks in `main.js`/`builder.js` are marked `hook(analytics)`.
 - **Legal:** `#scr-privacy` replaced by `#scr-legal` + lazy `client/src/legal/*` (privacy, terms, guidelines, imprint, licences); sitemap lists them.
   Imprint details from `VITE_IMPRINT_*` env vars. Not legal advice — have it reviewed before launch.
+### 2026-11-18 (ac) — Visual finesse pass: post chain, look grades, soft shadows, follow camera
+- **Why:** polish toward a filmic, tilt-shift miniature look (papertrails' techniques, our own
+  soft-chunky art): contact AO, DoF, bloom on emissives only, per-theme/day-night grade, soft warm shadows.
+- **Done:** `look.js` (grades + `applyLook`), `lightpatch.js` (wrap, leak, PCSS-lite, glow, `fitSun`),
+  `post.js` (HDR chain), `follow.js`, `quality.js` + ✨ button; minimal hooks in `world.js`, `main.js`,
+  `index.html` (`hook(look)`), `softkit.js` (glow flag), `thumbs.js` (no boost in thumbnails).
+- **Unchanged:** `@klar/core`, rules, every isle and hash. Tests 541/179/57 green.
+- **Watch:** shader compile on first load (more programs); `fast` is the escape hatch. The renderer's
+  default framebuffer MSAA is wasted in post mode (can't change after context creation).
 
 ### 2026-11-06 (aa) — Soft-chunky art pass: biomes, pulley rig, fauna, builder thumbs
 - **Why:** founder feedback — trees pointy, rough edges, tropical and dry maps looked alike,
